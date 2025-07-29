@@ -2,36 +2,224 @@
 
 /* 基础样式 */
 body {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    line-height: 1.6;
+    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    line-height: 1.7;
     margin: 0;
     padding: 0;
     color: #333;
-    background-color: #fff;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4edf9 100%);
+    background-attachment: fixed;
+    padding: 20px;
+}
+
+/* 确保所有内容框的一致性 */
+.info-box, .warning-box, .chapter-summary, .key-vocabulary,
+.dialogue-box, .cultural-box, .exercise-box,
+.literary-quote, .author-profile, .prose-poetry {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+/* 统一悬停效果 */
+.info-box:hover, .warning-box:hover, .chapter-summary:hover,
+.key-vocabulary:hover, .dialogue-box:hover, .cultural-box:hover,
+.exercise-box:hover, .literary-quote:hover, .author-profile:hover,
+.prose-poetry:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+/* 统一内部标题样式 */
+.info-box h3, .warning-box h3, .chapter-summary h3,
+.key-vocabulary h3, .dialogue-box h3, .cultural-box h3,
+.exercise-box h3, .literary-quote h3, .author-profile h3,
+.prose-poetry h3 {
+    margin-top: 0;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+/* 统一闪光效果 */
+.info-box:after, .warning-box:after, .chapter-summary:after,
+.key-vocabulary:after, .dialogue-box:after, .cultural-box:after,
+.exercise-box:after, .literary-quote:after, .author-profile:after,
+.prose-poetry:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.info-box:hover:after, .warning-box:hover:after, .chapter-summary:hover:after,
+.key-vocabulary:hover:after, .dialogue-box:hover:after, .cultural-box:hover:after,
+.exercise-box:hover:after, .literary-quote:hover:after, .author-profile:hover:after,
+.prose-poetry:hover:after {
+    transform: translateX(100%);
+}
+
+/* 页面容器 */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.container:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, transparent 40%, rgba(52, 152, 219, 0.05) 50%, transparent 60%);
+    background-size: 200% 200%;
+    animation: gradientShift 10s ease infinite;
+    z-index: -1;
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 /* 章节标题 */
 h1 {
-    font-size: 2em;
+    font-size: 2.5em;
     text-align: center;
     margin: 1em 0;
-    color: #2c3e50;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 0.3em;
+    color: #fff;
+    background: linear-gradient(135deg, #3498db, #9b59b6);
+    padding: 0.5em;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+h1:after {
+    content: "📚";
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5em;
+    opacity: 0.8;
+}
+
+h1:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transform: translateX(-100%);
+    animation: shine 3s infinite;
 }
 
 h2 {
-    font-size: 1.5em;
+    font-size: 1.8em;
     margin: 1.2em 0 0.8em 0;
-    color: #34495e;
-    border-left: 4px solid #3498db;
-    padding-left: 0.5em;
+    color: #fff;
+    background: linear-gradient(135deg, #2980b9, #8e44ad);
+    padding: 0.4em 0.8em;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    position: relative;
+    overflow: hidden;
+}
+
+h2:before {
+    content: "📖";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.3em;
+    opacity: 0.8;
+}
+
+h2:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transform: translateX(-100%);
+    animation: shine 4s infinite;
 }
 
 h3 {
-    font-size: 1.2em;
+    font-size: 1.4em;
     margin: 1em 0 0.6em 0;
-    color: #555;
+    color: #fff;
+    background: linear-gradient(135deg, #1abc9c, #3498db);
+    padding: 0.3em 0.6em;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+}
+
+h3:before {
+    content: "📝";
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.1em;
+    opacity: 0.8;
+}
+
+h3:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transform: translateX(-100%);
+    animation: shine 5s infinite;
+}
+
+/* 标题闪光动画 */
+@keyframes shine {
+    0% {
+        transform: translateX(-100%);
+    }
+    20% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 /* 段落 */
@@ -39,6 +227,43 @@ p {
     margin: 0.8em 0;
     text-align: justify;
     text-indent: 2em;
+    line-height: 1.8;
+    font-size: 1.05em;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 1em;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+p:hover {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+p:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+p:hover:before {
+    transform: translateX(100%);
+}
+
+/* 段落中的emoji */
+p span.emoji {
+    font-style: normal;
+    vertical-align: middle;
 }
 
 /* 列表 */
@@ -49,46 +274,37 @@ ul, ol {
 
 li {
     margin: 0.3em 0;
-}
-
-/* 表格 */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1em 0;
-}
-
-th, td {
-    border: 1px solid #ddd;
+    position: relative;
     padding: 0.5em;
-    text-align: center;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 5px;
+    transition: all 0.3s ease;
 }
 
-th {
-    background-color: #f2f2f2;
-    font-weight: bold;
+li:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateX(5px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
 }
 
-/* 片假字相关样式 */
-.katakana-char {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #e74c3c;
-    margin: 0 0.2em;
+ul li:before {
+    content: "🔹";
+    position: absolute;
+    left: -1.5em;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #3498db;
 }
 
-.katakana-word {
-    font-weight: bold;
-    color: #2980b9;
-}
-
-.romaji {
-    font-style: italic;
-    color: #7f8c8d;
-}
-
-.chinese-pronunciation {
-    color: #27ae60;
+ol li:before {
+    content: "🔢";
+    position: absolute;
+    left: -1.5em;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #9b59b6;
 }
 
 /* 词汇列表样式 */
@@ -100,9 +316,19 @@ th {
 
 .vocabulary-item {
     margin: 0.5em 0;
-    padding: 0.5em;
+    padding: 0.8em;
     border-left: 3px solid #3498db;
     background-color: #f8f9fa;
+    border-radius: 0 5px 5px 0;
+    position: relative;
+}
+
+.vocabulary-item:before {
+    content: "📖";
+    position: absolute;
+    left: -20px;
+    top: 5px;
+    font-size: 1.2em;
 }
 
 .vocabulary-item strong {
@@ -119,31 +345,91 @@ th {
     color: #7f8c8d;
 }
 
-/* 引用 */
-blockquote {
-    margin: 1em 0;
-    padding: 0.5em 1em;
-    border-left: 4px solid #3498db;
-    background-color: #f8f9fa;
-    font-style: italic;
-}
-
-/* 代码 */
-code {
-    font-family: "Courier New", monospace;
-    background-color: #f5f5f5;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-}
 
 /* 链接 */
 a {
     color: #3498db;
     text-decoration: none;
+    position: relative;
+    padding: 0.2em 0.5em;
+    transition: all 0.3s ease;
+    border-radius: 4px;
+    background: rgba(52, 152, 219, 0.1);
+}
+
+a:before {
+    content: "🔗";
+    margin-right: 0.5em;
+    transition: all 0.3s ease;
 }
 
 a:hover {
-    text-decoration: underline;
+    text-decoration: none;
+    color: #fff;
+    background: linear-gradient(135deg, #3498db, #9b59b6);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+a:hover:before {
+    transform: rotate(20deg);
+}
+
+/* 表格 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+table:hover {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+th, td {
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 1em;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+th {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    font-weight: bold;
+    position: relative;
+    overflow: hidden;
+}
+
+th:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+th:hover:after {
+    transform: translateX(100%);
+}
+
+tr:nth-child(even) {
+    background: rgba(236, 240, 241, 0.5);
+}
+
+tr:hover {
+    background: rgba(52, 152, 219, 0.2);
+    transform: scale(1.01);
 }
 
 /* 图片 */
@@ -152,58 +438,334 @@ img {
     height: auto;
     display: block;
     margin: 1em auto;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border: 5px solid #fff;
+}
+
+img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    border-color: #3498db;
 }
 
 /* 页脚 */
 footer {
     text-align: center;
     margin: 2em 0;
-    padding: 1em;
-    border-top: 1px solid #eee;
+    padding: 1.5em;
+    border-top: 2px solid rgba(52, 152, 219, 0.3);
     color: #7f8c8d;
     font-size: 0.9em;
+    position: relative;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 0 0 10px 10px;
+}
+
+footer:before {
+    content: "📝";
+    position: absolute;
+    left: 50%;
+    top: -20px;
+    transform: translateX(-50%);
+    font-size: 2em;
+    background: linear-gradient(135deg, #3498db, #9b59b6);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
 }
 
 /* 响应式设计 */
 @media screen and (max-width: 768px) {
     body {
         font-size: 16px;
+        padding: 10px;
     }
     
     h1 {
         font-size: 1.8em;
+        padding: 0 10px;
+    }
+    
+    h1:after {
+        right: 0;
+        top: 0;
     }
     
     h2 {
         font-size: 1.4em;
+        padding-left: 0.5em;
+    }
+    
+    h2:before {
+        left: -20px;
+        font-size: 1em;
     }
     
     h3 {
         font-size: 1.1em;
+        padding-left: 0.5em;
+    }
+    
+    h3:before {
+        left: -20px;
+        font-size: 0.8em;
+    }
+    
+    p {
+        text-indent: 1em;
+        font-size: 1em;
+    }
+    
+    ul, ol {
+        padding-left: 1.5em;
+    }
+    
+    li {
+        margin: 0.2em 0;
+    }
+    
+    ul li:before, ol li:before {
+        left: -1.2em;
+        font-size: 0.8em;
+    }
+    
+    .vocabulary-item {
+        padding: 0.5em;
+    }
+    
+    .vocabulary-item:before {
+        left: -15px;
+        font-size: 1em;
+    }
+    
+    table {
+        font-size: 0.9em;
+    }
+    
+    th, td {
+        padding: 0.5em;
+    }
+    
+    .info-box, .warning-box, .chapter-summary, .key-vocabulary, .dialogue-box, .cultural-box, .exercise-box {
+        padding: 1em;
+        margin: 1em 0;
+    }
+    
+    .info-box:before, .warning-box:before {
+        left: -10px;
+        top: -10px;
+        font-size: 1.2em;
+        width: 25px;
+        height: 25px;
+    }
+    
+    .index ul {
+        columns: 1;
+        column-gap: 0;
+    }
+    
+    .key-vocabulary ul {
+        columns: 1;
+        column-gap: 0;
+    }
+    
+    .toc {
+        padding: 1em;
+    }
+    
+    .toc:before {
+        font-size: 1.2em;
+        left: 5px;
+        top: 5px;
+    }
+    
+    .toc li {
+        padding: 0.2em 0.3em;
+    }
+    
+    .toc a {
+        padding: 0.2em 0.3em;
+        padding-left: 1.2em;
+    }
+    
+    /* 人文内容样式响应式优化 */
+    .literary-quote, .author-profile, .prose-poetry {
+        padding: 1.2em;
+        margin: 1.2em 0;
+    }
+    
+    .literary-quote:before {
+        font-size: 3.5em;
+        left: 15px;
+        top: 15px;
+    }
+    
+    .author-profile:before {
+        font-size: 2.5em;
+        right: 15px;
+        top: 15px;
+    }
+    
+    .prose-poetry:before {
+        font-size: 2.5em;
+        right: 15px;
+        top: 15px;
+    }
+}
+
+/* 超小屏幕设备优化 */
+@media screen and (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+    }
+    
+    h2 {
+        font-size: 1.2em;
+        border-left-width: 3px;
+    }
+    
+    h3 {
+        font-size: 1em;
+        border-left-width: 2px;
+    }
+    
+    p {
+        text-indent: 0.5em;
+    }
+    
+    ul, ol {
+        padding-left: 1em;
+    }
+    
+    table {
+        font-size: 0.8em;
+    }
+    
+    th, td {
+        padding: 0.3em;
+    }
+    
+    a {
+        padding-left: 1em;
+    }
+    
+    a:before {
+        font-size: 0.8em;
+    }
+    
+    .toc {
+        padding: 0.8em;
+    }
+    
+    .toc:before {
+        font-size: 1em;
+        left: 3px;
+        top: 3px;
+    }
+    
+    .toc li {
+        padding: 0.1em 0.2em;
+    }
+    
+    .toc a {
+        padding: 0.1em 0.2em;
+        padding-left: 1em;
+    }
+    
+    .toc a:before {
+        font-size: 1em;
+    }
+    
+    /* 人文内容样式响应式优化 */
+    .literary-quote, .author-profile, .prose-poetry {
+        padding: 1em;
+        margin: 1em 0;
+    }
+    
+    .literary-quote:before {
+        font-size: 3em;
+        left: 10px;
+        top: 10px;
+    }
+    
+    .author-profile:before {
+        font-size: 2em;
+        right: 10px;
+        top: 10px;
+    }
+    
+    .prose-poetry:before {
+        font-size: 2em;
+        right: 10px;
+        top: 10px;
+    }
+    
+    .author-profile .works li {
+        font-size: 0.9em;
     }
 }
 
 /* 目录样式 */
 .toc {
     margin: 2em 0;
-    padding: 1em;
+    padding: 1.5em;
     background-color: #f8f9fa;
-    border-radius: 5px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.toc:before {
+    content: "📋";
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    font-size: 1.5em;
+    color: #3498db;
 }
 
 .toc h2 {
     text-align: center;
     border-left: none;
     padding-left: 0;
+    margin-top: 0;
+    padding-top: 0.5em;
+    color: #2c3e50;
+}
+
+.toc h2:before {
+    content: "📚";
+    margin-right: 10px;
 }
 
 .toc ul {
     list-style-type: none;
     padding-left: 0;
+    margin-top: 1em;
 }
 
 .toc li {
     margin: 0.5em 0;
+    padding: 0.3em 0.5em;
+    border-left: 3px solid #3498db;
+    border-radius: 0 3px 3px 0;
+    transition: all 0.3s ease;
+}
+
+.toc li:hover {
+    background-color: #e3f2fd;
+    transform: translateX(5px);
 }
 
 .toc a {
@@ -212,11 +774,27 @@ footer {
     display: block;
     padding: 0.3em 0.5em;
     border-radius: 3px;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.toc a:before {
+    content: "📖";
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 1.2em;
 }
 
 .toc a:hover {
-    background-color: #eee;
+    background-color: transparent;
     text-decoration: none;
+    color: #3498db;
+    transform: translateX(5px);
+}
+
+.toc a:hover:before {
+    transform: rotate(10deg);
 }
 
 /* 索引样式 */
@@ -245,21 +823,183 @@ footer {
     break-inside: avoid;
 }
 
+/* 作者介绍样式 */
+.author-profile {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #fff0f5 0%, #f8bbd0 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(233, 30, 99, 0.3);
+}
+
+.author-profile:before {
+    content: "👤";
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 3em;
+    color: #e91e63;
+    opacity: 0.2;
+}
+
+.author-profile:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.author-profile:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.author-profile:hover:after {
+    transform: translateX(100%);
+}
+
+.author-profile h3 {
+    margin-top: 0;
+    color: #e91e63;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.author-profile h3:before {
+    content: "✍️";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #e91e63;
+}
+
+.author-profile .bio {
+    font-style: italic;
+    color: #666;
+    margin: 0.5em 0;
+}
+
+.author-profile .works {
+    margin-top: 1em;
+}
+
+.author-profile .works h4 {
+    color: #e91e63;
+    margin-bottom: 0.5em;
+}
+
+.author-profile .works ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.author-profile .works li {
+    padding: 0.3em 0;
+    border-bottom: 1px dashed rgba(233, 30, 99, 0.2);
+}
+
+.author-profile .works li:before {
+    content: "📚";
+    margin-right: 0.5em;
+    color: #e91e63;
+}
+
 /* 特殊内容框 */
 .info-box {
-    margin: 1em 0;
-    padding: 1em;
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
-    border-radius: 3px;
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.info-box:before {
+    content: "ℹ️";
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    font-size: 2em;
+    color: #3498db;
+    opacity: 0.7;
+}
+
+.info-box:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.info-box:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.info-box:hover:after {
+    transform: translateX(100%);
 }
 
 .warning-box {
-    margin: 1em 0;
-    padding: 1em;
-    background-color: #fff3e0;
-    border-left: 4px solid #ff9800;
-    border-radius: 3px;
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.warning-box:before {
+    content: "⚠️";
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    font-size: 2em;
+    color: #ff9800;
+    opacity: 0.7;
+}
+
+.warning-box:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.warning-box:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.warning-box:hover:after {
+    transform: translateX(100%);
 }
 
 /* 注释 */
@@ -267,37 +1007,471 @@ footer {
     font-size: 0.9em;
     color: #7f8c8d;
     margin: 0.5em 0;
+    padding: 0.8em;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border-left: 3px solid #7f8c8d;
+}
+
+/* 文学作品引用样式 */
+.literary-quote {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #f5f0ff 0%, #e1d5f5 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(156, 39, 176, 0.3);
+    font-style: italic;
+}
+
+.literary-quote:before {
+    content: """";
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    font-size: 4em;
+    color: #9c27b0;
+    opacity: 0.2;
+    font-family: serif;
+}
+
+.literary-quote:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.literary-quote:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.literary-quote:hover:after {
+    transform: translateX(100%);
+}
+
+.literary-quote .author {
+    display: block;
+    text-align: right;
+    margin-top: 1em;
+    font-style: normal;
+    font-weight: bold;
+    color: #9c27b0;
+}
+
+.literary-quote .author:before {
+    content: "—— ";
 }
 
 /* 章节总结 */
 .chapter-summary {
     margin: 2em 0;
-    padding: 1em;
-    background-color: #e8f4f8;
-    border-left: 4px solid #3498db;
-    border-radius: 3px;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #e8f4f8 0%, #b2ebf2 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.chapter-summary:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.chapter-summary:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.chapter-summary:hover:before {
+    transform: translateX(100%);
 }
 
 .chapter-summary h3 {
     margin-top: 0;
     color: #2c3e50;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.chapter-summary h3:before {
+    content: "✅";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #27ae60;
 }
 
 /* 重点词汇 */
 .key-vocabulary {
     margin: 1.5em 0;
-    padding: 1em;
-    background-color: #fff8e1;
-    border-left: 4px solid #ffc107;
-    border-radius: 3px;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.key-vocabulary:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.key-vocabulary:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.key-vocabulary:hover:before {
+    transform: translateX(100%);
 }
 
 .key-vocabulary h3 {
     margin-top: 0;
     color: #ff9800;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.key-vocabulary h3:before {
+    content: "⭐";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #ffc107;
 }
 
 .key-vocabulary ul {
     columns: 2;
     column-gap: 1.5em;
+}
+
+/* 新增的内容框样式 */
+
+/* 对话框样式 */
+.dialogue-box {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #f0f8ff 0%, #bbdefb 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.dialogue-box:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.dialogue-box:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.dialogue-box:hover:before {
+    transform: translateX(100%);
+}
+
+.dialogue-box h3 {
+    margin-top: 0;
+    color: #4caf50;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.dialogue-box h3:before {
+    content: "💬";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #4caf50;
+}
+
+/* 文化背景框样式 */
+.cultural-box {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #f5f0ff 0%, #d1c4e9 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.cultural-box:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.cultural-box:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.cultural-box:hover:before {
+    transform: translateX(100%);
+}
+
+.cultural-box h3 {
+    margin-top: 0;
+    color: #9c27b0;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.cultural-box h3:before {
+    content: "🏯";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #9c27b0;
+}
+
+/* 练习框样式 */
+.exercise-box {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #fff0f5 0%, #f8bbd0 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(233, 30, 99, 0.3);
+}
+
+.exercise-box:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.exercise-box:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.exercise-box:hover:before {
+    transform: translateX(100%);
+}
+
+.exercise-box h3 {
+    margin-top: 0;
+    color: #e91e63;
+    position: relative;
+    padding-left: 1.5em;
+}
+
+.exercise-box h3:before {
+    content: "✍️";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #e91e63;
+}
+
+/* 散文/诗歌内容框样式 */
+.prose-poetry {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 188, 212, 0.3);
+    font-family: 'STKaiti', 'KaiTi', serif;
+}
+
+.prose-poetry:before {
+    content: "📜";
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 3em;
+    color: #00bcd4;
+    opacity: 0.2;
+}
+
+.prose-poetry:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: translateX(-100%);
+    transition: all 0.3s ease;
+}
+
+.prose-poetry:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.prose-poetry:hover:after {
+    transform: translateX(100%);
+}
+
+.prose-poetry h3 {
+    margin-top: 0;
+    color: #00bcd4;
+    position: relative;
+    padding-left: 1.5em;
+    text-align: center;
+}
+
+.prose-poetry h3:before {
+    content: "🖋️";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    color: #00bcd4;
+}
+
+.prose-poetry .poem-line {
+    margin: 0.5em 0;
+    text-align: center;
+    line-height: 1.8;
+}
+
+.prose-poetry .poem-title {
+    font-weight: bold;
+    text-align: center;
+    margin: 1em 0;
+    color: #00bcd4;
+}
+
+/* 页面装饰元素 */
+body:before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: linear-gradient(90deg, #3498db, #2196f3, #4caf50, #ffc107, #ff9800, #e91e63);
+    z-index: 1000;
+}
+
+/* 背景装饰元素 */
+.container:after {
+    content: " japanese learning ";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10em;
+    font-weight: bold;
+    color: rgba(52, 152, 219, 0.03);
+    white-space: nowrap;
+    z-index: -1;
+    pointer-events: none;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* 角落装饰 */
+.container .corner-decoration {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border: 2px solid #3498db;
+    opacity: 0.2;
+}
+
+.container .corner-decoration.top-left {
+    top: 20px;
+    left: 20px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.container .corner-decoration.top-right {
+    top: 20px;
+    right: 20px;
+    border-left: none;
+    border-bottom: none;
+}
+
+.container .corner-decoration.bottom-left {
+    bottom: 20px;
+    left: 20px;
+    border-right: none;
+    border-top: none;
+}
+
+.container .corner-decoration.bottom-right {
+    bottom: 20px;
+    right: 20px;
+    border-left: none;
+    border-top: none;
 }
