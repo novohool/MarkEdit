@@ -25,11 +25,6 @@
 ```bash
 npm run build
 ```
-### 直接使用pandoc命令构建
-
-```bash
-pandoc src/metadata.yml src/book.md src/chapters/01-introduction.md src/chapters/02-katakana-basics.md src/chapters/03-readings-and-meanings.md src/chapters/04-daily-expressions.md src/chapters/05-classical-stories.md src/chapters/07-scenic-spots.md src/chapters/06-poetry-and-rhythm.md src/chapters/08-cultural-heritage.md src/chapters/09-music-and-anime.md -o build/katakana-dictionary.epub --toc --toc-depth=2 --split-level=2 --css=src/css/style.css
-```
 
 ## 许可证
 
