@@ -1,0 +1,18 @@
+{
+  "name": "katakana-dictionary",
+  "version": "1.0.0",
+  "description": "片假字日语词典 - 包含日常用语句式、典故、音律、诗歌、风景名胜、文化古迹等内容的EPUB电子书",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build-epub.js",
+    "test": "echo \"错误：没有指定测试命令\" && exit 1"
+  },
+  "keywords": [
+    "katakana",
+    "japanese",
+    "dictionary",
+    "epub"
+  ],
+  "author": "Kilo Code",
+  "license": "MIT"
+}
