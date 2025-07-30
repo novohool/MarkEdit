@@ -26,8 +26,9 @@ katakana-dictionary/
 │   │   └── images/
 │   │       └── cover-description.txt  # 封面描述文件
 │   ├── css/
-│   │   ├── style.css          # EPUB样式文件
-│   │   └── pdf-style.css      # PDF样式文件
+│   │   ├── common-style.css   # 通用样式文件，支持木质主题和夜间模式
+│   │   ├── pdf-style.css      # PDF样式文件
+│   │   └── style.css          # EPUB样式文件
 │   └── templates/
 │       └── chapter-template.md
 └── build/
@@ -48,12 +49,14 @@ katakana-dictionary/
 - `src/chapters/02-katakana-basics.md`: 片假字读音与意思对比
 - `src/chapters/03-readings-and-meanings.md`: 日常用语句式
 - `src/chapters/04-daily-expressions.md`: 典故与历史
-- `src/chapters/05-classical-stories.md`: 文化古迹
-- `src/chapters/06-poetry-and-rhythm.md`: 音律与诗歌
+- `src/chapters/05-classical-stories.md`: 音律与诗歌
+- `src/chapters/06-poetry-and-rhythm.md`: 风景名胜
 - `src/chapters/07-scenic-spots.md`: 风景名胜
 - `src/chapters/08-cultural-heritage.md`: 片假字的未来发展与学习建议
 - `src/chapters/09-music-and-anime.md`: 音乐与动漫中的片假字
 - `src/assets/images/`: 图像资源文件
+- `src/css/common-style.css`: 通用样式文件，支持木质主题和夜间模式
+- `src/css/pdf-style.css`: PDF样式文件
 - `src/css/style.css`: EPUB样式文件
 - `src/templates/`: 模板文件
 - `build/katakana-dictionary.epub`: 最终生成的EPUB文件
