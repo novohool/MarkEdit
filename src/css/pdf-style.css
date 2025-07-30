@@ -1,0 +1,367 @@
+/* 片假字日语词典 PDF 样式 */
+/* 木质风格主题，支持夜间模式 */
+
+/* 基础样式 - 木质风格 */
+body {
+    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    line-height: 1.7;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    /* 木质纹理背景 */
+    background-color: #f0e6d2;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23d4c8a9' fill-opacity='0.2' fill-rule='evenodd'/%3E%3C/svg%3E");
+    padding: 20px;
+}
+
+/* 夜间模式支持 */
+@media (prefers-color-scheme: dark) {
+    body {
+        color: #e0e0e0;
+        background-color: #2b2518;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%234d422d' fill-opacity='0.2' fill-rule='evenodd'/%3E%3C/svg%3E");
+    }
+}
+
+/* 页面容器 */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 夜间模式下的容器 */
+@media (prefers-color-scheme: dark) {
+    .container {
+        background-color: rgba(50, 45, 35, 0.9);
+    }
+}
+
+/* 章节标题 */
+h1 {
+    font-size: 2.5em;
+    text-align: center;
+    margin: 1em 0;
+    color: #5d4037;
+    background-color: #d7ccc8;
+    padding: 0.5em;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 夜间模式下的h1 */
+@media (prefers-color-scheme: dark) {
+    h1 {
+        color: #d7ccc8;
+        background-color: #4e342e;
+    }
+}
+
+h2 {
+    font-size: 1.8em;
+    margin: 1.2em 0 0.8em 0;
+    color: #5d4037;
+    background-color: #d7ccc8;
+    padding: 0.4em 0.8em;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 夜间模式下的h2 */
+@media (prefers-color-scheme: dark) {
+    h2 {
+        color: #d7ccc8;
+        background-color: #4e342e;
+    }
+}
+
+h3 {
+    font-size: 1.4em;
+    margin: 1em 0 0.6em 0;
+    color: #5d4037;
+    background-color: #d7ccc8;
+    padding: 0.3em 0.6em;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+}
+
+/* 夜间模式下的h3 */
+@media (prefers-color-scheme: dark) {
+    h3 {
+        color: #d7ccc8;
+        background-color: #4e342e;
+    }
+}
+
+/* 段落 */
+p {
+    margin: 0.8em 0;
+    text-align: justify;
+    text-indent: 2em;
+    line-height: 1.8;
+    font-size: 1.05em;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 1em;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 夜间模式下的段落 */
+@media (prefers-color-scheme: dark) {
+    p {
+        background-color: rgba(60, 55, 45, 0.7);
+    }
+}
+
+/* 列表 */
+ul, ol {
+    margin: 0.8em 0;
+    padding-left: 2em;
+}
+
+li {
+    margin: 0.3em 0;
+    position: relative;
+    padding: 0.5em;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 5px;
+}
+
+/* 夜间模式下的列表项 */
+@media (prefers-color-scheme: dark) {
+    li {
+        background-color: rgba(60, 55, 45, 0.7);
+    }
+}
+
+/* 表格 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+/* 夜间模式下的表格 */
+@media (prefers-color-scheme: dark) {
+    table {
+        background-color: rgba(60, 55, 45, 0.8);
+    }
+}
+
+th, td {
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 1em;
+    text-align: center;
+}
+
+/* 夜间模式下的表头 */
+@media (prefers-color-scheme: dark) {
+    th {
+        background-color: #4e342e;
+        color: #d7ccc8;
+    }
+}
+
+tr:nth-child(even) {
+    background: rgba(215, 204, 200, 0.5);
+}
+
+/* 夜间模式下的偶数行 */
+@media (prefers-color-scheme: dark) {
+    tr:nth-child(even) {
+        background: rgba(78, 52, 46, 0.5);
+    }
+}
+
+/* 特殊内容框 */
+.info-box, .warning-box, .chapter-summary, .key-vocabulary,
+.dialogue-box, .cultural-box, .exercise-box,
+.literary-quote, .author-profile, .prose-poetry {
+    margin: 1.5em 0;
+    padding: 1.5em;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.info-box {
+    background-color: #bbdefb;
+    border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.warning-box {
+    background-color: #ffe0b2;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.chapter-summary {
+    background-color: #b2ebf2;
+    border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.key-vocabulary {
+    background-color: #ffecb3;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.dialogue-box {
+    background-color: #bbdefb;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.cultural-box {
+    background-color: #d1c4e9;
+    border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.exercise-box {
+    background-color: #f8bbd0;
+    border: 1px solid rgba(233, 30, 99, 0.3);
+}
+
+.literary-quote {
+    background-color: #e1d5f5;
+    border: 1px solid rgba(156, 39, 176, 0.3);
+    font-style: italic;
+}
+
+.author-profile {
+    background-color: #f8bbd0;
+    border: 1px solid rgba(233, 30, 99, 0.3);
+}
+
+.prose-poetry {
+    background-color: #b2ebf2;
+    border: 1px solid rgba(0, 188, 212, 0.3);
+    font-family: 'STKaiti', 'KaiTi', serif;
+}
+
+/* 夜间模式下的特殊内容框 */
+@media (prefers-color-scheme: dark) {
+    .info-box {
+        background-color: #2c3e50;
+        border: 1px solid rgba(179, 229, 252, 0.3);
+        color: #e0f7fa;
+    }
+    
+    .warning-box {
+        background-color: #5d4037;
+        border: 1px solid rgba(255, 224, 178, 0.3);
+        color: #fff3e0;
+    }
+    
+    .chapter-summary {
+        background-color: #2c3e50;
+        border: 1px solid rgba(179, 229, 252, 0.3);
+        color: #e0f7fa;
+    }
+    
+    .key-vocabulary {
+        background-color: #5d4037;
+        border: 1px solid rgba(255, 236, 179, 0.3);
+        color: #fffde7;
+    }
+    
+    .dialogue-box {
+        background-color: #2c3e50;
+        border: 1px solid rgba(179, 229, 252, 0.3);
+        color: #e0f7fa;
+    }
+    
+    .cultural-box {
+        background-color: #4a148c;
+        border: 1px solid rgba(209, 196, 233, 0.3);
+        color: #f3e5f5;
+    }
+    
+    .exercise-box {
+        background-color: #5d4037;
+        border: 1px solid rgba(248, 187, 208, 0.3);
+        color: #fce4ec;
+    }
+    
+    .literary-quote {
+        background-color: #4a148c;
+        border: 1px solid rgba(209, 196, 233, 0.3);
+        color: #f3e5f5;
+    }
+    
+    .author-profile {
+        background-color: #5d4037;
+        border: 1px solid rgba(248, 187, 208, 0.3);
+        color: #fce4ec;
+    }
+    
+    .prose-poetry {
+        background-color: #2c3e50;
+        border: 1px solid rgba(179, 229, 252, 0.3);
+        color: #e0f7fa;
+    }
+}
+
+/* 链接 */
+a {
+    color: #5d4037;
+    text-decoration: none;
+    position: relative;
+    padding: 0.2em 0.5em;
+    border-radius: 4px;
+    background: rgba(215, 204, 200, 0.3);
+}
+
+/* 夜间模式下的链接 */
+@media (prefers-color-scheme: dark) {
+    a {
+        color: #d7ccc8;
+        background: rgba(78, 52, 46, 0.3);
+    }
+}
+
+/* 响应式设计 */
+@media print {
+    body {
+        font-size: 12pt;
+        padding: 0;
+        background: none;
+    }
+    
+    .container {
+        max-width: 100%;
+        padding: 0;
+        background: none;
+        border-radius: 0;
+    }
+    
+    h1, h2, h3 {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+    
+    p {
+        page-break-inside: avoid;
+    }
+    
+    table, figure {
+        page-break-inside: avoid;
+    }
+    
+    thead {
+        display: table-header-group;
+    }
+    
+    tr {
+        page-break-inside: avoid;
+    }
+}

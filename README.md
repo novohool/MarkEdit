@@ -26,6 +26,28 @@
 npm run build
 ```
 
+### 使用Node.js脚本生成PDF
+
+```bash
+npm run build:pdf
+```
+
+如果 `wkhtmltopdf` 安装在不同的位置，可以通过设置环境变量 `WKHTMLTOPDF_PATH` 来指定其路径：
+
+```bash
+# Windows (Command Prompt)
+set WKHTMLTOPDF_PATH="C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+npm run build:pdf
+
+# Windows (PowerShell)
+$env:WKHTMLTOPDF_PATH="C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+npm run build:pdf
+
+# macOS/Linux
+export WKHTMLTOPDF_PATH=/usr/local/bin/wkhtmltopdf
+npm run build:pdf
+```
+
 ## 许可证
 
 MIT

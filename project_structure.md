@@ -8,7 +8,7 @@ katakana-dictionary/
 ├── SUMMARY.md
 ├── package.json
 ├── build-epub.js              # Node.js构建脚本
-├── build-epub.go              # Go语言构建脚本
+├── build-pdf.js               # Node.js PDF构建脚本
 ├── src/
 │   ├── book.md                # 书籍主文件
 │   ├── metadata.yml           # 元数据文件
@@ -26,7 +26,8 @@ katakana-dictionary/
 │   │   └── images/
 │   │       └── cover-description.txt  # 封面描述文件
 │   ├── css/
-│   │   └── style.css          # EPUB样式文件
+│   │   ├── style.css          # EPUB样式文件
+│   │   └── pdf-style.css      # PDF样式文件
 │   └── templates/
 │       └── chapter-template.md
 └── build/
