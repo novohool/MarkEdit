@@ -8,7 +8,7 @@ const chaptersDir = path.join(srcDir, 'chapters');
 const buildDir = 'build';
 const metadataFile = path.join(srcDir, 'metadata.yml');
 const bookFile = path.join(srcDir, 'book.md');
-const cssFile = path.join(srcDir, 'css', 'style.css');
+const cssFile = path.join(srcDir, 'css', 'common-style.css');
 
 // 创建输出目录（如果不存在）
 if (!fs.existsSync(buildDir)) {

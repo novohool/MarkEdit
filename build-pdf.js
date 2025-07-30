@@ -8,7 +8,7 @@ const chaptersDir = path.join(srcDir, 'chapters');
 const buildDir = 'build';
 const metadataFile = path.join(srcDir, 'metadata.yml');
 const bookFile = path.join(srcDir, 'book.md');
-const cssFile = path.join(srcDir, 'css', 'pdf-style.css');
+const cssFile = path.join(srcDir, 'css', 'common-style.css');
 
 // wkhtmltopdf路径配置
 const wkhtmltopdfPath = process.env.WKHTMLTOPDF_PATH || `"wkhtmltopdf"`;
