@@ -61,5 +61,4 @@ katakana-dictionary/
 ## 构建方式
 
 1. **Node.js方式**: `npm run build` 或 `node build-epub.js`
-2. **Go语言方式**: `go run build-epub.go`
-3. **直接使用pandoc**: 通过命令行直接运行pandoc命令
+2. **直接使用pandoc**: 通过命令行直接运行pandoc命令
