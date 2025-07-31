@@ -450,6 +450,47 @@ img:hover {
     border-color: #3498db;
 }
 
+/* 插图容器 */
+.chapter-illustration {
+    text-align: center;
+    margin: 1.5em 0;
+    padding: 1em;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.illustration-container {
+    display: inline-block;
+    max-width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.illustration-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-top: 0.8em;
+    color: #3498db;
+    text-align: center;
+}
+
+/* 插图悬停效果 */
+.illustration-container:hover {
+    transform: scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.chapter-illustration:hover {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
 /* 页脚 */
 footer {
     text-align: center;

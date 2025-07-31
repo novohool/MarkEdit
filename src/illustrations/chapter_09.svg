@@ -1,0 +1,54 @@
+<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .katakana { font: bold 18px sans-serif; fill: #b22222; }
+    .label { font: 14px sans-serif; fill: #333; }
+    .title { font: bold 18px sans-serif; fill: #000; }
+    .media { font: 12px sans-serif; fill: #666; }
+  </style>
+  
+  <!-- 背景 -->
+  <rect width="100%" height="100%" fill="#fff5ee"/>
+  
+  <!-- 标题 -->
+  <text x="200" y="25" class="title" text-anchor="middle">第9章：音乐与动漫中的片假字</text>
+  
+  <!-- 音符元素 -->
+  <circle cx="60" cy="70" r="15" fill="#ffd700"/>
+  <text x="60" y="75" class="katakana" text-anchor="middle">♪</text>
+  
+  <text x="60" y="100" class="katakana" text-anchor="middle">ラブソング</text>
+  
+  <!-- 动漫角色 -->
+  <circle cx="150" cy="80" r="25" fill="#ff6347"/>
+  <text x="150" y="85" class="katakana" text-anchor="middle">コナン</text>
+  
+  <!-- 动漫作品 -->
+  <rect x="230" y="60" width="100" height="40" rx="5" fill="#4169e1"/>
+  <text x="280" y="85" class="katakana" text-anchor="middle">ワンピース</text>
+  
+  <!-- 声优 -->
+  <polygon points="60,140 80,130 100,140 100,160 80,170 60,160" fill="#32cd32"/>
+  <text x="80" y="155" class="katakana" text-anchor="middle">声優</text>
+  
+  <!-- 音乐艺人 -->
+  <ellipse cx="180" cy="150" rx="30" ry="20" fill="#da70d6"/>
+  <text x="180" y="155" class="katakana" text-anchor="middle">ヒカリ</text>
+  
+  <!-- 播放按钮 -->
+  <polygon points="270,140 290,150 270,160" fill="#666"/>
+  <circle cx="280" cy="150" r="20" fill="none" stroke="#666" stroke-width="2"/>
+  <text x="280" y="180" class="media" text-anchor="middle">音乐</text>
+  
+  <!-- 动漫符号 -->
+  <path d="M320,130 L340,130 L340,150 L360,150 L360,170 L340,170 L340,190 L320,190 L320,170 L300,170 L300,150 L320,150 Z" fill="#ff6347"/>
+  <text x="330" y="185" class="media" text-anchor="middle">动漫</text>
+  
+  <!-- 说明文字 -->
+  <text x="200" y="220" class="label" text-anchor="middle">片假字在音乐与动漫文化中的广泛应用</text>
+  <text x="200" y="240" class="label" text-anchor="middle">包括歌曲、角色、艺人名称等</text>
+  
+  <!-- 装饰元素 -->
+  <circle cx="370" cy="30" r="8" fill="#4169e1"/>
+  <circle cx="20" cy="270" r="10" fill="#ff6347"/>
+  <polygon points="360,260 370,280 350,280" fill="#32cd32"/>
+</svg>

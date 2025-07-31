@@ -555,3 +555,118 @@ body.wooden-theme .prose-poetry {
         color: #000;
     }
 }
+
+/* 插图样式 */
+.chapter-illustration {
+    text-align: center;
+    margin: 1.5em 0;
+    padding: 1em;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 木质主题下的插图 */
+body.wooden-theme .chapter-illustration {
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+/* 夜间模式下的插图 */
+@media (prefers-color-scheme: dark) {
+    .chapter-illustration {
+        background: rgba(60, 55, 45, 0.7);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+}
+
+/* 插图容器 */
+.illustration-container {
+    display: inline-block;
+    max-width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+/* 木质主题下的插图容器 */
+body.wooden-theme .illustration-container {
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+
+/* 夜间模式下的插图容器 */
+@media (prefers-color-scheme: dark) {
+    .illustration-container {
+        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    }
+}
+
+/* 插图标题 */
+.illustration-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-top: 0.8em;
+    color: #3498db;
+    text-align: center;
+}
+
+/* 木质主题下的插图标题 */
+body.wooden-theme .illustration-title {
+    color: #8c7454;
+}
+
+/* 夜间模式下的插图标题 */
+@media (prefers-color-scheme: dark) {
+    .illustration-title {
+        color: #d7ccc8;
+    }
+}
+
+/* 响应式插图 */
+@media screen and (max-width: 768px) {
+    .chapter-illustration {
+        padding: 0.5em;
+        margin: 1em 0;
+    }
+    
+    .illustration-container {
+        max-width: 100%;
+    }
+    
+    .illustration-title {
+        font-size: 1em;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .chapter-illustration {
+        padding: 0.3em;
+        margin: 0.8em 0;
+    }
+    
+    .illustration-title {
+        font-size: 0.9em;
+    }
+}
+
+/* 打印时的插图样式 */
+@media print {
+    .chapter-illustration {
+        background: none;
+        box-shadow: none;
+        border: 1px solid #000;
+        page-break-inside: avoid;
+    }
+    
+    .illustration-container {
+        box-shadow: none;
+    }
+    
+    .illustration-title {
+        color: #000;
+    }
+}

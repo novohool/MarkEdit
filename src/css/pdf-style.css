@@ -329,6 +329,43 @@ a {
     }
 }
 
+/* 插图容器 */
+.chapter-illustration {
+    text-align: center;
+    margin: 1.5em 0;
+    padding: 1em;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 15px;
+    position: relative;
+    overflow: hidden;
+}
+
+.illustration-container {
+    display: inline-block;
+    max-width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.illustration-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-top: 0.8em;
+    color: #5d4037;
+    text-align: center;
+}
+
+/* 夜间模式下的插图样式 */
+@media (prefers-color-scheme: dark) {
+    .chapter-illustration {
+        background: rgba(60, 55, 45, 0.7);
+    }
+    
+    .illustration-title {
+        color: #d7ccc8;
+    }
+}
+
 /* 响应式设计 */
 @media print {
     body {
