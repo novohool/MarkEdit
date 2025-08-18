@@ -1,53 +1,86 @@
-# 片假字日语词典
+# MarkEdit Web Editor
 
-这是一个包含中文和日语片假字读音意思对比的词典，内容涵盖日常用语句式、典故、音律、诗歌、风景名胜、文化古迹、音乐与动漫等丰富信息，并制作成EPUB电子书格式。
+一个基于FastAPI的Web图形化编辑器，用于编辑src目录下的所有类型内容。
+
+## 功能特性
+
+- 图形化文件浏览器
+- 支持多种文件格式的查看和编辑：
+  - 文本文件（.md, .yml, .css, .html, .js, .json等）
+  - 图片文件（.png, .jpg, .jpeg, .gif, .svg等）
+  - 二进制文件（显示为不可编辑的提示）
+- 创建新文件
+- 保存文件修改
+- 删除文件
+
+## 安装和运行
+
+1. 克隆项目到本地：
+   ```
+   git clone <repository-url>
+   cd MarkEdit
+   ```
+
+2. 创建虚拟环境（推荐）：
+   ```
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   venv\Scripts\activate      # Windows
+   ```
+
+3. 安装依赖：
+   ```
+   pip install -r requirements.txt
+   ```
+
+4. 运行应用：
+   ```
+   python app/main.py
+   ```
+
+   或者使用uvicorn：
+   ```
+   uvicorn app.main:app --reload
+   ```
+
+5. 在浏览器中访问：
+   ```
+   http://localhost:8000
+   ```
 
 ## 项目结构
 
-请查看 [project_structure.md](project_structure.md) 了解完整的项目目录结构。
-
-## 内容章节
-
-1. 片假字基础知识
-2. 片假字读音与意思对比
-3. 日常用语句式
-4. 典故与历史
-5. 文化古迹
-6. 风景名胜
-7. 音律与诗歌
-8. 音乐与动漫中的片假字
-9. 片假字的未来发展与学习建议
-
-## 构建EPUB电子书
->需先安装pandoc和wkhtmltopdf这两个工具
-
-### 使用Node.js脚本构建（推荐）
-
-```bash
-npm run build
+```
+MarkEdit/
+├── app/                 # FastAPI应用
+│   └── main.py          # 主应用文件
+├── src/                 # 要编辑的源文件目录
+├── static/              # 静态资源
+│   ├── css/             # CSS样式文件
+│   └── js/              # JavaScript文件
+├── templates/           # HTML模板
+├── requirements.txt     # Python依赖
+└── README.md            # 项目说明文件
 ```
 
-### 使用Node.js脚本生成PDF
+## API接口
 
-```bash
-npm run build:pdf
-```
+- `GET /` - 返回主页面
+- `GET /api/files` - 获取文件树结构
+- `GET /api/file/{file_path}` - 获取文件内容
+- `POST /api/file/{file_path}` - 保存文件内容
+- `DELETE /api/file/{file_path}` - 删除文件
+- `POST /api/create-file/{file_path}` - 创建新文件
 
-如果 `wkhtmltopdf` 安装在不同的位置，可以通过设置环境变量 `WKHTMLTOPDF_PATH` 来指定其路径：
+## 技术栈
 
-```bash
-# Windows (Command Prompt)
-set WKHTMLTOPDF_PATH="C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
-npm run build:pdf
+- 后端：FastAPI
+- 前端：HTML, CSS, JavaScript
+- 模板引擎：Jinja2
 
-# Windows (PowerShell)
-$env:WKHTMLTOPDF_PATH="C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
-npm run build:pdf
+## 开发
 
-# macOS/Linux
-export WKHTMLTOPDF_PATH=/usr/local/bin/wkhtmltopdf
-npm run build:pdf
-```
+要进行开发，可以直接修改`app/main.py`中的FastAPI应用，或者修改`static/js/main.js`中的前端JavaScript代码。
 
 ## 许可证
 

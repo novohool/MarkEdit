@@ -1,0 +1,447 @@
+// 全局变量
+let currentFilePath = null;
+let currentFileType = null;
+let currentFileEncoding = null;
+
+// 初始化编辑器状态
+function initializeEditor() {
+    // 隐藏所有视图
+    document.getElementById('editor').style.display = 'none';
+    document.getElementById('image-viewer').style.display = 'none';
+    document.getElementById('binary-viewer').style.display = 'none';
+    document.getElementById('preview-container').style.display = 'none';
+    
+    // 隐藏预览按钮
+    document.getElementById('preview-btn').style.display = 'none';
+    
+    // 禁用删除按钮
+    document.getElementById('delete-btn').disabled = true;
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化编辑器状态
+    initializeEditor();
+    
+    // 加载文件树
+    loadFileTree();
+    
+    // 绑定保存按钮事件
+    document.getElementById('save-btn').addEventListener('click', saveFile);
+    
+    // 绑定抽屉菜单事件
+    document.getElementById('admin-menu-btn').addEventListener('click', toggleAdminDrawer);
+    document.getElementById('close-drawer-btn').addEventListener('click', closeAdminDrawer);
+    document.getElementById('drawer-overlay').addEventListener('click', closeAdminDrawer);
+    
+    // 绑定删除文件按钮事件
+    document.getElementById('delete-btn').addEventListener('click', deleteFile);
+    
+    // 绑定预览按钮事件
+    document.getElementById('preview-btn').addEventListener('click', togglePreview);
+    
+    // 绑定图书生成按钮事件
+    document.getElementById('build-all-btn').addEventListener('click', function() {
+        buildBook('build');
+    });
+    
+    document.getElementById('build-epub-btn').addEventListener('click', function() {
+        buildBook('build:epub');
+    });
+    
+    document.getElementById('build-pdf-btn').addEventListener('click', function() {
+        buildBook('build:pdf');
+    });
+    
+    // 绑定编辑器键盘事件（Ctrl+S保存）
+    document.getElementById('editor').addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveFile();
+        }
+    });
+});
+
+// 加载文件树
+async function loadFileTree() {
+    try {
+        const response = await fetch('/api/files');
+        const files = await response.json();
+        
+        const fileTreeElement = document.getElementById('file-tree');
+        fileTreeElement.innerHTML = '';
+        
+        // 添加工具栏
+        const toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
+        toolbar.innerHTML = `
+            <button id="create-file-btn" class="btn-secondary">新建文件</button>
+            <button id="refresh-btn" class="btn-secondary">刷新</button>
+        `;
+        fileTreeElement.appendChild(toolbar);
+        
+        // 添加刷新按钮事件
+        document.getElementById('refresh-btn').addEventListener('click', loadFileTree);
+        
+        // 添加创建文件按钮事件
+        const createFileBtn = document.getElementById('create-file-btn');
+        if (createFileBtn) {
+            createFileBtn.addEventListener('click', showCreateFileDialog);
+        }
+        
+        // 创建文件树容器
+        const treeContainer = document.createElement('div');
+        treeContainer.id = 'tree-container';
+        fileTreeElement.appendChild(treeContainer);
+        
+        // 递归渲染文件树
+        renderFileTree(files, treeContainer);
+    } catch (error) {
+        console.error('加载文件树失败:', error);
+        showMessage('加载文件树失败: ' + error.message, 'error');
+    }
+}
+
+// 渲染文件树
+function renderFileTree(files, parentElement) {
+    files.forEach(file => {
+        const fileItem = document.createElement('div');
+        fileItem.className = `file-item ${file.type}`;
+        fileItem.dataset.path = file.path;
+        fileItem.dataset.extension = file.extension || '';
+        
+        if (file.type === 'directory') {
+            // 目录项
+            fileItem.innerHTML = `
+                <span class="tree-toggle">▶</span>
+                <span class="file-name">${file.name}</span>
+            `;
+            
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'children';
+            childrenContainer.style.display = 'none';
+            
+            fileItem.addEventListener('click', function(e) {
+                if (e.target.classList.contains('tree-toggle')) {
+                    e.stopPropagation();
+                    const toggle = this.querySelector('.tree-toggle');
+                    if (childrenContainer.style.display === 'none') {
+                        childrenContainer.style.display = 'block';
+                        toggle.textContent = '▼';
+                    } else {
+                        childrenContainer.style.display = 'none';
+                        toggle.textContent = '▶';
+                    }
+                } else {
+                    // 展开/折叠目录
+                    const toggle = this.querySelector('.tree-toggle');
+                    if (childrenContainer.style.display === 'none') {
+                        childrenContainer.style.display = 'block';
+                        toggle.textContent = '▼';
+                    } else {
+                        childrenContainer.style.display = 'none';
+                        toggle.textContent = '▶';
+                    }
+                }
+            });
+            
+            parentElement.appendChild(fileItem);
+            parentElement.appendChild(childrenContainer);
+            
+            // 递归渲染子目录
+            if (file.children) {
+                renderFileTree(file.children, childrenContainer);
+            }
+        } else {
+            // 文件项
+            fileItem.innerHTML = `
+                <span class="file-name">${file.name}</span>
+            `;
+            
+            fileItem.addEventListener('click', function() {
+                // 移除其他文件项的激活状态
+                document.querySelectorAll('.file-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // 激活当前文件项
+                this.classList.add('active');
+                
+                // 加载文件内容
+                loadFile(file.path);
+            });
+            
+            parentElement.appendChild(fileItem);
+        }
+    });
+}
+
+// 加载文件内容
+async function loadFile(filePath) {
+    try {
+        currentFilePath = filePath;
+        document.getElementById('current-file').textContent = filePath;
+        
+        const response = await fetch(`/api/file/${filePath}`);
+        const data = await response.json();
+        
+        // 隐藏所有视图
+        document.getElementById('editor').style.display = 'none';
+        document.getElementById('image-viewer').style.display = 'none';
+        document.getElementById('binary-viewer').style.display = 'none';
+        document.getElementById('preview-container').style.display = 'none';
+        
+        if (data.type === 'text') {
+            // 显示文本编辑器
+            const editor = document.getElementById('editor');
+            editor.value = data.content || '';
+            editor.style.display = 'block';
+            currentFileType = 'text';
+            currentFileEncoding = data.encoding || 'utf-8';
+            
+            // 如果是Markdown文件，显示预览按钮
+            if (filePath.endsWith('.md')) {
+                document.getElementById('preview-btn').style.display = 'inline-block';
+            } else {
+                document.getElementById('preview-btn').style.display = 'none';
+            }
+        } else if (data.type === 'image') {
+            // 显示图片查看器
+            const imageViewer = document.getElementById('image-viewer');
+            imageViewer.innerHTML = `<img src="data:${data.mime};base64,${data.content}" alt="${filePath}">`;
+            imageViewer.style.display = 'flex';
+            currentFileType = 'image';
+            
+            // 隐藏预览按钮
+            document.getElementById('preview-btn').style.display = 'none';
+        } else {
+            // 显示二进制文件提示
+            document.getElementById('binary-viewer').style.display = 'flex';
+            currentFileType = 'binary';
+            
+            // 隐藏预览按钮
+            document.getElementById('preview-btn').style.display = 'none';
+        }
+        
+        // 启用删除按钮
+        document.getElementById('delete-btn').disabled = false;
+    } catch (error) {
+        console.error('加载文件失败:', error);
+        showMessage('加载文件失败: ' + error.message, 'error');
+    }
+}
+
+// 保存文件
+async function saveFile() {
+    if (!currentFilePath || currentFileType !== 'text') {
+        showMessage('请选择一个文本文件进行保存', 'warning');
+        return;
+    }
+    
+    try {
+        const content = document.getElementById('editor').value;
+        
+        const response = await fetch(`/api/file/${currentFilePath}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain; charset=utf-8'
+            },
+            body: content
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('文件保存成功', 'success');
+        } else {
+            throw new Error(result.detail || '保存失败');
+        }
+    } catch (error) {
+        console.error('保存文件失败:', error);
+        showMessage('保存文件失败: ' + error.message, 'error');
+    }
+}
+
+// 切换预览模式
+function togglePreview() {
+    const editor = document.getElementById('editor');
+    const previewContainer = document.getElementById('preview-container');
+    
+    if (previewContainer.style.display === 'none' || previewContainer.style.display === '') {
+        // 显示预览
+        const content = editor.value;
+        // 使用marked.js库解析Markdown
+        previewContainer.innerHTML = marked.parse(content);
+        previewContainer.style.display = 'block';
+        editor.style.display = 'none';
+        document.getElementById('preview-btn').textContent = '编辑';
+    } else {
+        // 显示编辑器
+        previewContainer.style.display = 'none';
+        editor.style.display = 'block';
+        document.getElementById('preview-btn').textContent = '预览';
+    }
+}
+
+// 显示创建文件对话框
+function showCreateFileDialog() {
+    const fileName = prompt('请输入文件名（包括扩展名）:');
+    if (fileName) {
+        createFile(fileName);
+    }
+}
+
+// 创建文件
+async function createFile(fileName) {
+    try {
+        // 简单验证文件名
+        if (!fileName || fileName.trim() === '') {
+            showMessage('文件名不能为空', 'warning');
+            return;
+        }
+        
+        // 构造文件路径（在src根目录下）
+        const filePath = fileName;
+        
+        const response = await fetch(`/api/create-file/${filePath}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain; charset=utf-8'
+            },
+            body: ''
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('文件创建成功', 'success');
+            // 刷新文件树
+            loadFileTree();
+        } else {
+            throw new Error(result.detail || '创建失败');
+        }
+    } catch (error) {
+        console.error('创建文件失败:', error);
+        showMessage('创建文件失败: ' + error.message, 'error');
+    }
+}
+
+// 删除文件
+async function deleteFile() {
+    if (!currentFilePath) {
+        showMessage('请选择一个文件进行删除', 'warning');
+        return;
+    }
+    
+    // 确认删除
+    if (!confirm(`确定要删除文件 "${currentFilePath}" 吗？`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/file/${currentFilePath}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('文件删除成功', 'success');
+            // 清空当前文件
+            currentFilePath = null;
+            currentFileType = null;
+            currentFileEncoding = null;
+            document.getElementById('current-file').textContent = '未选择文件';
+            
+            // 隐藏所有视图
+            document.getElementById('editor').style.display = 'none';
+            document.getElementById('image-viewer').style.display = 'none';
+            document.getElementById('binary-viewer').style.display = 'none';
+            document.getElementById('preview-container').style.display = 'none';
+            
+            // 禁用删除按钮
+            document.getElementById('delete-btn').disabled = true;
+            
+            // 刷新文件树
+            loadFileTree();
+        } else {
+            throw new Error(result.detail || '删除失败');
+        }
+    } catch (error) {
+        console.error('删除文件失败:', error);
+        showMessage('删除文件失败: ' + error.message, 'error');
+    }
+}
+
+// 显示消息
+function showMessage(message, type) {
+    // 创建消息元素
+    const messageElement = document.createElement('div');
+    messageElement.className = `message message-${type}`;
+    messageElement.textContent = message;
+    
+    // 添加到页面
+    document.body.appendChild(messageElement);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        if (messageElement.parentNode) {
+            messageElement.parentNode.removeChild(messageElement);
+        }
+    }, 3000);
+}
+
+// 图书生成函数
+async function buildBook(scriptName) {
+    try {
+        // 显示正在处理的消息
+        showMessage(`正在执行 ${scriptName}...`, 'info');
+        
+        // 调用API
+        const response = await fetch(`/api/admin/build/${scriptName}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.status === 'success') {
+            showMessage(`${scriptName} 执行成功`, 'success');
+            console.log('stdout:', result.stdout);
+            console.log('stderr:', result.stderr);
+        } else {
+            showMessage(`${scriptName} 执行失败: ${result.message}`, 'error');
+            console.error('stdout:', result.stdout);
+            console.error('stderr:', result.stderr);
+        }
+    } catch (error) {
+        console.error('执行图书生成失败:', error);
+        showMessage(`执行图书生成失败: ${error.message}`, 'error');
+    }
+}
+
+// 页面加载完成后配置marked.js
+document.addEventListener('DOMContentLoaded', function() {
+    // 配置marked.js
+    marked.setOptions({
+        breaks: true, // 转换段落中的\n为<br>
+        smartypants: true, // 启用智能标点符号
+        smartLists: true // 启用智能列表
+    });
+});
+
+// 抽屉菜单控制函数
+function toggleAdminDrawer() {
+    const drawer = document.getElementById('admin-drawer');
+    const overlay = document.getElementById('drawer-overlay');
+    
+    drawer.classList.toggle('open');
+    overlay.classList.toggle('open');
+}
+
+function closeAdminDrawer() {
+    const drawer = document.getElementById('admin-drawer');
+    const overlay = document.getElementById('drawer-overlay');
+    
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+}

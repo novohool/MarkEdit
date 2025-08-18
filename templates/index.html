@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkEdit Web Editor</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- 引入Marked.js库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MarkEdit Web Editor</h1>
+            <div class="header-buttons">
+                <button id="admin-menu-btn" class="btn-secondary">管理</button>
+                <button id="build-all-btn" class="btn-primary">生成所有格式</button>
+                <button id="build-epub-btn" class="btn-secondary">生成 EPUB</button>
+                <button id="build-pdf-btn" class="btn-secondary">生成 PDF</button>
+            </div>
+        </header>
+        
+        <!-- 抽屉式菜单 -->
+        <div id="admin-drawer" class="drawer">
+            <div class="drawer-header">
+                <h2>管理菜单</h2>
+                <button id="close-drawer-btn" class="btn-secondary">关闭</button>
+            </div>
+            <div class="drawer-content">
+                <ul>
+                    <li><a href="/admin" target="_blank">管理面板</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="drawer-overlay" class="drawer-overlay"></div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>文件浏览器</h2>
+                <div id="file-tree"></div>
+            </div>
+            
+            <div class="editor-area">
+                <div class="editor-header">
+                    <span id="current-file">未选择文件</span>
+                    <div class="editor-buttons">
+                        <button id="preview-btn" class="btn-secondary" style="display: none;">预览</button>
+                        <button id="save-btn" class="btn-primary">保存 (Ctrl+S)</button>
+                        <button id="delete-btn" class="btn-danger" disabled>删除</button>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="editor" style="display:none;"></textarea>
+                    <div id="preview-container" style="display:none; padding: 1rem; background-color: #fff; height: 100%; overflow-y: auto;"></div>
+                    <div id="image-viewer" style="display:none;"></div>
+                    <div id="binary-viewer" style="display:none;">
+                        <p>这是一个二进制文件，无法在编辑器中显示。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

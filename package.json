@@ -4,10 +4,10 @@
   "description": "平假字片假字日语词典 - 包含日常用语句式、典故、音律、诗歌、风景名胜、文化古迹等内容的EPUB电子书",
   "main": "index.js",
   "scripts": {
-    "build": "node build-epub.js && node build-pdf.js",
-    "build:epub": "node build-epub.js",
-    "build:pdf": "node build-pdf.js",
-    "test": "echo \"错误：没有指定测试命令\" && exit 1"
+    "build": "node src/build-epub.js && node src/build-pdf.js",
+    "build:epub": "node src/build-epub.js",
+    "build:pdf": "node src/build-pdf.js",
+    "test": "echo "
   },
   "keywords": [
     "katakana",
@@ -15,6 +15,6 @@
     "dictionary",
     "epub"
   ],
-  "author": "Kilo Code",
+  "author": "novo Code",
   "license": "MIT"
 }
