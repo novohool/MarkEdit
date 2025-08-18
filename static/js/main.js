@@ -2,6 +2,7 @@
 let currentFilePath = null;
 let currentFileType = null;
 let currentFileEncoding = null;
+let currentFileArea = null; // 'src' 或 'build'
 let codeMirrorEditor = null; // CodeMirror 编辑器实例
 
 // 初始化编辑器状态
@@ -96,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadFileTree() {
     try {
         const response = await fetch('/api/files');
-        const files = await response.json();
+        const fileData = await response.json();
         
         const fileTreeElement = document.getElementById('file-tree');
         fileTreeElement.innerHTML = '';
@@ -119,13 +120,36 @@ async function loadFileTree() {
             createFileBtn.addEventListener('click', showCreateFileDialog);
         }
         
-        // 创建文件树容器
-        const treeContainer = document.createElement('div');
-        treeContainer.id = 'tree-container';
-        fileTreeElement.appendChild(treeContainer);
+        // 创建src文件树容器
+        const srcContainer = document.createElement('div');
+        srcContainer.className = 'file-area';
+        srcContainer.innerHTML = '<h3>Src</h3>';
+        fileTreeElement.appendChild(srcContainer);
+        
+        const srcTreeContainer = document.createElement('div');
+        srcTreeContainer.id = 'src-tree-container';
+        srcTreeContainer.className = 'tree-container';
+        srcContainer.appendChild(srcTreeContainer);
+        
+        // 创建build文件树容器
+        const buildContainer = document.createElement('div');
+        buildContainer.className = 'file-area';
+        buildContainer.innerHTML = '<h3>Build</h3>';
+        fileTreeElement.appendChild(buildContainer);
+        
+        const buildTreeContainer = document.createElement('div');
+        buildTreeContainer.id = 'build-tree-container';
+        buildTreeContainer.className = 'tree-container';
+        buildContainer.appendChild(buildTreeContainer);
         
         // 递归渲染文件树
-        renderFileTree(files, treeContainer);
+        if (fileData.src) {
+            renderFileTree(fileData.src, srcTreeContainer, 'src');
+        }
+        
+        if (fileData.build) {
+            renderFileTree(fileData.build, buildTreeContainer, 'build');
+        }
     } catch (error) {
         console.error('加载文件树失败:', error);
         showMessage('加载文件树失败: ' + error.message, 'error');
@@ -133,12 +157,13 @@ async function loadFileTree() {
 }
 
 // 渲染文件树
-function renderFileTree(files, parentElement) {
+function renderFileTree(files, parentElement, area) {
     files.forEach(file => {
         const fileItem = document.createElement('div');
         fileItem.className = `file-item ${file.type}`;
         fileItem.dataset.path = file.path;
         fileItem.dataset.extension = file.extension || '';
+        fileItem.dataset.area = area;
         
         if (file.type === 'directory') {
             // 目录项
@@ -150,6 +175,12 @@ function renderFileTree(files, parentElement) {
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'children';
             childrenContainer.style.display = 'none';
+            
+            // 添加右键菜单事件监听器
+            fileItem.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                showContextMenu(e.clientX, e.clientY, file.path, area, 'directory');
+            });
             
             fileItem.addEventListener('click', function(e) {
                 if (e.target.classList.contains('tree-toggle')) {
@@ -180,13 +211,19 @@ function renderFileTree(files, parentElement) {
             
             // 递归渲染子目录
             if (file.children) {
-                renderFileTree(file.children, childrenContainer);
+                renderFileTree(file.children, childrenContainer, area);
             }
         } else {
             // 文件项
             fileItem.innerHTML = `
                 <span class="file-name">${file.name}</span>
             `;
+            
+            // 添加右键菜单事件监听器
+            fileItem.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                showContextMenu(e.clientX, e.clientY, file.path, area, 'file');
+            });
             
             fileItem.addEventListener('click', function() {
                 // 移除其他文件项的激活状态
@@ -198,7 +235,7 @@ function renderFileTree(files, parentElement) {
                 this.classList.add('active');
                 
                 // 加载文件内容
-                loadFile(file.path);
+                loadFile(file.path, area);
             });
             
             parentElement.appendChild(fileItem);
@@ -207,85 +244,198 @@ function renderFileTree(files, parentElement) {
 }
 
 // 加载文件内容
-async function loadFile(filePath) {
+async function loadFile(filePath, area) {
     try {
         currentFilePath = filePath;
-        document.getElementById('current-file').textContent = filePath;
+        currentFileArea = area;
+        document.getElementById('current-file').textContent = `${area}/${filePath}`;
         
-        const response = await fetch(`/api/file/${filePath}`);
-        const data = await response.json();
+        // 获取文件扩展名
+        const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
+        const previewableExtensions = ['.epub', '.html', '.pdf', '.svg'];
+        const isPreviewable = previewableExtensions.includes(extension);
         
-        // 隐藏所有视图
-        document.getElementById('editor').style.display = 'none';
-        document.getElementById('image-viewer').style.display = 'none';
-        document.getElementById('binary-viewer').style.display = 'none';
-        document.getElementById('preview-container').style.display = 'none';
-        
-        if (data.type === 'text') {
-            // 显示文本编辑器
-            const editor = document.getElementById('editor');
-            const cmEditorContainer = document.getElementById('codemirror-editor');
+        // 对于可预览的二进制文件，直接在iframe中显示
+        if (area === 'build' && isPreviewable) {
+            // 隐藏所有视图
+            document.getElementById('editor').style.display = 'none';
+            document.getElementById('image-viewer').style.display = 'none';
+            document.getElementById('binary-viewer').style.display = 'none';
+            document.getElementById('codemirror-editor').style.display = 'none';
             
-            // 隐藏textarea编辑器
-            editor.style.display = 'none';
+            // 显示预览容器
+            const previewContainer = document.getElementById('preview-container');
+            const fileUrl = `/api/file/${area}/${filePath}`;
             
-            // 显示CodeMirror编辑器
-            cmEditorContainer.style.display = 'block';
-            
-            // 设置CodeMirror编辑器内容
-            if (codeMirrorEditor) {
-                codeMirrorEditor.setValue(data.content || '');
-                
-                // 根据文件扩展名设置语法高亮模式
-                const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
-                const modeMap = {
-                    '.js': 'javascript',
-                    '.css': 'css',
-                    '.html': 'htmlmixed',
-                    '.xml': 'xml',
-                    '.json': { name: 'javascript', json: true },
-                    '.yaml': 'yaml',
-                    '.yml': 'yaml',
-                    '.md': 'markdown',
-                    '.markdown': 'markdown'
-                };
-                
-                const mode = modeMap[extension] || 'text/plain';
-                codeMirrorEditor.setOption('mode', mode);
+            if (extension === '.pdf') {
+                // PDF文件通过iframe预览
+                previewContainer.innerHTML = `
+                    <div class="file-preview">
+                        <h3>${filePath}</h3>
+                        <iframe src="${fileUrl}" style="width:100%; height:80vh; border:none;"></iframe>
+                    </div>
+                `;
+                previewContainer.style.display = 'block';
+                currentFileType = 'preview';
+            } else if (extension === '.epub') {
+                // EPUB文件通过iframe和EPUB.js预览
+                // 添加raw=true参数以确保后端直接返回文件内容而不是JSON
+                previewContainer.innerHTML = `
+                    <div class="file-preview">
+                        <h3>${filePath}</h3>
+                        <iframe src="/epub-viewer.html?file=${encodeURIComponent(fileUrl + '?raw=true')}" style="width:100%; height:80vh; border:none;"></iframe>
+                    </div>
+                `;
+                previewContainer.style.display = 'block';
+                currentFileType = 'preview';
+            } else if (extension === '.html') {
+                // HTML文件通过iframe预览以隔离样式
+                previewContainer.innerHTML = `
+                    <div class="file-preview">
+                        <h3>${filePath}</h3>
+                        <iframe src="${fileUrl}?raw=true" style="width:100%; height:80vh; border:none;"></iframe>
+                    </div>
+                `;
+                previewContainer.style.display = 'block';
+                currentFileType = 'preview';
+            } else if (extension === '.svg') {
+                // SVG文件可以作为图片显示
+                // 直接在图片查看器中显示SVG文件
+                const imageViewer = document.getElementById('image-viewer');
+                imageViewer.innerHTML = `<img src="/api/file/${area}/${filePath}?raw=true" alt="${filePath}">`;
+                imageViewer.style.display = 'flex';
+                currentFileType = 'image';
             }
             
-            currentFileType = 'text';
-            currentFileEncoding = data.encoding || 'utf-8';
-            
-            // 如果是Markdown文件，显示预览按钮
-            if (filePath.endsWith('.md') || filePath.endsWith('.markdown')) {
-                document.getElementById('preview-btn').style.display = 'inline-block';
-            } else {
-                document.getElementById('preview-btn').style.display = 'none';
-            }
-            
-            // 对于所有文本文件，显示LLM按钮
-            document.getElementById('llm-btn').style.display = 'inline-block';
-        } else if (data.type === 'image') {
-            // 显示图片查看器
-            const imageViewer = document.getElementById('image-viewer');
-            imageViewer.innerHTML = `<img src="data:${data.mime};base64,${data.content}" alt="${filePath}">`;
-            imageViewer.style.display = 'flex';
-            currentFileType = 'image';
-            
-            // 隐藏预览按钮
-            document.getElementById('preview-btn').style.display = 'none';
+            // 显示预览按钮
+            document.getElementById('preview-btn').style.display = 'inline-block';
+            document.getElementById('preview-btn').textContent = '编辑';
         } else {
-            // 显示二进制文件提示
-            document.getElementById('binary-viewer').style.display = 'flex';
-            currentFileType = 'binary';
+            // 对于其他文件，使用原来的逻辑
+            const response = await fetch(`/api/file/${area}/${filePath}`);
             
-            // 隐藏预览按钮
-            document.getElementById('preview-btn').style.display = 'none';
+            // 检查响应的内容类型
+            const contentType = response.headers.get('content-type');
+            
+            // 如果是JSON响应（文本文件、图片等）
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                
+                // 隐藏所有视图
+                document.getElementById('editor').style.display = 'none';
+                document.getElementById('image-viewer').style.display = 'none';
+                document.getElementById('binary-viewer').style.display = 'none';
+                document.getElementById('preview-container').style.display = 'none';
+                
+                if (data.type === 'text') {
+                    // 显示文本编辑器
+                    const editor = document.getElementById('editor');
+                    const cmEditorContainer = document.getElementById('codemirror-editor');
+                    
+                    // 隐藏textarea编辑器
+                    editor.style.display = 'none';
+                    
+                    // 显示CodeMirror编辑器
+                    cmEditorContainer.style.display = 'block';
+                    
+                    // 设置CodeMirror编辑器内容
+                    if (codeMirrorEditor) {
+                        codeMirrorEditor.setValue(data.content || '');
+                        
+                        // 根据文件扩展名设置语法高亮模式
+                        const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
+                        const modeMap = {
+                            '.js': 'javascript',
+                            '.css': 'css',
+                            '.html': 'htmlmixed',
+                            '.xml': 'xml',
+                            '.json': { name: 'javascript', json: true },
+                            '.yaml': 'yaml',
+                            '.yml': 'yaml',
+                            '.md': 'markdown',
+                            '.markdown': 'markdown',
+                            '': 'text/plain'  // 无后缀文件
+                        };
+                        
+                        const mode = modeMap[extension] || 'text/plain';
+                        codeMirrorEditor.setOption('mode', mode);
+                    }
+                    
+                    currentFileType = 'text';
+                    currentFileEncoding = data.encoding || 'utf-8';
+                    
+                    // 如果是Markdown文件，显示预览按钮
+                    if (filePath.endsWith('.md') || filePath.endsWith('.markdown')) {
+                        document.getElementById('preview-btn').style.display = 'inline-block';
+                    } else {
+                        document.getElementById('preview-btn').style.display = 'none';
+                    }
+                    
+                    // 对于所有文本文件，显示LLM按钮（仅src目录）
+                    if (area === 'src') {
+                        document.getElementById('llm-btn').style.display = 'inline-block';
+                    } else {
+                        document.getElementById('llm-btn').style.display = 'none';
+                    }
+                } else if (data.type === 'image') {
+                    // 显示图片查看器
+                    const imageViewer = document.getElementById('image-viewer');
+                    imageViewer.innerHTML = `<img src="data:${data.mime};base64,${data.content}" alt="${filePath}">`;
+                    imageViewer.style.display = 'flex';
+                    currentFileType = 'image';
+                    
+                    // 隐藏预览按钮
+                    document.getElementById('preview-btn').style.display = 'none';
+                } else {
+                    // 显示二进制文件提示
+                    document.getElementById('binary-viewer').style.display = 'flex';
+                    currentFileType = 'binary';
+                    
+                    // 隐藏预览按钮
+                    document.getElementById('preview-btn').style.display = 'none';
+                }
+            } else {
+                // 对于二进制文件（如PDF、EPUB等），直接显示在预览容器中
+                // 隐藏所有视图
+                document.getElementById('editor').style.display = 'none';
+                document.getElementById('image-viewer').style.display = 'none';
+                document.getElementById('binary-viewer').style.display = 'none';
+                document.getElementById('codemirror-editor').style.display = 'none';
+                
+                // 显示预览容器
+                const previewContainer = document.getElementById('preview-container');
+                const fileUrl = `/api/file/${area}/${filePath}`;
+                
+                if (extension === '.pdf') {
+                    // PDF文件通过iframe预览
+                    previewContainer.innerHTML = `
+                        <div class="file-preview">
+                            <h3>${filePath}</h3>
+                            <iframe src="${fileUrl}" style="width:100%; height:80vh; border:none;"></iframe>
+                        </div>
+                    `;
+                    previewContainer.style.display = 'block';
+                    currentFileType = 'preview';
+                } else {
+                    // 其他二进制文件显示为下载链接
+                    previewContainer.innerHTML = `
+                        <div class="file-preview">
+                            <h3>${filePath}</h3>
+                            <p>这是一个二进制文件，您可以<a href="${fileUrl}" target="_blank">点击这里下载</a></p>
+                        </div>
+                    `;
+                    previewContainer.style.display = 'block';
+                    currentFileType = 'binary';
+                }
+                
+                // 显示预览按钮
+                document.getElementById('preview-btn').style.display = 'inline-block';
+                document.getElementById('preview-btn').textContent = '编辑';
+            }
         }
         
-        // 启用删除按钮
-        document.getElementById('delete-btn').disabled = false;
+        // 启用删除按钮（仅src目录）
+        document.getElementById('delete-btn').disabled = (area !== 'src');
     } catch (error) {
         console.error('加载文件失败:', error);
         showMessage('加载文件失败: ' + error.message, 'error');
@@ -294,8 +444,8 @@ async function loadFile(filePath) {
 
 // 保存文件
 async function saveFile() {
-    if (!currentFilePath || currentFileType !== 'text') {
-        showMessage('请选择一个文本文件进行保存', 'warning');
+    if (!currentFilePath || currentFileType !== 'text' || currentFileArea !== 'src') {
+        showMessage('请选择一个src目录下的文本文件进行保存', 'warning');
         return;
     }
     
@@ -303,7 +453,7 @@ async function saveFile() {
         // 从CodeMirror编辑器获取内容
         const content = codeMirrorEditor ? codeMirrorEditor.getValue() : document.getElementById('editor').value;
         
-        const response = await fetch(`/api/file/${currentFilePath}`, {
+        const response = await fetch(`/api/file/src/${currentFilePath}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'text/plain; charset=utf-8'
@@ -325,33 +475,57 @@ async function saveFile() {
 }
 
 // 切换预览模式
-function togglePreview() {
+async function togglePreview() {
     const editor = document.getElementById('editor');
     const cmEditorContainer = document.getElementById('codemirror-editor');
     const previewContainer = document.getElementById('preview-container');
+    const imageViewer = document.getElementById('image-viewer');
+    const binaryViewer = document.getElementById('binary-viewer');
     
-    if (previewContainer.style.display === 'none' || previewContainer.style.display === '') {
+    if (previewContainer.style.display === 'none' || previewContainer.style.display === '' ||
+        imageViewer.style.display === 'flex' || binaryViewer.style.display === 'flex') {
         // 显示预览
-        // 从CodeMirror编辑器获取内容
-        const content = codeMirrorEditor ? codeMirrorEditor.getValue() : editor.value;
-        // 使用marked.js库解析Markdown
-        previewContainer.innerHTML = marked.parse(content);
-        
-        // 添加代码高亮
-        if (typeof Prism !== 'undefined') {
-            Prism.highlightAllUnder(previewContainer);
+        if (currentFileArea === 'src' && (currentFilePath.endsWith('.md') || currentFilePath.endsWith('.markdown'))) {
+            // Markdown文件预览
+            // 从CodeMirror编辑器获取内容
+            const content = codeMirrorEditor ? codeMirrorEditor.getValue() : editor.value;
+            // 使用marked.js库解析Markdown
+            previewContainer.innerHTML = marked.parse(content);
+            
+            // 添加代码高亮
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightAllUnder(previewContainer);
+            }
+            
+            // 显示预览容器
+            previewContainer.style.display = 'block';
+            editor.style.display = 'none';
+            cmEditorContainer.style.display = 'none';
+            imageViewer.style.display = 'none';
+            binaryViewer.style.display = 'none';
+            document.getElementById('preview-btn').textContent = '编辑';
+        } else if (currentFileArea === 'build') {
+            // Build目录下的文件预览
+            await previewBuildFile(currentFilePath);
+            document.getElementById('preview-btn').textContent = '编辑';
         }
-        
-        previewContainer.style.display = 'block';
-        editor.style.display = 'none';
-        cmEditorContainer.style.display = 'none';
-        document.getElementById('preview-btn').textContent = '编辑';
     } else {
-        // 显示编辑器
-        previewContainer.style.display = 'none';
-        editor.style.display = 'none';
-        cmEditorContainer.style.display = 'block';
-        document.getElementById('preview-btn').textContent = '预览';
+        // 显示编辑器或文件内容
+        if (currentFileArea === 'src' && (currentFilePath.endsWith('.md') || currentFilePath.endsWith('.markdown'))) {
+            // Markdown文件返回编辑模式
+            previewContainer.style.display = 'none';
+            editor.style.display = 'none';
+            cmEditorContainer.style.display = 'block';
+            document.getElementById('preview-btn').textContent = '预览';
+        } else if (currentFileArea === 'build') {
+            // Build目录下的文件，重新加载文件内容
+            await loadFile(currentFilePath, currentFileArea);
+            document.getElementById('preview-btn').textContent = '预览';
+        } else if (currentFileType === 'preview') {
+            // 对于预览模式的文件，重新加载文件内容
+            await loadFile(currentFilePath, currentFileArea);
+            document.getElementById('preview-btn').textContent = '预览';
+        }
     }
 }
 
@@ -398,10 +572,10 @@ async function createFile(fileName) {
     }
 }
 
-// 删除文件
+// 删除文件（通过删除按钮）
 async function deleteFile() {
-    if (!currentFilePath) {
-        showMessage('请选择一个文件进行删除', 'warning');
+    if (!currentFilePath || currentFileArea !== 'src') {
+        showMessage('请选择一个src目录下的文件进行删除', 'warning');
         return;
     }
     
@@ -410,8 +584,235 @@ async function deleteFile() {
         return;
     }
     
+    // 调用删除文件函数
+    await deleteFileAtPath(currentFilePath);
+}
+
+// 删除文件
+async function deleteFileAtPath(filePath) {
     try {
-        const response = await fetch(`/api/file/${currentFilePath}`, {
+        const response = await fetch(`/api/file/src/${filePath}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('文件删除成功', 'success');
+            // 如果删除的是当前文件，清空当前文件
+            if (currentFilePath === filePath) {
+                currentFilePath = null;
+                currentFileType = null;
+                currentFileEncoding = null;
+                currentFileArea = null;
+                document.getElementById('current-file').textContent = '未选择文件';
+                
+                // 隐藏所有视图
+                document.getElementById('editor').style.display = 'none';
+                document.getElementById('image-viewer').style.display = 'none';
+                document.getElementById('binary-viewer').style.display = 'none';
+                document.getElementById('preview-container').style.display = 'none';
+                document.getElementById('codemirror-editor').style.display = 'none';
+                
+                // 禁用删除按钮
+                document.getElementById('delete-btn').disabled = true;
+            }
+            
+            // 刷新文件树
+            loadFileTree();
+        } else {
+            throw new Error(result.detail || '删除失败');
+        }
+    } catch (error) {
+        console.error('删除文件失败:', error);
+        showMessage('删除文件失败: ' + error.message, 'error');
+    }
+}
+
+// 显示右键菜单
+function showContextMenu(x, y, path, area, type) {
+    // 移除已存在的菜单
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    // 创建右键菜单
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'context-menu';
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    contextMenu.style.zIndex = '1000';
+    
+    // 添加菜单项
+    if (type === 'directory' && area === 'src') {
+        // 目录菜单项（仅src目录）
+        contextMenu.innerHTML = `
+            <div class="context-menu-item" data-action="create-file">新建文件</div>
+            <div class="context-menu-item" data-action="create-directory">新建目录</div>
+        `;
+    } else if (type === 'file' && area === 'src') {
+        // 文件菜单项（仅src目录）
+        contextMenu.innerHTML = `
+            <div class="context-menu-item" data-action="delete">删除</div>
+        `;
+    } else if (type === 'file' && area === 'build') {
+        // 文件菜单项（build目录）
+        const extension = path.substring(path.lastIndexOf('.')).toLowerCase();
+        const previewableExtensions = ['.epub', '.html', '.pdf', '.svg'];
+        
+        if (previewableExtensions.includes(extension)) {
+            contextMenu.innerHTML = `
+                <div class="context-menu-item" data-action="preview">预览</div>
+            `;
+        } else {
+            contextMenu.innerHTML = `
+                <div class="context-menu-item disabled">不支持的操作</div>
+            `;
+        }
+    } else {
+        // 不支持的操作
+        contextMenu.innerHTML = `
+            <div class="context-menu-item disabled">不支持的操作</div>
+        `;
+    }
+    
+    // 添加到页面
+    document.body.appendChild(contextMenu);
+    
+    // 绑定菜单项事件
+    contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
+        if (!item.classList.contains('disabled')) {
+            item.addEventListener('click', function() {
+                const action = this.dataset.action;
+                handleContextMenuAction(action, path, area, type);
+                contextMenu.remove();
+            });
+        }
+    });
+    
+    // 点击其他地方关闭菜单
+    document.addEventListener('click', function closeMenu(e) {
+        if (!contextMenu.contains(e.target)) {
+            contextMenu.remove();
+            document.removeEventListener('click', closeMenu);
+        }
+    });
+    
+    // 阻止右键菜单冒泡
+    contextMenu.addEventListener('contextmenu', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+    });
+}
+
+// 处理右键菜单操作
+function handleContextMenuAction(action, path, area, type) {
+    switch (action) {
+        case 'create-file':
+            showCreateFileDialog(path);
+            break;
+        case 'create-directory':
+            showCreateDirectoryDialog(path);
+            break;
+        case 'delete':
+            if (confirm(`确定要删除文件 "${path}" 吗？`)) {
+                deleteFileAtPath(path);
+            }
+            break;
+        case 'preview':
+            previewBuildFile(path);
+            break;
+    }
+}
+
+// 显示创建文件对话框
+function showCreateFileDialog(directoryPath = '') {
+    const fileName = prompt('请输入文件名（包括扩展名）:');
+    if (fileName) {
+        createFile(directoryPath, fileName);
+    }
+}
+
+// 显示创建目录对话框
+function showCreateDirectoryDialog(directoryPath = '') {
+    const dirName = prompt('请输入目录名:');
+    if (dirName) {
+        createDirectory(directoryPath, dirName);
+    }
+}
+
+// 创建文件
+async function createFile(directoryPath, fileName) {
+    try {
+        // 简单验证文件名
+        if (!fileName || fileName.trim() === '') {
+            showMessage('文件名不能为空', 'warning');
+            return;
+        }
+        
+        // 构造文件路径
+        const filePath = directoryPath ? `${directoryPath}/${fileName}` : fileName;
+        
+        const response = await fetch(`/api/create-file/${filePath}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain; charset=utf-8'
+            },
+            body: ''
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('文件创建成功', 'success');
+            // 刷新文件树
+            loadFileTree();
+        } else {
+            throw new Error(result.detail || '创建失败');
+        }
+    } catch (error) {
+        console.error('创建文件失败:', error);
+        showMessage('创建文件失败: ' + error.message, 'error');
+    }
+}
+
+// 创建目录
+async function createDirectory(directoryPath, dirName) {
+    try {
+        // 简单验证目录名
+        if (!dirName || dirName.trim() === '') {
+            showMessage('目录名不能为空', 'warning');
+            return;
+        }
+        
+        // 构造目录路径
+        const dirPath = directoryPath ? `${directoryPath}/${dirName}` : dirName;
+        
+        const response = await fetch(`/api/create-directory/${dirPath}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('目录创建成功', 'success');
+            // 刷新文件树
+            loadFileTree();
+        } else {
+            throw new Error(result.detail || '创建失败');
+        }
+    } catch (error) {
+        console.error('创建目录失败:', error);
+        showMessage('创建目录失败: ' + error.message, 'error');
+    }
+}
+
+// 删除文件
+async function deleteFileAtPath(filePath) {
+    try {
+        const response = await fetch(`/api/file/src/${filePath}`, {
             method: 'DELETE'
         });
         
@@ -423,6 +824,7 @@ async function deleteFile() {
             currentFilePath = null;
             currentFileType = null;
             currentFileEncoding = null;
+            currentFileArea = null;
             document.getElementById('current-file').textContent = '未选择文件';
             
             // 隐藏所有视图
@@ -442,6 +844,110 @@ async function deleteFile() {
     } catch (error) {
         console.error('删除文件失败:', error);
         showMessage('删除文件失败: ' + error.message, 'error');
+    }
+}
+
+// 预览Build目录下的文件
+async function previewBuildFile(filePath) {
+    try {
+        const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
+        
+        // 统一使用iframe预览所有支持的文件类型
+        const fileUrl = `/api/file/build/${filePath}`;
+        const previewContainer = document.getElementById('preview-container');
+        
+        // 根据文件扩展名处理预览
+        if (extension === '.html') {
+            // HTML文件通过iframe预览以隔离样式
+            previewContainer.innerHTML = `
+                <div class="file-preview">
+                    <h3>${filePath}</h3>
+                    <iframe src="${fileUrl}?raw=true" style="width:100%; height:80vh; border:none;"></iframe>
+                </div>
+            `;
+            previewContainer.style.display = 'block';
+            
+            // 隐藏其他视图
+            document.getElementById('editor').style.display = 'none';
+            document.getElementById('image-viewer').style.display = 'none';
+            document.getElementById('binary-viewer').style.display = 'none';
+            document.getElementById('codemirror-editor').style.display = 'none';
+            
+            // 更新当前文件信息
+            currentFilePath = filePath;
+            currentFileArea = 'build';
+            currentFileType = 'preview';
+            document.getElementById('current-file').textContent = `build/${filePath}`;
+        } else if (extension === '.svg') {
+            // SVG文件可以作为图片显示
+            const response = await fetch(`/api/file/build/${filePath}`);
+            const data = await response.json();
+            
+            if (data.type === 'image') {
+                // 显示在图片查看器中
+                const imageViewer = document.getElementById('image-viewer');
+                imageViewer.innerHTML = `<img src="data:${data.mime};base64,${data.content}" alt="${filePath}">`;
+                imageViewer.style.display = 'flex';
+                
+                // 隐藏其他视图
+                document.getElementById('editor').style.display = 'none';
+                document.getElementById('preview-container').style.display = 'none';
+                document.getElementById('binary-viewer').style.display = 'none';
+                document.getElementById('codemirror-editor').style.display = 'none';
+                
+                // 更新当前文件信息
+                currentFilePath = filePath;
+                currentFileArea = 'build';
+                currentFileType = 'image';
+                document.getElementById('current-file').textContent = `build/${filePath}`;
+            }
+        } else if (extension === '.pdf') {
+           // PDF文件通过iframe预览
+           previewContainer.innerHTML = `
+               <div class="file-preview">
+                   <h3>${filePath}</h3>
+                   <iframe src="${fileUrl}" style="width:100%; height:80vh; border:none;"></iframe>
+               </div>
+           `;
+           previewContainer.style.display = 'block';
+           
+           // 隐藏其他视图
+           document.getElementById('editor').style.display = 'none';
+           document.getElementById('image-viewer').style.display = 'none';
+           document.getElementById('binary-viewer').style.display = 'none';
+           document.getElementById('codemirror-editor').style.display = 'none';
+           
+           // 更新当前文件信息
+           currentFilePath = filePath;
+           currentFileArea = 'build';
+           currentFileType = 'preview';
+           document.getElementById('current-file').textContent = `build/${filePath}`;
+       } else if (extension === '.epub') {
+          // EPUB文件通过iframe和EPUB.js预览
+          // 添加raw=true参数以确保后端直接返回文件内容而不是JSON
+          previewContainer.innerHTML = `
+              <div class="file-preview">
+                  <h3>${filePath}</h3>
+                  <iframe src="/epub-viewer.html?file=${encodeURIComponent(fileUrl + '?raw=true')}" style="width:100%; height:80vh; border:none;"></iframe>
+              </div>
+          `;
+          previewContainer.style.display = 'block';
+          
+          // 隐藏其他视图
+          document.getElementById('editor').style.display = 'none';
+          document.getElementById('image-viewer').style.display = 'none';
+          document.getElementById('binary-viewer').style.display = 'none';
+          document.getElementById('codemirror-editor').style.display = 'none';
+          
+          // 更新当前文件信息
+          currentFilePath = filePath;
+          currentFileArea = 'build';
+          currentFileType = 'preview';
+          document.getElementById('current-file').textContent = `build/${filePath}`;
+      }
+    } catch (error) {
+        console.error('预览文件失败:', error);
+        showMessage('预览文件失败: ' + error.message, 'error');
     }
 }
 
@@ -616,6 +1122,12 @@ async function processWithLLM() {
     } catch (error) {
         console.error('LLM处理失败:', error);
         showMessage('处理失败: ' + error.message, 'error');
+    } finally {
+        // 确保在任何情况下都关闭对话框
+        const dialog = document.querySelector('.llm-dialog');
+        if (dialog) {
+            document.body.removeChild(dialog);
+        }
     }
 }
 

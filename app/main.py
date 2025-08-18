@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response, FileResponse
 from pathlib import Path
 import os
 import json
@@ -36,12 +36,16 @@ templates = Jinja2Templates(directory="templates")
 # 获取项目根目录
 BASE_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = BASE_DIR / "src"
+BUILD_DIR = BASE_DIR / "build"
 
-# 定义文本文件扩展名
-TEXT_FILE_EXTENSIONS = {'.md', '.yml', '.yaml', '.css', '.html', '.js', '.json', '.txt', '.xml', '.csv'}
+# 定义文本文件扩展名（包含无后缀文件）
+TEXT_FILE_EXTENSIONS = {'.md', '.yml', '.yaml', '.css', '.html', '.js', '.json', '.txt', '.xml', '.csv', ''}
 
 # 定义图片文件扩展名
 IMAGE_FILE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.bmp', '.webp'}
+
+# 定义可预览的二进制文件扩展名
+PREVIEWABLE_BINARY_EXTENSIONS = {'.pdf', '.epub'}
 
 # 包含管理API路由器
 app.include_router(admin_router)
@@ -54,16 +58,20 @@ async def read_root(request: Request):
 async def read_admin(request: Request):
     return templates.TemplateResponse("admin.html", {"request": request})
 
+@app.get("/epub-viewer.html", response_class=HTMLResponse)
+async def read_epub_viewer(request: Request):
+    return templates.TemplateResponse("epub-viewer.html", {"request": request})
+
 @app.get("/api/files")
 async def list_files():
-    """列出src目录下的所有文件"""
-    def scan_directory(path):
+    """分别列出src和build目录下的所有文件"""
+    def scan_directory(path, base_dir):
         files = []
         for item in path.iterdir():
             if item.is_file():
                 files.append({
                     "name": item.name,
-                    "path": str(item.relative_to(SRC_DIR)),
+                    "path": str(item.relative_to(base_dir)),
                     "type": "file",
                     "size": item.stat().st_size,
                     "extension": item.suffix.lower()
@@ -71,18 +79,26 @@ async def list_files():
             elif item.is_dir():
                 files.append({
                     "name": item.name,
-                    "path": str(item.relative_to(SRC_DIR)),
+                    "path": str(item.relative_to(base_dir)),
                     "type": "directory",
-                    "children": scan_directory(item)
+                    "children": scan_directory(item, base_dir)
                 })
         return files
     
-    return scan_directory(SRC_DIR)
+    return {
+        "src": scan_directory(SRC_DIR, SRC_DIR),
+        "build": scan_directory(BUILD_DIR, BUILD_DIR)
+    }
 
-@app.get("/api/file/{file_path:path}")
-async def read_file(file_path: str):
+@app.get("/api/file/{file_type}/{file_path:path}")
+async def read_file(file_type: str, file_path: str, request: Request, raw: bool = False):
     """读取指定文件的内容"""
-    full_path = SRC_DIR / file_path
+    if file_type == "src":
+        full_path = SRC_DIR / file_path
+    elif file_type == "build":
+        full_path = BUILD_DIR / file_path
+    else:
+        raise HTTPException(status_code=400, detail="Invalid file type")
     
     if not full_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -91,7 +107,39 @@ async def read_file(file_path: str):
         # 根据文件扩展名确定内容类型
         suffix = full_path.suffix.lower()
         
-        # 对于文本文件，返回内容
+        # 如果请求原始文件内容（用于iframe预览）
+        if raw:
+            # 对于文本文件，直接返回内容
+            if suffix in TEXT_FILE_EXTENSIONS:
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    # 根据文件类型设置正确的Content-Type
+                    if suffix == '.html':
+                        return Response(content=content, media_type="text/html; charset=utf-8")
+                    elif suffix == '.css':
+                        return Response(content=content, media_type="text/css; charset=utf-8")
+                    elif suffix == '.js':
+                        return Response(content=content, media_type="application/javascript; charset=utf-8")
+                    else:
+                        return Response(content=content, media_type="text/plain; charset=utf-8")
+                except UnicodeDecodeError:
+                    # 如果UTF-8解码失败，尝试其他编码
+                    try:
+                        with open(full_path, 'r', encoding='gbk') as f:
+                            content = f.read()
+                        return Response(content=content, media_type="text/plain; charset=gbk")
+                    except UnicodeDecodeError:
+                        raise HTTPException(status_code=400, detail="无法解码此文本文件")
+            # 对于图片文件，直接返回文件内容
+            elif suffix in IMAGE_FILE_EXTENSIONS:
+                mime_type = "image/svg+xml" if suffix == ".svg" else f"image/{suffix[1:]}"
+                return FileResponse(full_path, media_type=mime_type)
+            # 对于其他二进制文件，直接返回文件内容
+            else:
+                return FileResponse(full_path)
+        
+        # 对于文本文件，返回内容（JSON格式）
         if suffix in TEXT_FILE_EXTENSIONS:
             try:
                 with open(full_path, 'r', encoding='utf-8') as f:
@@ -112,16 +160,23 @@ async def read_file(file_path: str):
                 content = base64.b64encode(f.read()).decode('utf-8')
             mime_type = "image/svg+xml" if suffix == ".svg" else f"image/{suffix[1:]}"
             return {"content": content, "type": "image", "mime": mime_type}
+        # 对于可预览的二进制文件，返回FileResponse以支持iframe预览
+        elif suffix in PREVIEWABLE_BINARY_EXTENSIONS:
+            mime_type = "application/pdf" if suffix == ".pdf" else "application/epub+zip"
+            return FileResponse(full_path, media_type=mime_type)
         else:
             # 其他二进制文件
             return {"content": "Binary file", "type": "binary"}
     else:
         raise HTTPException(status_code=400, detail="Path is not a file")
 
-@app.post("/api/file/{file_path:path}")
-async def save_file(file_path: str, request: Request):
+@app.post("/api/file/{file_type}/{file_path:path}")
+async def save_file(file_type: str, file_path: str, request: Request):
     """保存文件内容"""
-    full_path = SRC_DIR / file_path
+    if file_type == "src":
+        full_path = SRC_DIR / file_path
+    else:
+        raise HTTPException(status_code=400, detail="只能保存src目录下的文件")
     
     # 确保目录存在
     full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,10 +191,13 @@ async def save_file(file_path: str, request: Request):
     
     return {"message": "File saved successfully"}
 
-@app.delete("/api/file/{file_path:path}")
-async def delete_file(file_path: str):
+@app.delete("/api/file/{file_type}/{file_path:path}")
+async def delete_file(file_type: str, file_path: str):
     """删除指定文件"""
-    full_path = SRC_DIR / file_path
+    if file_type == "src":
+        full_path = SRC_DIR / file_path
+    else:
+        raise HTTPException(status_code=400, detail="只能删除src目录下的文件")
     
     if not full_path.exists():
         raise HTTPException(status_code=404, detail="File not found")

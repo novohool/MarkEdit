@@ -40,7 +40,7 @@
 
    或者使用uvicorn：
    ```
-   uvicorn app.main:app --reload
+   python -m uvicorn app.main:app --reload
    ```
 
 5. 在浏览器中访问：
