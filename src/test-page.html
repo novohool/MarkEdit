@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试页面</title>
+    <link rel="stylesheet" href="test-style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>测试页面</h1>
+        </header>
+        
+        <main>
+            <p>这是一个测试HTML页面。</p>
+            
+            <button class="button" id="testButton">点击我</button>
+            
+            <div id="output"></div>
+        </main>
+    </div>
+    
+    <script src="test-code.js"></script>
+    <script>
+        document.getElementById('testButton').addEventListener('click', function() {
+            const output = document.getElementById('output');
+            const testClass = new TestClass('World');
+            output.innerHTML = `<p>${testClass.greet()}</p>`;
+        });
+    </script>
+</body>
+</html>

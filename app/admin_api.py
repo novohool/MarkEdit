@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import asyncio
+import httpx
 
 # 创建路由器
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -122,6 +123,59 @@ async def get_chapter_order(script_type: str):
         return {"chapters": file_matches}
     else:
         return {"chapters": []}
+
+@router.post("/llm/process")
+async def process_with_llm(request: Request):
+    """使用LLM处理文本内容"""
+    try:
+        # 获取请求数据
+        data = await request.json()
+        prompt = data.get("prompt", "")
+        content = data.get("content", "")
+        model = data.get("model", "gpt-4o")
+        
+        if not prompt or not content:
+            raise HTTPException(status_code=400, detail="Prompt and content are required")
+        
+        # 构造请求到外部LLM API
+        llm_url = "https://ch.at/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": ""  # 在实际使用中需要设置API密钥
+        }
+        
+        # 构造消息
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": f"{prompt}\n\nContent:\n{content}"}
+        ]
+        
+        # 构造请求数据
+        llm_data = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.7
+        }
+        
+        # 发送请求到LLM API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(llm_url, headers=headers, json=llm_data, timeout=30.0)
+            
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"LLM API error: {response.text}")
+        
+        # 解析响应
+        result = response.json()
+        processed_content = result["choices"][0]["message"]["content"]
+        
+        return {
+            "status": "success",
+            "processed_content": processed_content
+        }
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="LLM API request timeout")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing with LLM: {str(e)}")
 
 @router.post("/build/{script_name}")
 async def build_book(script_name: str):

@@ -28,6 +28,7 @@ app = FastAPI(title="MarkEdit Web Editor")
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/src", StaticFiles(directory="src"), name="src")
+app.mount("/illustrations", StaticFiles(directory="src/illustrations"), name="illustrations")
 
 # 设置模板目录
 templates = Jinja2Templates(directory="templates")

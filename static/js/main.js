@@ -40,6 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 绑定预览按钮事件
     document.getElementById('preview-btn').addEventListener('click', togglePreview);
     
+    // 绑定LLM按钮事件
+    document.getElementById('llm-btn').addEventListener('click', showLLMDialog);
+    
     // 绑定图书生成按钮事件
     document.getElementById('build-all-btn').addEventListener('click', function() {
         buildBook('build');
@@ -205,6 +208,18 @@ async function loadFile(filePath) {
             } else {
                 document.getElementById('preview-btn').style.display = 'none';
             }
+            
+            // 对于所有文本文件，显示LLM按钮
+            document.getElementById('llm-btn').style.display = 'inline-block';
+            
+            // 如果是代码文件，添加代码高亮
+            const codeFileExtensions = ['.css', '.js', '.html', '.json', '.xml', '.yaml', '.yml'];
+            if (codeFileExtensions.includes(filePath.substring(filePath.lastIndexOf('.')))) {
+                // 添加一个延迟以确保编辑器内容已加载
+                setTimeout(() => {
+                    highlightCodeInEditor();
+                }, 100);
+            }
         } else if (data.type === 'image') {
             // 显示图片查看器
             const imageViewer = document.getElementById('image-viewer');
@@ -272,6 +287,12 @@ function togglePreview() {
         const content = editor.value;
         // 使用marked.js库解析Markdown
         previewContainer.innerHTML = marked.parse(content);
+        
+        // 添加代码高亮
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightAllUnder(previewContainer);
+        }
+        
         previewContainer.style.display = 'block';
         editor.style.display = 'none';
         document.getElementById('preview-btn').textContent = '编辑';
@@ -444,4 +465,141 @@ function closeAdminDrawer() {
     
     drawer.classList.remove('open');
     overlay.classList.remove('open');
+}
+
+// 显示LLM对话框
+function showLLMDialog() {
+    // 创建对话框元素
+    const dialog = document.createElement('div');
+    dialog.className = 'llm-dialog';
+    dialog.innerHTML = `
+        <div class="llm-dialog-overlay"></div>
+        <div class="llm-dialog-content">
+            <div class="llm-dialog-header">
+                <h3>LLM内容处理</h3>
+                <button class="llm-dialog-close">&times;</button>
+            </div>
+            <div class="llm-dialog-body">
+                <label for="llm-prompt">请输入处理指令：</label>
+                <textarea id="llm-prompt" placeholder="例如：请优化这段代码的结构..."></textarea>
+                <div class="llm-dialog-buttons">
+                    <button id="llm-process-btn" class="btn-primary">处理</button>
+                    <button id="llm-cancel-btn" class="btn-secondary">取消</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 添加到页面
+    document.body.appendChild(dialog);
+    
+    // 绑定事件
+    dialog.querySelector('.llm-dialog-close').addEventListener('click', () => {
+        document.body.removeChild(dialog);
+    });
+    
+    dialog.querySelector('#llm-cancel-btn').addEventListener('click', () => {
+        document.body.removeChild(dialog);
+    });
+    
+    dialog.querySelector('#llm-process-btn').addEventListener('click', processWithLLM);
+    
+    // 点击遮罩层关闭对话框
+    dialog.querySelector('.llm-dialog-overlay').addEventListener('click', () => {
+        document.body.removeChild(dialog);
+    });
+}
+
+// 使用LLM处理内容
+async function processWithLLM() {
+    const prompt = document.getElementById('llm-prompt').value;
+    const content = document.getElementById('editor').value;
+    
+    if (!prompt.trim()) {
+        showMessage('请输入处理指令', 'warning');
+        return;
+    }
+    
+    if (!content.trim()) {
+        showMessage('编辑器内容为空', 'warning');
+        return;
+    }
+    
+    try {
+        // 显示处理中消息
+        showMessage('正在处理中...', 'info');
+        
+        // 调用LLM API
+        const response = await fetch('/api/admin/llm/process', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                content: content,
+                model: 'gpt-4o'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.status === 'success') {
+            // 更新编辑器内容
+            document.getElementById('editor').value = result.processed_content;
+            showMessage('处理完成', 'success');
+            
+            // 关闭对话框
+            const dialog = document.querySelector('.llm-dialog');
+            if (dialog) {
+                document.body.removeChild(dialog);
+            }
+        } else {
+            throw new Error(result.detail || '处理失败');
+        }
+    } catch (error) {
+        console.error('LLM处理失败:', error);
+        showMessage('处理失败: ' + error.message, 'error');
+    }
+}
+
+// 为编辑器中的代码添加高亮
+function highlightCodeInEditor() {
+    const editor = document.getElementById('editor');
+    if (!editor || editor.style.display === 'none') return;
+    
+    const filePath = document.getElementById('current-file').textContent;
+    if (filePath === '未选择文件') return;
+    
+    // 获取文件扩展名
+    const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
+    
+    // 定义语言映射
+    const languageMap = {
+        '.css': 'css',
+        '.js': 'javascript',
+        '.html': 'html',
+        '.json': 'json',
+        '.xml': 'xml',
+        '.yaml': 'yaml',
+        '.yml': 'yaml'
+    };
+    
+    const language = languageMap[extension];
+    if (!language) return;
+    
+    // 创建一个临时的pre/code元素用于高亮
+    const tempPre = document.createElement('pre');
+    const tempCode = document.createElement('code');
+    tempCode.className = `language-${language}`;
+    tempCode.textContent = editor.value;
+    tempPre.appendChild(tempCode);
+    
+    // 应用Prism高亮
+    if (typeof Prism !== 'undefined') {
+        Prism.highlightElement(tempCode);
+    }
+    
+    // 注意：由于textarea不能直接显示HTML格式，我们不会将高亮结果应用到编辑器中
+    // 但在预览模式下代码会正确高亮
 }
