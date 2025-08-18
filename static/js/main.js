@@ -2,6 +2,7 @@
 let currentFilePath = null;
 let currentFileType = null;
 let currentFileEncoding = null;
+let codeMirrorEditor = null; // CodeMirror 编辑器实例
 
 // 初始化编辑器状态
 function initializeEditor() {
@@ -14,14 +15,48 @@ function initializeEditor() {
     // 隐藏预览按钮
     document.getElementById('preview-btn').style.display = 'none';
     
+    
     // 禁用删除按钮
     document.getElementById('delete-btn').disabled = true;
 }
 
+// 初始化CodeMirror编辑器
+function initializeCodeMirror() {
+    const editorElement = document.getElementById('codemirror-editor');
+    if (!editorElement) return;
+    
+    // 创建CodeMirror实例
+    codeMirrorEditor = CodeMirror(editorElement, {
+        value: "",
+        mode: "text/plain",
+        lineNumbers: true,
+        theme: "default",
+        indentUnit: 4,
+        smartIndent: true,
+        tabSize: 4,
+        indentWithTabs: false,
+        electricChars: true,
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        viewportMargin: Infinity,
+        lineWrapping: true
+    });
+    
+    // 绑定编辑器键盘事件（Ctrl+S保存）
+    codeMirrorEditor.on("keydown", function(cm, e) {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveFile();
+        }
+    });
+}
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化编辑器状态
     initializeEditor();
+    
+    // 初始化CodeMirror编辑器
+    initializeCodeMirror();
     
     // 加载文件树
     loadFileTree();
@@ -54,14 +89,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('build-pdf-btn').addEventListener('click', function() {
         buildBook('build:pdf');
-    });
-    
-    // 绑定编辑器键盘事件（Ctrl+S保存）
-    document.getElementById('editor').addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
-            saveFile();
-        }
     });
 });
 
@@ -197,13 +224,41 @@ async function loadFile(filePath) {
         if (data.type === 'text') {
             // 显示文本编辑器
             const editor = document.getElementById('editor');
-            editor.value = data.content || '';
-            editor.style.display = 'block';
+            const cmEditorContainer = document.getElementById('codemirror-editor');
+            
+            // 隐藏textarea编辑器
+            editor.style.display = 'none';
+            
+            // 显示CodeMirror编辑器
+            cmEditorContainer.style.display = 'block';
+            
+            // 设置CodeMirror编辑器内容
+            if (codeMirrorEditor) {
+                codeMirrorEditor.setValue(data.content || '');
+                
+                // 根据文件扩展名设置语法高亮模式
+                const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
+                const modeMap = {
+                    '.js': 'javascript',
+                    '.css': 'css',
+                    '.html': 'htmlmixed',
+                    '.xml': 'xml',
+                    '.json': { name: 'javascript', json: true },
+                    '.yaml': 'yaml',
+                    '.yml': 'yaml',
+                    '.md': 'markdown',
+                    '.markdown': 'markdown'
+                };
+                
+                const mode = modeMap[extension] || 'text/plain';
+                codeMirrorEditor.setOption('mode', mode);
+            }
+            
             currentFileType = 'text';
             currentFileEncoding = data.encoding || 'utf-8';
             
             // 如果是Markdown文件，显示预览按钮
-            if (filePath.endsWith('.md')) {
+            if (filePath.endsWith('.md') || filePath.endsWith('.markdown')) {
                 document.getElementById('preview-btn').style.display = 'inline-block';
             } else {
                 document.getElementById('preview-btn').style.display = 'none';
@@ -211,15 +266,6 @@ async function loadFile(filePath) {
             
             // 对于所有文本文件，显示LLM按钮
             document.getElementById('llm-btn').style.display = 'inline-block';
-            
-            // 如果是代码文件，添加代码高亮
-            const codeFileExtensions = ['.css', '.js', '.html', '.json', '.xml', '.yaml', '.yml'];
-            if (codeFileExtensions.includes(filePath.substring(filePath.lastIndexOf('.')))) {
-                // 添加一个延迟以确保编辑器内容已加载
-                setTimeout(() => {
-                    highlightCodeInEditor();
-                }, 100);
-            }
         } else if (data.type === 'image') {
             // 显示图片查看器
             const imageViewer = document.getElementById('image-viewer');
@@ -254,7 +300,8 @@ async function saveFile() {
     }
     
     try {
-        const content = document.getElementById('editor').value;
+        // 从CodeMirror编辑器获取内容
+        const content = codeMirrorEditor ? codeMirrorEditor.getValue() : document.getElementById('editor').value;
         
         const response = await fetch(`/api/file/${currentFilePath}`, {
             method: 'POST',
@@ -280,11 +327,13 @@ async function saveFile() {
 // 切换预览模式
 function togglePreview() {
     const editor = document.getElementById('editor');
+    const cmEditorContainer = document.getElementById('codemirror-editor');
     const previewContainer = document.getElementById('preview-container');
     
     if (previewContainer.style.display === 'none' || previewContainer.style.display === '') {
         // 显示预览
-        const content = editor.value;
+        // 从CodeMirror编辑器获取内容
+        const content = codeMirrorEditor ? codeMirrorEditor.getValue() : editor.value;
         // 使用marked.js库解析Markdown
         previewContainer.innerHTML = marked.parse(content);
         
@@ -295,11 +344,13 @@ function togglePreview() {
         
         previewContainer.style.display = 'block';
         editor.style.display = 'none';
+        cmEditorContainer.style.display = 'none';
         document.getElementById('preview-btn').textContent = '编辑';
     } else {
         // 显示编辑器
         previewContainer.style.display = 'none';
-        editor.style.display = 'block';
+        editor.style.display = 'none';
+        cmEditorContainer.style.display = 'block';
         document.getElementById('preview-btn').textContent = '预览';
     }
 }
@@ -513,7 +564,8 @@ function showLLMDialog() {
 // 使用LLM处理内容
 async function processWithLLM() {
     const prompt = document.getElementById('llm-prompt').value;
-    const content = document.getElementById('editor').value;
+    // 从CodeMirror编辑器获取内容
+    const content = codeMirrorEditor ? codeMirrorEditor.getValue() : document.getElementById('editor').value;
     
     if (!prompt.trim()) {
         showMessage('请输入处理指令', 'warning');
@@ -546,7 +598,11 @@ async function processWithLLM() {
         
         if (response.ok && result.status === 'success') {
             // 更新编辑器内容
-            document.getElementById('editor').value = result.processed_content;
+            if (codeMirrorEditor) {
+                codeMirrorEditor.setValue(result.processed_content);
+            } else {
+                document.getElementById('editor').value = result.processed_content;
+            }
             showMessage('处理完成', 'success');
             
             // 关闭对话框

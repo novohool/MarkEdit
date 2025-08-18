@@ -7,7 +7,17 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <!-- 引入Marked.js库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- 引入Prism.js代码高亮库 -->
+    <!-- 引入CodeMirror代码编辑器库 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/yaml/yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/clike/clike.min.js"></script>
+    <!-- 引入Prism.js代码高亮库（预览模式下使用） -->
     <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
@@ -57,6 +67,7 @@
                 </div>
                 <div class="editor-container">
                     <textarea id="editor" style="display:none;"></textarea>
+                    <div id="codemirror-editor" style="display:none;"></div>
                     <div id="preview-container" style="display:none; padding: 1rem; background-color: #fff; height: 100%; overflow-y: auto;"></div>
                     <div id="image-viewer" style="display:none;"></div>
                     <div id="binary-viewer" style="display:none;">

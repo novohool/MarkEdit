@@ -216,6 +216,43 @@ header h1 {
     background-color: #fff;
 }
 
+/* CodeMirror 编辑器样式 */
+#codemirror-editor {
+    width: 100%;
+    height: 100%;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* CodeMirror 行高亮 */
+.CodeMirror {
+    height: 100% !important;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* 确保 CodeMirror 容器正确填充 */
+.editor-container .CodeMirror {
+    height: 100% !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/* CodeMirror 行号 */
+.CodeMirror-linenumbers {
+    padding-right: 10px;
+}
+
+/* CodeMirror 光标 */
+.CodeMirror-cursor {
+    border-left: 1px solid #000;
+}
+
 #image-viewer {
     width: 100%;
     height: 100%;
