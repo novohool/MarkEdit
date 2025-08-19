@@ -92,6 +92,16 @@ async def save_admin_file(file_name: str, request: Request):
     
     file_path = ALLOWED_FILES[file_name]
     
+    # 读取原始文件内容（如果文件存在）
+    original_content = None
+    if file_path.exists():
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                original_content = f.read()
+        except Exception:
+            # 如果无法读取原始内容，继续执行但不保存原始内容
+            pass
+    
     # 获取请求体中的内容
     body = await request.body()
     
@@ -101,15 +111,30 @@ async def save_admin_file(file_name: str, request: Request):
         try:
             json_data = await request.json()
             content = json.dumps(json_data, indent=2, ensure_ascii=False)
-        except json.JSONDecodeError:
-            # 如果不是有效的JSON，使用原始内容
-            content = body.decode('utf-8')
+            
+            # 验证生成的JSON是否有效
+            json.loads(content)
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
     else:
         content = body.decode('utf-8')
     
     # 保存文件
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
+    
+    # 如果是JSON文件，验证保存后的文件是否为有效的JSON
+    if file_path.suffix.lower() == '.json':
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                saved_content = f.read()
+                json.loads(saved_content)  # 验证JSON格式是否正确
+        except json.JSONDecodeError as e:
+            # 如果保存后的文件不是有效的JSON，恢复原始内容
+            if original_content is not None:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(original_content)
+            raise HTTPException(status_code=500, detail=f"Saved file is not valid JSON, restored original content: {str(e)}")
     
     return {"message": "File saved successfully"}
 
@@ -168,8 +193,32 @@ async def save_chapter_config(request: Request):
         
         # 保存到章节配置文件
         chapter_config_path = BASE_DIR / "src" / "chapter-config.json"
+        
+        # 读取原始配置文件内容
+        original_content = None
+        if chapter_config_path.exists():
+            with open(chapter_config_path, 'r', encoding='utf-8') as f:
+                original_content = f.read()
+        
+        # 保存新配置
         with open(chapter_config_path, 'w', encoding='utf-8') as f:
             json.dump(chapter_config, f, indent=2, ensure_ascii=False)
+        
+        # 验证保存后的文件是否为有效的JSON
+        try:
+            with open(chapter_config_path, 'r', encoding='utf-8') as f:
+                saved_content = f.read()
+                json.loads(saved_content)  # 验证JSON格式是否正确
+            
+            # 如果原始内容存在且与新内容不同，记录日志
+            if original_content and original_content != saved_content:
+                logger.info("Chapter config file updated successfully")
+        except json.JSONDecodeError as e:
+            # 如果保存后的文件不是有效的JSON，恢复原始内容
+            if original_content:
+                with open(chapter_config_path, 'w', encoding='utf-8') as f:
+                    f.write(original_content)
+            raise HTTPException(status_code=500, detail=f"Saved file is not valid JSON, restored original content: {str(e)}")
         
         return {"message": "Chapter config saved successfully"}
     except json.JSONDecodeError as e:

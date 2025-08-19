@@ -189,9 +189,25 @@ async def save_file(file_type: str, file_path: str, request: Request):
     body = await request.body()
     content = body.decode('utf-8')
     
+    # 如果是JSON文件，验证JSON格式
+    if full_path.suffix.lower() == '.json':
+        try:
+            json.loads(content)  # 验证JSON格式是否正确
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+    
     # 保存文件
     with open(full_path, 'w', encoding='utf-8') as f:
         f.write(content)
+    
+    # 验证保存后的文件是否为有效的JSON（如果是JSON文件）
+    if full_path.suffix.lower() == '.json':
+        try:
+            with open(full_path, 'r', encoding='utf-8') as f:
+                saved_content = f.read()
+                json.loads(saved_content)  # 再次验证JSON格式是否正确
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=500, detail=f"Saved file is not valid JSON: {str(e)}")
     
     return {"message": "File saved successfully"}
 

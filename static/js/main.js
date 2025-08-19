@@ -372,22 +372,28 @@ async function loadFile(filePath, area) {
                 currentFileType = 'preview';
             } else if (extension === '.svg') {
                 // SVG文件可以作为图片显示
-                // 直接在图片查看器中显示SVG文件
-                const imageViewer = document.getElementById('image-viewer');
-                imageViewer.innerHTML = `<img src="/api/file/${area}/${encodedFilePath}" alt="${filePath}">`;
-                imageViewer.style.display = 'flex';
+                // 通过API获取SVG文件内容并以base64方式显示
+                const response = await fetch(`/api/file/${area}/${encodedFilePath}`);
+                const data = await response.json();
                 
-                // 隐藏其他视图
-                document.getElementById('editor').style.display = 'none';
-                document.getElementById('preview-container').style.display = 'none';
-                document.getElementById('binary-viewer').style.display = 'none';
-                document.getElementById('codemirror-editor').style.display = 'none';
-                
-                // 更新当前文件信息
-                currentFilePath = filePath;
-                currentFileArea = 'build';
-                currentFileType = 'image';
-                document.getElementById('current-file').textContent = `build/${filePath}`;
+                if (data.type === 'image') {
+                    // 显示在图片查看器中
+                    const imageViewer = document.getElementById('image-viewer');
+                    imageViewer.innerHTML = `<img src="data:${data.mime};base64,${data.content}" alt="${filePath}">`;
+                    imageViewer.style.display = 'flex';
+                    
+                    // 隐藏其他视图
+                    document.getElementById('editor').style.display = 'none';
+                    document.getElementById('preview-container').style.display = 'none';
+                    document.getElementById('binary-viewer').style.display = 'none';
+                    document.getElementById('codemirror-editor').style.display = 'none';
+                    
+                    // 更新当前文件信息
+                    currentFilePath = filePath;
+                    currentFileArea = 'build';
+                    currentFileType = 'image';
+                    document.getElementById('current-file').textContent = `build/${filePath}`;
+                }
             }
             
             // 显示预览按钮并设置初始状态为"预览"
