@@ -7,7 +7,9 @@ WORKDIR /app
 COPY . .
 
 RUN apt-get update && \
-    apt-get install -y python3.12 python3.12-venv python3-pip python3-dev pandoc wkhtmltopdf build-essential libssl-dev libffi-dev && \
+    apt-get install -y python3.12 python3.12-venv python3-pip python3-dev pandoc wkhtmltopdf build-essential \
+    libssl-dev libffi-dev  fonts-wqy-zenhei fonts-wqy-microhei xfonts-wqy  && \
+    fc-cache -f -v && \
     python3.12 -m venv workspace  && \
     echo ". workspace/bin/activate" >> ~/.bashrc && \
     source workspace/bin/activate && \
