@@ -9,6 +9,15 @@ import logging
 import platform
 import sys
 
+# 添加项目根目录到Python路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# 导入自定义的构建工具
+from app.build_utils import build_epub, build_pdf
+
 
 # 获取当前文件所在目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -232,79 +241,81 @@ async def build_book(script_name: str):
         logger.warning(f"Invalid script name received: {script_name}")
         raise HTTPException(status_code=400, detail="Invalid script name")
     
-    npm_executable =  "npm"
-    if script_name == "build":
-        cmd = [npm_executable, "run", "build"]
-        logger.info(f"Build command set to: {npm_executable} run build")
-    elif script_name == "build:epub":
-        cmd = [npm_executable, "run", "build:epub"]
-        logger.info(f"Build command set to: {npm_executable} run build:epub")
-    elif script_name == "build:pdf":
-        cmd = [npm_executable, "run", "build:pdf"]
-        logger.info(f"Build command set to: {npm_executable} run build:pdf")
+    # 确定源目录和构建目录
+    src_dir = BASE_DIR / "src"
+    build_dir = BASE_DIR / "build"
     
     try:
-        logger.info(f"Executing build command: {' '.join(cmd)}")
-        # 执行命令，传递完整的环境变量
-        env = os.environ.copy()
-        
-        # 使用subprocess.run替代asyncio.create_subprocess_exec
-        try:
-            import subprocess
-            # 执行命令，设置超时时间（300秒）
-            result = subprocess.run(
-                cmd,
-                cwd=BASE_DIR,
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=300,  # 5分钟超时
-                text=True
-            )
+        # 根据脚本名称执行相应的构建过程
+        if script_name == "build":
+            # 构建EPUB和PDF
+            logger.info("Building both EPUB and PDF")
             
-            logger.info(f"Build process completed with return code: {result.returncode}")
-            
-            # 检查返回码
-            if result.returncode == 0:
-                logger.info(f"Build process succeeded for script: {script_name}")
-                return {
-                    "status": "success",
-                    "message": f"Successfully executed {script_name}",
-                    "stdout": result.stdout,
-                    "stderr": result.stderr
-                }
-            else:
-                error_msg = f"Build process failed for script: {script_name} with return code: {result.returncode}"
-                logger.error(error_msg)
-                logger.error(f"STDOUT: {result.stdout}")
-                logger.error(f"STDERR: {result.stderr}")
+            # 构建EPUB
+            epub_result = build_epub(src_dir, build_dir)
+            if epub_result["status"] != "success":
+                logger.error(f"EPUB build failed: {epub_result['message']}")
                 return {
                     "status": "error",
-                    "message": f"Failed to execute {script_name}",
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "details": {
-                        "return_code": result.returncode,
-                        "command": ' '.join(cmd)
-                    }
+                    "message": f"EPUB构建失败: {epub_result['message']}",
+                    "details": epub_result
                 }
-        except subprocess.TimeoutExpired as e:
-            error_msg = f"Build process timed out for script: {script_name}"
-            logger.error(error_msg)
-            raise HTTPException(status_code=500, detail=f"Build process timed out for {script_name}")
-    except FileNotFoundError as e:
-        error_msg = f"File not found error during build process: {str(e)}"
-        logger.error(error_msg)
-        logger.error(f"Exception type: {type(e).__name__}")
-        logger.error(f"Current environment PATH: {os.environ.get('PATH', '')}")
-        # 尝试查找npm的完整路径
-        try:
-            import subprocess
-            npm_path = subprocess.run(["where", "npm"], capture_output=True, text=True, shell=True).stdout.strip()
-            logger.info(f"Found npm at: {npm_path}")
-        except Exception as path_error:
-            logger.error(f"Error finding npm path: {path_error}")
-        raise HTTPException(status_code=500, detail=error_msg)
+            
+            # 构建PDF
+            pdf_result = build_pdf(src_dir, build_dir)
+            if pdf_result["status"] != "success":
+                logger.error(f"PDF build failed: {pdf_result['message']}")
+                return {
+                    "status": "error",
+                    "message": f"PDF构建失败: {pdf_result['message']}",
+                    "details": pdf_result
+                }
+            
+            logger.info("Both EPUB and PDF build completed successfully")
+            return {
+                "status": "success",
+                "message": "EPUB和PDF文件生成成功",
+                "details": {
+                    "epub": epub_result,
+                    "pdf": pdf_result
+                }
+            }
+        elif script_name == "build:epub":
+            # 只构建EPUB
+            logger.info("Building EPUB")
+            result = build_epub(src_dir, build_dir)
+            if result["status"] == "success":
+                logger.info("EPUB build completed successfully")
+                return {
+                    "status": "success",
+                    "message": "EPUB文件生成成功",
+                    "details": result
+                }
+            else:
+                logger.error(f"EPUB build failed: {result['message']}")
+                return {
+                    "status": "error",
+                    "message": f"EPUB构建失败: {result['message']}",
+                    "details": result
+                }
+        elif script_name == "build:pdf":
+            # 只构建PDF
+            logger.info("Building PDF")
+            result = build_pdf(src_dir, build_dir)
+            if result["status"] == "success":
+                logger.info("PDF build completed successfully")
+                return {
+                    "status": "success",
+                    "message": "PDF文件生成成功",
+                    "details": result
+                }
+            else:
+                logger.error(f"PDF build failed: {result['message']}")
+                return {
+                    "status": "error",
+                    "message": f"PDF构建失败: {result['message']}",
+                    "details": result
+                }
     except Exception as e:
         error_msg = f"Unexpected error during build process: {str(e)}"
         logger.error(error_msg)
@@ -312,4 +323,4 @@ async def build_book(script_name: str):
         # 记录堆栈跟踪信息
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Error executing script: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"构建过程中出现未预期的错误: {str(e)}")

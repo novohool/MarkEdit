@@ -335,7 +335,9 @@ async function loadFile(filePath, area) {
             
             // 显示预览容器
             const previewContainer = document.getElementById('preview-container');
-            const fileUrl = `/api/file/${area}/${filePath}`;
+            // 对文件路径进行编码以正确处理包含特殊字符或子目录的路径
+            const encodedFilePath = encodeURIComponent(filePath);
+            const fileUrl = `/api/file/${area}/${encodedFilePath}`;
             
             if (extension === '.pdf') {
                 // PDF文件通过iframe预览
@@ -372,7 +374,7 @@ async function loadFile(filePath, area) {
                 // SVG文件可以作为图片显示
                 // 直接在图片查看器中显示SVG文件
                 const imageViewer = document.getElementById('image-viewer');
-                imageViewer.innerHTML = `<img src="/api/file/${area}/${filePath}?raw=true" alt="${filePath}">`;
+                imageViewer.innerHTML = `<img src="/api/file/${area}/${encodedFilePath}?raw=true" alt="${filePath}">`;
                 imageViewer.style.display = 'flex';
                 currentFileType = 'image';
             }
@@ -923,7 +925,9 @@ async function previewBuildFile(filePath) {
         const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
         
         // 统一使用iframe预览所有支持的文件类型
-        const fileUrl = `/api/file/build/${filePath}`;
+        // 对文件路径进行编码以正确处理包含特殊字符或子目录的路径
+        const encodedFilePath = encodeURIComponent(filePath);
+        const fileUrl = `/api/file/build/${encodedFilePath}`;
         const previewContainer = document.getElementById('preview-container');
         
         // 根据文件扩展名处理预览
@@ -950,7 +954,7 @@ async function previewBuildFile(filePath) {
             document.getElementById('current-file').textContent = `build/${filePath}`;
         } else if (extension === '.svg') {
             // SVG文件可以作为图片显示
-            const response = await fetch(`/api/file/build/${filePath}`);
+            const response = await fetch(`/api/file/build/${encodedFilePath}`);
             const data = await response.json();
             
             if (data.type === 'image') {
@@ -1056,6 +1060,9 @@ async function buildBook(scriptName) {
             showMessage(`${scriptName} 执行成功`, 'success');
             console.log('stdout:', result.stdout);
             console.log('stderr:', result.stderr);
+            
+            // 构建成功后刷新文件树
+            await loadFileTree();
         } else {
             showMessage(`${scriptName} 执行失败: ${result.message}`, 'error');
             console.error('stdout:', result.stdout);
