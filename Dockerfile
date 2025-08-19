@@ -8,6 +8,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 安装 pandoc 和 wkhtmltopdf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pandoc \
+    wkhtmltopdf \
+    && rm -rf /var/lib/apt/lists/*
+
 # 复制项目文件
 COPY . .
 
