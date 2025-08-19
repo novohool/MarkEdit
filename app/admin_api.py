@@ -141,6 +141,33 @@ async def get_chapter_config():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading chapter config: {str(e)}")
 
+@router.post("/chapter-config")
+async def save_chapter_config(request: Request):
+    """保存章节配置信息"""
+    try:
+        # 获取请求体中的JSON数据
+        chapter_config = await request.json()
+        
+        # 验证数据结构
+        if "chapters" not in chapter_config:
+            raise HTTPException(status_code=400, detail="Invalid chapter config format: missing 'chapters' key")
+        
+        # 验证每个章节对象
+        for chapter in chapter_config["chapters"]:
+            if "file" not in chapter or "title" not in chapter:
+                raise HTTPException(status_code=400, detail="Invalid chapter config format: each chapter must have 'file' and 'title' keys")
+        
+        # 保存到章节配置文件
+        chapter_config_path = BASE_DIR / "src" / "chapter-config.json"
+        with open(chapter_config_path, 'w', encoding='utf-8') as f:
+            json.dump(chapter_config, f, indent=2, ensure_ascii=False)
+        
+        return {"message": "Chapter config saved successfully"}
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving chapter config: {str(e)}")
+
 @router.post("/llm/process")
 async def process_with_llm(request: Request):
     """使用LLM处理文本内容"""

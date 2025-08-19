@@ -15,8 +15,5 @@
     "epub"
   ],
   "author": "novo Code",
-  "license": "MIT",
-  "dependencies": {
-    "epubjs": "^0.3.93"
-  }
+  "license": "MIT"
 }
