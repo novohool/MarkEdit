@@ -45,7 +45,7 @@
 
 5. 在浏览器中访问：
    ```
-   http://localhost:8000
+   http://localhost:8080
    ```
 
 ## 使用 Docker 运行
@@ -57,12 +57,12 @@
 
 2. 运行容器：
    ```
-   docker run -p 8000:8000 -v $(pwd)/src:/app/src markeditor
+   docker run -p 8080:8080 -v $(pwd)/src:/app/src markeditor
    ```
 
 3. 在浏览器中访问：
    ```
-   http://localhost:8000
+   http://localhost:8080
    ```
 
 注意：使用 `-v` 参数将本地的 src 目录挂载到容器中，以确保文件修改持久化保存在本地。
