@@ -379,9 +379,10 @@ async function loadFile(filePath, area) {
                 currentFileType = 'image';
             }
             
-            // 显示预览按钮
-            document.getElementById('preview-btn').style.display = 'inline-block';
-            document.getElementById('preview-btn').textContent = '编辑';
+            // 显示预览按钮并设置初始状态为"预览"
+            const previewBtn = document.getElementById('preview-btn');
+            previewBtn.style.display = 'inline-block';
+            previewBtn.textContent = '预览';
         } else {
             // 对于其他文件，使用原来的逻辑
             const response = await fetch(`/api/file/${area}/${filePath}`);
@@ -436,9 +437,11 @@ async function loadFile(filePath, area) {
                     currentFileType = 'text';
                     currentFileEncoding = data.encoding || 'utf-8';
                     
-                    // 如果是Markdown文件，显示预览按钮
+                    // 如果是Markdown文件，显示预览按钮并设置初始状态为"预览"
                     if (filePath.endsWith('.md') || filePath.endsWith('.markdown')) {
-                        document.getElementById('preview-btn').style.display = 'inline-block';
+                        const previewBtn = document.getElementById('preview-btn');
+                        previewBtn.style.display = 'inline-block';
+                        previewBtn.textContent = '预览';
                     } else {
                         document.getElementById('preview-btn').style.display = 'none';
                     }
@@ -462,9 +465,11 @@ async function loadFile(filePath, area) {
                     // 显示二进制文件提示
                     document.getElementById('binary-viewer').style.display = 'flex';
                     currentFileType = 'binary';
-                    
                     // 隐藏预览按钮
                     document.getElementById('preview-btn').style.display = 'none';
+                    // 重置预览按钮文本
+                    document.getElementById('preview-btn').textContent = '预览';
+                    
                 }
             } else {
                 // 对于二进制文件（如PDF、EPUB等），直接显示在预览容器中
@@ -500,9 +505,10 @@ async function loadFile(filePath, area) {
                     currentFileType = 'binary';
                 }
                 
-                // 显示预览按钮
-                document.getElementById('preview-btn').style.display = 'inline-block';
-                document.getElementById('preview-btn').textContent = '编辑';
+                // 显示预览按钮并设置初始状态为"预览"
+                const previewBtn = document.getElementById('preview-btn');
+                previewBtn.style.display = 'inline-block';
+                previewBtn.textContent = '预览';
             }
         }
         
