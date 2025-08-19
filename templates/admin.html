@@ -87,6 +87,10 @@
             padding: 5px;
         }
         
+        .chapter-item .remove-chapter-btn {
+            margin-left: auto;
+        }
+        
         .btn-group {
             display: flex;
             gap: 10px;
@@ -211,49 +215,6 @@
         <div id="drawer-overlay" class="drawer-overlay"></div>
         
         <div class="admin-container">
-            <!-- Package.json 管理 -->
-            <div class="section">
-                <h2>项目配置 (package.json)</h2>
-                <form id="package-form">
-                    <div class="form-group">
-                        <label for="project-name">项目名称</label>
-                        <input type="text" id="project-name" name="name">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="project-version">版本</label>
-                        <input type="text" id="project-version" name="version">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="project-description">描述</label>
-                        <textarea id="project-description" name="description"></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="project-author">作者</label>
-                        <input type="text" id="project-author" name="author">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="project-license">许可证</label>
-                        <input type="text" id="project-license" name="license">
-                    </div>
-                    
-                    <h3>脚本命令</h3>
-                    <div id="scripts-container">
-                        <!-- 脚本将通过JavaScript动态添加 -->
-                    </div>
-                    
-                    <button type="button" id="add-script-btn" class="btn-secondary btn-small">添加脚本</button>
-                    
-                    <div class="btn-group">
-                        <button type="button" id="save-package-btn" class="btn-primary">保存配置</button>
-                        <button type="button" id="reset-package-btn" class="btn-secondary">重置</button>
-                    </div>
-                </form>
-            </div>
-            
             <!-- 构建脚本管理 -->
             <div class="section">
                 <h2>章节顺序配置</h2>
@@ -283,7 +244,6 @@
     
     <script>
         // 全局变量
-        let packageData = {};
         let chapterConfig = [];
         
         // 页面加载完成后初始化
@@ -293,11 +253,17 @@
             
             // 绑定事件监听器
             bindEventListeners();
-            
             // 绑定抽屉菜单事件
             document.getElementById('admin-menu-btn').addEventListener('click', toggleAdminDrawer);
             document.getElementById('close-drawer-btn').addEventListener('click', closeAdminDrawer);
             document.getElementById('drawer-overlay').addEventListener('click', closeAdminDrawer);
+            
+            // 为抽屉菜单中的链接添加事件监听器，点击时关闭抽屉菜单
+            const drawerLinks = document.querySelectorAll('#admin-drawer a');
+            drawerLinks.forEach(link => {
+                link.addEventListener('click', closeAdminDrawer);
+            });
+            
         });
         
         // 抽屉菜单控制函数
@@ -320,14 +286,6 @@
         // 加载配置数据
         async function loadConfigData() {
             try {
-                // 加载package.json数据
-                const packageResponse = await fetch('/api/admin/file/package.json');
-                const packageResult = await packageResponse.json();
-                if (packageResponse.ok && packageResult.type === 'text') {
-                    packageData = JSON.parse(packageResult.content);
-                    populatePackageForm();
-                }
-                
                 // 加载章节配置数据
                 const chapterConfigResponse = await fetch('/api/admin/chapter-config');
                 const chapterConfigResult = await chapterConfigResponse.json();
@@ -340,27 +298,6 @@
                 showMessage('加载配置数据失败: ' + error.message, 'error');
             }
         }
-        
-        // 填充package表单
-        function populatePackageForm() {
-            document.getElementById('project-name').value = packageData.name || '';
-            document.getElementById('project-version').value = packageData.version || '';
-            document.getElementById('project-description').value = packageData.description || '';
-            document.getElementById('project-author').value = packageData.author || '';
-            document.getElementById('project-license').value = packageData.license || '';
-            
-            // 清空现有的脚本项
-            const scriptsContainer = document.getElementById('scripts-container');
-            scriptsContainer.innerHTML = '';
-            
-            // 添加脚本项
-            if (packageData.scripts) {
-                for (const [name, command] of Object.entries(packageData.scripts)) {
-                    addScriptItem(name, command);
-                }
-            }
-        }
-        
         
         // 渲染章节列表
         function renderChapterList(containerId, chapters) {
@@ -439,36 +376,8 @@
                 }
             });
         }
-        
-        // 添加脚本项
-        function addScriptItem(name = '', command = '') {
-            const scriptsContainer = document.getElementById('scripts-container');
-            const scriptDiv = document.createElement('div');
-            scriptDiv.className = 'form-group script-item';
-            scriptDiv.innerHTML = `
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" placeholder="脚本名称" value="${name}" class="script-name">
-                    <input type="text" placeholder="命令" value="${command}" class="script-command" style="flex: 1;">
-                    <button type="button" class="btn-danger btn-small remove-script-btn">删除</button>
-                </div>
-            `;
-            scriptsContainer.appendChild(scriptDiv);
-        }
-        
         // 绑定事件监听器
         function bindEventListeners() {
-            // 添加脚本按钮
-            document.getElementById('add-script-btn').addEventListener('click', function() {
-                addScriptItem();
-            });
-            
-            // 脚本容器事件委托
-            document.getElementById('scripts-container').addEventListener('click', function(e) {
-                if (e.target.classList.contains('remove-script-btn')) {
-                    e.target.closest('.script-item').remove();
-                }
-            });
-            
             // 章节列表事件委托
             document.addEventListener('click', function(e) {
                 // 删除章节按钮
@@ -477,34 +386,14 @@
                 }
             });
             
-            // 保存package.json
-            document.getElementById('save-package-btn').addEventListener('click', savePackageConfig);
-            
-            // 重置package.json表单
-            document.getElementById('reset-package-btn').addEventListener('click', function() {
-                populatePackageForm();
-                showMessage('表单已重置', 'info');
+            // 保存章节顺序
+            document.getElementById('save-chapters-btn').addEventListener('click', function() {
+                saveChapterOrder('chapters');
             });
             
-            // 保存PDF章节顺序
-            document.getElementById('save-pdf-chapters-btn').addEventListener('click', function() {
-                saveChapterOrder('pdf-chapters', 'build-pdf.js');
-            });
-            
-            // 重置PDF章节顺序
-            document.getElementById('reset-pdf-chapters-btn').addEventListener('click', function() {
-                renderChapterList('pdf-chapters', pdfChapters);
-                showMessage('章节顺序已重置', 'info');
-            });
-            
-            // 保存EPUB章节顺序
-            document.getElementById('save-epub-chapters-btn').addEventListener('click', function() {
-                saveChapterOrder('epub-chapters', 'build-epub.js');
-            });
-            
-            // 重置EPUB章节顺序
-            document.getElementById('reset-epub-chapters-btn').addEventListener('click', function() {
-                renderChapterList('epub-chapters', epubChapters);
+            // 重置章节顺序
+            document.getElementById('reset-chapters-btn').addEventListener('click', function() {
+                renderChapterList('chapters', chapterConfig);
                 showMessage('章节顺序已重置', 'info');
             });
             
@@ -522,56 +411,8 @@
             });
         }
         
-        // 保存package配置
-        async function savePackageConfig() {
-            try {
-                // 收集表单数据
-                const updatedPackage = {
-                    ...packageData,
-                    name: document.getElementById('project-name').value,
-                    version: document.getElementById('project-version').value,
-                    description: document.getElementById('project-description').value,
-                    author: document.getElementById('project-author').value,
-                    license: document.getElementById('project-license').value
-                };
-                
-                // 收集脚本
-                updatedPackage.scripts = {};
-                const scriptItems = document.querySelectorAll('.script-item');
-                scriptItems.forEach(item => {
-                    const nameInput = item.querySelector('.script-name');
-                    const commandInput = item.querySelector('.script-command');
-                    if (nameInput.value.trim() !== '') {
-                        updatedPackage.scripts[nameInput.value] = commandInput.value;
-                    }
-                });
-                
-                // 发送更新请求
-                const response = await fetch('/api/admin/file/package.json', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedPackage, null, 2)
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    showMessage('配置保存成功', 'success');
-                    // 更新本地数据
-                    packageData = updatedPackage;
-                } else {
-                    throw new Error(result.detail || '保存失败');
-                }
-            } catch (error) {
-                console.error('保存配置失败:', error);
-                showMessage('保存配置失败: ' + error.message, 'error');
-            }
-        }
-        
         // 保存章节顺序
-        async function saveChapterOrder(containerId, fileName) {
+        async function saveChapterOrder(containerId) {
             try {
                 // 获取更新后的章节顺序
                 const container = document.getElementById(containerId);
@@ -613,6 +454,7 @@
                 showMessage('保存章节顺序失败: ' + error.message, 'error');
             }
         }
+        
         
         // 显示消息
         function showMessage(message, type) {

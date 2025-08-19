@@ -38,6 +38,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = BASE_DIR / "src"
 BUILD_DIR = BASE_DIR / "build"
 
+# 确保build目录存在
+BUILD_DIR.mkdir(parents=True, exist_ok=True)
+
 # 定义文本文件扩展名（包含无后缀文件）
 TEXT_FILE_EXTENSIONS = {'.md', '.yml', '.yaml', '.css', '.html', '.js', '.json', '.txt', '.xml', '.csv', ''}
 
