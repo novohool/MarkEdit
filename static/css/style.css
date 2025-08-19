@@ -286,6 +286,15 @@ header h1 {
     background-color: #fff;
 }
 
+/* 确保图片查看器正确填充 */
+.editor-container #image-viewer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
 #image-viewer img {
     max-width: 100%;
     max-height: 100%;
