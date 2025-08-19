@@ -256,30 +256,16 @@
             
             <!-- 构建脚本管理 -->
             <div class="section">
-                <h2>PDF构建配置 (build-pdf.js)</h2>
+                <h2>章节顺序配置</h2>
                 <div class="form-group">
                     <label>章节顺序</label>
-                    <ul id="pdf-chapters" class="chapter-list" data-script="pdf">
+                    <ul id="chapters" class="chapter-list">
                         <!-- 章节将通过JavaScript动态添加 -->
                     </ul>
                 </div>
                 <div class="btn-group">
-                    <button type="button" id="save-pdf-chapters-btn" class="btn-primary">保存章节顺序</button>
-                    <button type="button" id="reset-pdf-chapters-btn" class="btn-secondary">重置</button>
-                </div>
-            </div>
-            
-            <div class="section">
-                <h2>EPUB构建配置 (build-epub.js)</h2>
-                <div class="form-group">
-                    <label>章节顺序</label>
-                    <ul id="epub-chapters" class="chapter-list" data-script="epub">
-                        <!-- 章节将通过JavaScript动态添加 -->
-                    </ul>
-                </div>
-                <div class="btn-group">
-                    <button type="button" id="save-epub-chapters-btn" class="btn-primary">保存章节顺序</button>
-                    <button type="button" id="reset-epub-chapters-btn" class="btn-secondary">重置</button>
+                    <button type="button" id="save-chapters-btn" class="btn-primary">保存章节顺序</button>
+                    <button type="button" id="reset-chapters-btn" class="btn-secondary">重置</button>
                 </div>
             </div>
             
@@ -347,8 +333,7 @@
                 const chapterConfigResult = await chapterConfigResponse.json();
                 if (chapterConfigResponse.ok) {
                     chapterConfig = chapterConfigResult.chapters;
-                    renderChapterList('pdf-chapters', chapterConfig);
-                    renderChapterList('epub-chapters', chapterConfig);
+                    renderChapterList('chapters', chapterConfig);
                 }
             } catch (error) {
                 console.error('加载配置数据失败:', error);
