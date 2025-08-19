@@ -5,6 +5,16 @@ from fastapi.responses import HTMLResponse, Response, FileResponse
 from pathlib import Path
 import os
 import json
+import zipfile
+import datetime
+import logging
+
+# 设置日志记录
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 全局变量存储启动备份文件名
+startup_backup_filename = None
 
 # 导入管理API路由器
 try:
@@ -22,6 +32,47 @@ except ImportError:
         sys.path.insert(0, project_root)
     # 现在可以导入admin_api
     from app.admin_api import router as admin_router
+
+
+def backup_src_directory(startup_backup=False):
+    """备份src目录到zip文件"""
+    try:
+        # 创建备份目录
+        backup_dir = BASE_DIR / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        
+        # 生成备份文件名
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        if startup_backup:
+            backup_filename = f"src_backup_{timestamp}_startup.zip"
+        else:
+            backup_filename = f"src_backup_{timestamp}.zip"
+        backup_path = backup_dir / backup_filename
+        
+        # 创建zip文件
+        with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 遍历src目录中的所有文件和子目录
+            for root, dirs, files in os.walk(SRC_DIR):
+                for file in files:
+                    file_path = Path(root) / file
+                    # 计算相对路径
+                    arcname = file_path.relative_to(BASE_DIR)
+                    zipf.write(file_path, arcname)
+        
+        # 如果是启动备份，保存备份文件名到特定文件和全局变量
+        if startup_backup:
+            global startup_backup_filename
+            startup_backup_filename = backup_filename
+            
+            startup_backup_file = backup_dir / "startup_backup.txt"
+            with open(startup_backup_file, 'w') as f:
+                f.write(backup_filename)
+        
+        logger.info(f"Src目录备份成功: {backup_path}")
+        return backup_path
+    except Exception as e:
+        logger.error(f"备份src目录时出错: {str(e)}")
+        raise
 
 app = FastAPI(title="MarkEdit Web Editor")
 
@@ -52,6 +103,14 @@ PREVIEWABLE_BINARY_EXTENSIONS = {'.pdf', '.epub'}
 
 # 包含管理API路由器
 app.include_router(admin_router)
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时执行的事件"""
+    try:
+        backup_src_directory(startup_backup=True)
+    except Exception as e:
+        logger.error(f"应用启动时备份src目录失败: {str(e)}")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):

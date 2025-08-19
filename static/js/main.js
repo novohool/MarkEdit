@@ -91,6 +91,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('build-pdf-btn').addEventListener('click', function() {
         buildBook('build:pdf');
     });
+    
+    // // 绑定Src目录管理按钮事件
+    // document.getElementById('upload-src-btn').addEventListener('click', uploadSrc);
+    // document.getElementById('download-src-btn').addEventListener('click', downloadSrc);
+    // document.getElementById('reset-src-btn').addEventListener('click', resetSrc);
 });
 
 // 加载文件树
@@ -1270,4 +1275,108 @@ function highlightCodeInEditor() {
     
     // 注意：由于textarea不能直接显示HTML格式，我们不会将高亮结果应用到编辑器中
     // 但在预览模式下代码会正确高亮
+}
+
+// 上传Src目录
+async function uploadSrc() {
+    const fileInput = document.getElementById('src-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showMessage('请选择一个文件', 'warning');
+        return;
+    }
+    
+    if (!file.name.endsWith('.zip')) {
+        showMessage('只允许上传.zip文件', 'error');
+        return;
+    }
+    
+    // 确认上传
+    if (!confirm('上传新的Src目录将会替换当前的Src目录，确定要继续吗？')) {
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        showMessage('正在上传Src目录...', 'info');
+        
+        const response = await fetch('/api/admin/upload-src', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            showMessage('Src目录上传成功', 'success');
+            // 刷新文件树
+            await loadFileTree();
+        } else {
+            const result = await response.json();
+            throw new Error(result.detail || '上传失败');
+        }
+    } catch (error) {
+        console.error('上传Src目录失败:', error);
+        showMessage('上传Src目录失败: ' + error.message, 'error');
+    }
+}
+
+// 下载Src目录
+async function downloadSrc() {
+    try {
+        console.log('开始下载Src目录');
+        showMessage('正在准备下载Src目录...', 'info');
+        
+        // 创建一个隐藏的iframe来触发下载
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = '/api/admin/download-src';
+        document.body.appendChild(iframe);
+        
+        console.log('已创建iframe并添加到页面');
+        
+        // 一段时间后移除iframe
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+            console.log('已移除iframe');
+        }, 1000);
+    } catch (error) {
+        console.error('下载Src目录失败:', error);
+        showMessage('下载Src目录失败: ' + error.message, 'error');
+    }
+}
+
+// 重置Src目录
+async function resetSrc() {
+    // 确认重置
+    if (!confirm('确定要重置Src目录到最新备份吗？这将删除当前的Src目录并恢复到最新备份。')) {
+        console.log('用户取消了重置操作');
+        return;
+    }
+    
+    try {
+        console.log('开始重置Src目录');
+        showMessage('正在重置Src目录...', 'info');
+        
+        const response = await fetch('/api/admin/reset-src', {
+            method: 'POST'
+        });
+        
+        console.log('收到重置响应:', response);
+        
+        if (response.ok) {
+            showMessage('Src目录重置成功', 'success');
+            console.log('Src目录重置成功');
+            // 刷新文件树
+            await loadFileTree();
+        } else {
+            const result = await response.json();
+            console.error('重置失败:', result);
+            throw new Error(result.detail || '重置失败');
+        }
+    } catch (error) {
+        console.error('重置Src目录失败:', error);
+        showMessage('重置Src目录失败: ' + error.message, 'error');
+    }
 }

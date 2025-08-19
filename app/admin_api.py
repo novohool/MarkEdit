@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from fastapi.responses import FileResponse
 from pathlib import Path
 import json
 import os
@@ -8,6 +9,9 @@ import httpx
 import logging
 import platform
 import sys
+import zipfile
+import shutil
+import datetime
 
 # 添加项目根目录到Python路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +21,9 @@ if project_root not in sys.path:
 
 # 导入自定义的构建工具
 from app.build_utils import build_epub, build_pdf
+
+# 导入全局变量
+from app.main import startup_backup_filename
 
 
 # 获取当前文件所在目录
@@ -34,7 +41,10 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
 
 # 获取项目根目录
+
+# 获取项目根目录和src目录
 BASE_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = BASE_DIR / "src"
 
 # 定义允许管理的文件
 ALLOWED_FILES = {
@@ -373,3 +383,301 @@ async def build_book(script_name: str):
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"构建过程中出现未预期的错误: {str(e)}")
+
+@router.post("/upload-src")
+async def upload_src(file: UploadFile = File(...)):
+    """上传src目录的zip包"""
+    try:
+        # 检查文件类型
+        if not file.filename.endswith('.zip'):
+            raise HTTPException(status_code=400, detail="只允许上传.zip文件")
+        
+        # 创建临时文件
+        temp_file_path = BASE_DIR / f"temp_upload_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        
+        # 保存上传的文件
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 验证zip文件
+        try:
+            with zipfile.ZipFile(temp_file_path, 'r') as zip_ref:
+                # 检查zip文件是否有效
+                zip_ref.testzip()
+        except zipfile.BadZipFile:
+            # 删除临时文件
+            temp_file_path.unlink()
+            raise HTTPException(status_code=400, detail="上传的文件不是有效的zip文件")
+        
+        # 备份当前src目录
+        backup_src_directory()
+        
+        # 删除当前src目录
+        if SRC_DIR.exists():
+            shutil.rmtree(SRC_DIR)
+        
+        # 解压上传的zip文件到src目录
+        with zipfile.ZipFile(temp_file_path, 'r') as zip_ref:
+            # 先创建src目录
+            SRC_DIR.mkdir(exist_ok=True)
+            # 解压到src目录
+            for member in zip_ref.infolist():
+                # 处理路径，确保文件解压到src目录中
+                if member.filename.startswith('src/'):
+                    # 移除路径前缀
+                    target_path = SRC_DIR / member.filename[4:]
+                else:
+                    # 如果没有src/前缀，直接解压到src目录
+                    target_path = SRC_DIR / member.filename
+                
+                # 处理目录
+                if member.is_dir():
+                    target_path.mkdir(parents=True, exist_ok=True)
+                else:
+                    # 确保父目录存在
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    # 解压文件
+                    with zip_ref.open(member) as source, open(target_path, 'wb') as target:
+                        shutil.copyfileobj(source, target)
+        
+        # 删除临时文件
+        temp_file_path.unlink()
+        
+        logger.info("Src目录上传并替换成功")
+        return {"message": "Src目录上传并替换成功"}
+    except Exception as e:
+        logger.error(f"上传src目录时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"上传src目录时出错: {str(e)}")
+
+@router.get("/download-src")
+async def download_src():
+    """下载src目录的zip包"""
+    try:
+        logger.info("开始下载src目录")
+        # 创建备份
+        backup_path = backup_src_directory()
+        logger.info(f"备份文件路径: {backup_path}")
+        
+        # 返回文件下载
+        response = FileResponse(
+            path=backup_path,
+            filename=backup_path.name,
+            media_type='application/zip'
+        )
+        logger.info("已创建FileResponse")
+        return response
+    except Exception as e:
+        logger.error(f"下载src目录时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"下载src目录时出错: {str(e)}")
+
+@router.post("/reset-src")
+async def reset_src():
+    """重置src目录到启动时备份"""
+    try:
+        logger.info("开始重置src目录")
+        # 查找启动时备份文件
+        backup_dir = BASE_DIR / "backups"
+        logger.info(f"备份目录路径: {backup_dir}")
+        if not backup_dir.exists():
+            logger.error("备份目录不存在")
+            raise HTTPException(status_code=404, detail="备份目录不存在")
+        
+        # 使用全局变量获取启动备份文件名
+        from app.main import startup_backup_filename
+        if not startup_backup_filename:
+            logger.error("启动备份文件记录不存在")
+            raise HTTPException(status_code=404, detail="启动备份文件记录不存在")
+        
+        startup_backup_path = backup_dir / startup_backup_filename
+        logger.info(f"启动备份文件路径: {startup_backup_path}")
+        if not startup_backup_path.exists():
+            logger.error("启动备份文件不存在")
+            raise HTTPException(status_code=404, detail="启动备份文件不存在")
+        
+        # 删除当前src目录
+        if SRC_DIR.exists():
+            logger.info("删除当前src目录")
+            shutil.rmtree(SRC_DIR)
+        
+        # 解压启动备份文件到src目录
+        logger.info("开始解压启动备份文件")
+        with zipfile.ZipFile(startup_backup_path, 'r') as zip_ref:
+            # 先创建src目录
+            SRC_DIR.mkdir(exist_ok=True)
+            # 解压到src目录
+            for member in zip_ref.infolist():
+                # 处理路径，确保文件解压到src目录中
+                if member.filename.startswith('src/'):
+                    # 移除路径前缀
+                    target_path = SRC_DIR / member.filename[4:]
+                else:
+                    # 如果没有src/前缀，直接解压到src目录
+                    target_path = SRC_DIR / member.filename
+                
+                # 处理目录
+                if member.is_dir():
+                    target_path.mkdir(parents=True, exist_ok=True)
+                else:
+                    # 确保父目录存在
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    # 解压文件
+                    with zip_ref.open(member) as source, open(target_path, 'wb') as target:
+                        shutil.copyfileobj(source, target)
+        logger.info("启动备份文件解压完成")
+        
+        logger.info("Src目录重置成功")
+        return {"message": "Src目录重置成功"}
+    except Exception as e:
+        logger.error(f"重置src目录时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"重置src目录时出错: {str(e)}")
+
+def backup_src_directory():
+    """备份src目录到zip文件"""
+    try:
+        # 创建备份目录
+        backup_dir = BASE_DIR / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        
+        # 生成备份文件名
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"src_backup_{timestamp}.zip"
+        backup_path = backup_dir / backup_filename
+        
+        # 创建zip文件
+        with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 遍历src目录中的所有文件和子目录
+            for root, dirs, files in os.walk(SRC_DIR):
+                for file in files:
+                    file_path = Path(root) / file
+                    # 计算相对路径
+                    arcname = file_path.relative_to(BASE_DIR)
+                    zipf.write(file_path, arcname)
+        
+        logger.info(f"Src目录备份成功: {backup_path}")
+        return backup_path
+    except Exception as e:
+        logger.error(f"备份src目录时出错: {str(e)}")
+        raise
+
+@router.get("/backups")
+async def list_backup_files():
+    """获取备份文件列表"""
+    try:
+        # 定义备份目录
+        backup_dir = BASE_DIR / "backups"
+        
+        # 检查备份目录是否存在
+        if not backup_dir.exists():
+            return {"files": []}
+        
+        # 获取启动时备份文件名
+        startup_backup_filename = None
+        startup_backup_file = backup_dir / "startup_backup.txt"
+        if startup_backup_file.exists():
+            with open(startup_backup_file, 'r') as f:
+                startup_backup_filename = f.read().strip()
+        
+        # 获取所有.zip文件
+        import glob
+        zip_files = list(backup_dir.glob("*.zip"))
+        
+        # 提取文件信息
+        files_info = []
+        for file_path in zip_files:
+            stat = file_path.stat()
+            is_startup_backup = (file_path.name == startup_backup_filename) if startup_backup_filename else False
+            files_info.append({
+                "name": file_path.name,
+                "size": stat.st_size,
+                "modified": stat.st_mtime,
+                "is_startup_backup": is_startup_backup
+            })
+        
+        # 按修改时间倒序排列
+        files_info.sort(key=lambda x: x["modified"], reverse=True)
+        
+        return {"files": files_info}
+    except Exception as e:
+        logger.error(f"获取备份文件列表时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取备份文件列表时出错: {str(e)}")
+
+@router.get("/backups/{filename}/download")
+async def download_backup_file(filename: str):
+    """下载指定的备份文件"""
+    try:
+        # 验证文件名是否安全
+        if ".." in filename or "/" in filename or "\\" in filename:
+            raise HTTPException(status_code=400, detail="无效的文件名")
+        
+        # 确保文件名以.zip结尾
+        if not filename.endswith(".zip"):
+            raise HTTPException(status_code=400, detail="只能下载.zip文件")
+        
+        # 构造文件路径
+        backup_dir = BASE_DIR / "backups"
+        file_path = backup_dir / filename
+        
+        # 检查文件是否存在
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 检查是否为文件（而不是目录）
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail="指定路径不是文件")
+        
+        # 返回文件下载
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type='application/zip'
+        )
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        logger.error(f"下载备份文件时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"下载备份文件时出错: {str(e)}")
+
+@router.delete("/backups/{filename}")
+async def delete_backup_file(filename: str):
+    """删除指定的备份文件"""
+    try:
+        # 验证文件名是否安全
+        if ".." in filename or "/" in filename or "\\" in filename:
+            raise HTTPException(status_code=400, detail="无效的文件名")
+        
+        # 确保文件名以.zip结尾
+        if not filename.endswith(".zip"):
+            raise HTTPException(status_code=400, detail="只能删除.zip文件")
+        
+        # 构造文件路径
+        backup_dir = BASE_DIR / "backups"
+        file_path = backup_dir / filename
+        
+        # 检查文件是否存在
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 检查是否为文件（而不是目录）
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail="指定路径不是文件")
+        
+        # 检查是否为启动时备份文件
+        startup_backup_file = backup_dir / "startup_backup.txt"
+        if startup_backup_file.exists():
+            with open(startup_backup_file, 'r') as f:
+                startup_backup_filename = f.read().strip()
+            if filename == startup_backup_filename:
+                raise HTTPException(status_code=403, detail="不能删除启动时备份文件")
+        
+        # 删除文件
+        file_path.unlink()
+        
+        logger.info(f"备份文件已删除: {filename}")
+        return {"message": f"备份文件 {filename} 已删除"}
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        logger.error(f"删除备份文件时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"删除备份文件时出错: {str(e)}")
