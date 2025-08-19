@@ -10,6 +10,7 @@ const buildDir = 'build';
 const metadataFile = path.join(srcDir, 'metadata.yml');
 const bookFile = path.join(srcDir, 'book.md');
 const cssFile = path.join(srcDir, 'css', 'common-style.css');
+const chapterConfigFile = path.join(srcDir, 'chapter-config.json');
 
 // 创建输出目录（如果不存在）
 if (!fs.existsSync(buildDir)) {
@@ -86,18 +87,9 @@ illustrationFiles.forEach(file => {
 });
 
 
-// 按照优化顺序排列章节
-const chapterFiles = [
-    '01-introduction.md',
-    '02-katakana-basics.md',
-    '03-readings-and-meanings.md',
-    '04-daily-expressions.md',
-    '05-classical-stories.md',
-    '07-scenic-spots.md',
-    '06-poetry-and-rhythm.md',
-    '08-cultural-heritage.md',
-    '09-music-and-anime.md'
-];
+// 从统一配置文件加载章节顺序
+const chapterConfig = JSON.parse(fs.readFileSync(chapterConfigFile, 'utf8'));
+const chapterFiles = chapterConfig.chapters.map(chapter => chapter.file);
 
 // 为EPUB创建临时章节目录
 const tempChaptersDir = path.join(buildDir, 'temp-chapters');
@@ -147,7 +139,10 @@ try {
     execSync(command, { stdio: 'inherit' });
     console.log('EPUB文件生成成功:', outputFilePath);
 } catch (error) {
-    console.error('生成EPUB文件时出错:', error.message);
+    console.error('生成EPUB文件时出错:');
+    console.error('错误信息:', error.message);
+    console.error('错误代码:', error.code);
+    console.error('错误信号:', error.signal);
     process.exit(1);
 } finally {
     // 清理临时目录

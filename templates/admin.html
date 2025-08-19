@@ -298,8 +298,7 @@
     <script>
         // 全局变量
         let packageData = {};
-        let pdfChapters = [];
-        let epubChapters = [];
+        let chapterConfig = [];
         
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -343,20 +342,13 @@
                     populatePackageForm();
                 }
                 
-                // 加载build-pdf.js中的章节数据
-                const pdfResponse = await fetch('/api/admin/file/build-pdf.js');
-                const pdfResult = await pdfResponse.json();
-                if (pdfResponse.ok && pdfResult.type === 'text') {
-                    pdfChapters = extractChapterOrder(pdfResult.content, 'pdf');
-                    renderChapterList('pdf-chapters', pdfChapters);
-                }
-                
-                // 加载build-epub.js中的章节数据
-                const epubResponse = await fetch('/api/admin/file/build-epub.js');
-                const epubResult = await epubResponse.json();
-                if (epubResponse.ok && epubResult.type === 'text') {
-                    epubChapters = extractChapterOrder(epubResult.content, 'epub');
-                    renderChapterList('epub-chapters', epubChapters);
+                // 加载章节配置数据
+                const chapterConfigResponse = await fetch('/api/admin/chapter-config');
+                const chapterConfigResult = await chapterConfigResponse.json();
+                if (chapterConfigResponse.ok) {
+                    chapterConfig = chapterConfigResult.chapters;
+                    renderChapterList('pdf-chapters', chapterConfig);
+                    renderChapterList('epub-chapters', chapterConfig);
                 }
             } catch (error) {
                 console.error('加载配置数据失败:', error);
@@ -384,24 +376,6 @@
             }
         }
         
-        // 提取章节顺序
-        function extractChapterOrder(content, type) {
-            // 使用正则表达式提取章节数组
-            const regex = /const\s+chapterFiles\s*=\s*\[([\s\S]*?)\];/;
-            const match = content.match(regex);
-            
-            if (match) {
-                // 解析章节文件名
-                const filesContent = match[1];
-                const fileMatches = filesContent.match(/'([^']+)'/g);
-                
-                if (fileMatches) {
-                    return fileMatches.map(file => file.replace(/'/g, ''));
-                }
-            }
-            
-            return [];
-        }
         
         // 渲染章节列表
         function renderChapterList(containerId, chapters) {
@@ -414,7 +388,8 @@
                 li.draggable = true;
                 li.innerHTML = `
                     <span class="drag-handle">≡</span>
-                    <input type="text" value="${chapter}" data-index="${index}">
+                    <span class="chapter-title">${chapter.title}</span>
+                    <input type="hidden" value="${chapter.file}" data-index="${index}">
                     <button class="btn-danger btn-small remove-chapter-btn">删除</button>
                 `;
                 container.appendChild(li);
@@ -615,30 +590,28 @@
             try {
                 // 获取更新后的章节顺序
                 const container = document.getElementById(containerId);
-                const chapterInputs = container.querySelectorAll('input[type="text"]');
-                const chapters = Array.from(chapterInputs).map(input => input.value);
+                const chapterItems = container.querySelectorAll('.chapter-item');
+                const chapters = Array.from(chapterItems).map(item => {
+                    const fileInput = item.querySelector('input[type="hidden"]');
+                    const titleSpan = item.querySelector('.chapter-title');
+                    return {
+                        file: fileInput.value,
+                        title: titleSpan.textContent
+                    };
+                });
                 
-                // 获取原始文件内容
-                const response = await fetch(`/api/admin/file/${fileName}`);
-                const result = await response.json();
-                
-                if (!response.ok || result.type !== 'text') {
-                    throw new Error('无法获取原始文件内容');
-                }
-                
-                // 更新章节顺序
-                let updatedContent = result.content;
-                const regex = /(const\s+chapterFiles\s*=\s*\[)([\s\S]*?)(\];)/;
-                const replacement = `const chapterFiles = [\n    '${chapters.join("',\n    '")}'\n];`;
-                updatedContent = updatedContent.replace(regex, `$1${replacement.substring(23, replacement.length-1)}$3`);
+                // 构造新的章节配置
+                const updatedChapterConfig = {
+                    chapters: chapters
+                };
                 
                 // 发送更新请求
-                const saveResponse = await fetch(`/api/admin/file/${fileName}`, {
+                const saveResponse = await fetch('/api/admin/chapter-config', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'text/plain; charset=utf-8'
+                        'Content-Type': 'application/json'
                     },
-                    body: updatedContent
+                    body: JSON.stringify(updatedChapterConfig, null, 2)
                 });
                 
                 const saveResult = await saveResponse.json();
@@ -646,11 +619,7 @@
                 if (saveResponse.ok) {
                     showMessage('章节顺序保存成功', 'success');
                     // 更新本地数据
-                    if (fileName === 'build-pdf.js') {
-                        pdfChapters = [...chapters];
-                    } else if (fileName === 'build-epub.js') {
-                        epubChapters = [...chapters];
-                    }
+                    chapterConfig = [...chapters];
                 } else {
                     throw new Error(saveResult.detail || '保存失败');
                 }

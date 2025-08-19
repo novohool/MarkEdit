@@ -6,8 +6,7 @@
   "scripts": {
     "build": "node src/build-epub.js && node src/build-pdf.js",
     "build:epub": "node src/build-epub.js",
-    "build:pdf": "node src/build-pdf.js",
-    "test": "echo "
+    "build:pdf": "node src/build-pdf.js"
   },
   "keywords": [
     "katakana",
@@ -16,5 +15,8 @@
     "epub"
   ],
   "author": "novo Code",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "epubjs": "^0.3.93"
+  }
 }

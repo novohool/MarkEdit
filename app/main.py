@@ -62,6 +62,7 @@ async def read_admin(request: Request):
 async def read_epub_viewer(request: Request):
     return templates.TemplateResponse("epub-viewer.html", {"request": request})
 
+
 @app.get("/api/files")
 async def list_files():
     """分别列出src和build目录下的所有文件"""

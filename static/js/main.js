@@ -99,6 +99,21 @@ async function loadFileTree() {
         const response = await fetch('/api/files');
         const fileData = await response.json();
         
+        // 如果src数据存在，查找并处理chapters目录
+        if (fileData.src) {
+            // 查找chapters目录
+            const chaptersDir = findChaptersDirectory(fileData.src);
+            if (chaptersDir && chaptersDir.children) {
+                // 获取章节配置
+                const chapterConfigResponse = await fetch('/api/admin/chapter-config');
+                if (chapterConfigResponse.ok) {
+                    const chapterConfig = await chapterConfigResponse.json();
+                    // 根据章节配置重新排序chapters目录下的文件
+                    chaptersDir.children = reorderChapters(chaptersDir.children, chapterConfig.chapters);
+                }
+            }
+        }
+        
         const fileTreeElement = document.getElementById('file-tree');
         fileTreeElement.innerHTML = '';
         
@@ -154,6 +169,61 @@ async function loadFileTree() {
         console.error('加载文件树失败:', error);
         showMessage('加载文件树失败: ' + error.message, 'error');
     }
+}
+
+// 查找chapters目录
+function findChaptersDirectory(files) {
+    for (const file of files) {
+        if (file.type === 'directory' && file.name === 'chapters') {
+            return file;
+        }
+        if (file.type === 'directory' && file.children) {
+            const found = findChaptersDirectory(file.children);
+            if (found) {
+                return found;
+            }
+        }
+    }
+    return null;
+}
+
+// 根据章节配置重新排序chapters目录下的文件
+function reorderChapters(chapterFiles, chapterConfig) {
+    // 创建一个映射，将文件名映射到配置中的索引
+    const fileIndexMap = {};
+    chapterConfig.forEach((chapter, index) => {
+        fileIndexMap[chapter.file] = index;
+    });
+    
+    // 创建一个映射，将文件名映射到文件对象
+    const fileMap = {};
+    chapterFiles.forEach(file => {
+        if (file.type === 'file') {
+            fileMap[file.name] = file;
+        }
+    });
+    
+    // 根据配置顺序创建新的文件列表
+    const reorderedFiles = [];
+    
+    // 首先按照配置顺序添加文件
+    chapterConfig.forEach(chapter => {
+        if (fileMap[chapter.file]) {
+            // 更新文件名显示为章节标题
+            const file = {...fileMap[chapter.file]};
+            file.name = chapter.title;
+            reorderedFiles.push(file);
+            // 从fileMap中删除已处理的文件
+            delete fileMap[chapter.file];
+        }
+    });
+    
+    // 添加剩余的文件（不在配置中的文件）
+    Object.values(fileMap).forEach(file => {
+        reorderedFiles.push(file);
+    });
+    
+    return reorderedFiles;
 }
 
 // 渲染文件树
@@ -278,15 +348,15 @@ async function loadFile(filePath, area) {
                 previewContainer.style.display = 'block';
                 currentFileType = 'preview';
             } else if (extension === '.epub') {
-                // EPUB文件通过iframe和EPUB.js预览
-                // 添加raw=true参数以确保后端直接返回文件内容而不是JSON
-                previewContainer.innerHTML = `
-                    <div class="file-preview">
-                        <h3>${filePath}</h3>
-                        <iframe src="/epub-viewer.html?file=${encodeURIComponent(fileUrl + '?raw=true')}" style="width:100%; height:80vh; border:none;"></iframe>
-                    </div>
-                `;
-                previewContainer.style.display = 'block';
+               // EPUB文件通过iframe和EPUB.js预览
+               // 添加raw=true参数以确保后端直接返回文件内容而不是JSON
+               previewContainer.innerHTML = `
+                   <div class="file-preview">
+                       <h3>${filePath}</h3>
+                       <iframe src="/epub-viewer.html?url=${encodeURIComponent(fileUrl + '?raw=true')}" style="width:100%; height:80vh; border:none;"></iframe>
+                   </div>
+               `;
+               previewContainer.style.display = 'block';
                 currentFileType = 'preview';
             } else if (extension === '.html') {
                 // HTML文件通过iframe预览以隔离样式

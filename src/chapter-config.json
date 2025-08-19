@@ -1,0 +1,40 @@
+{
+  "chapters": [
+    {
+      "file": "01-introduction.md",
+      "title": "第1章：片假字与平假名基础知识"
+    },
+    {
+      "file": "02-katakana-basics.md",
+      "title": "第2章：片假字与平假名读音与意思对比"
+    },
+    {
+      "file": "03-readings-and-meanings.md",
+      "title": "第3章：日常用语句式"
+    },
+    {
+      "file": "04-daily-expressions.md",
+      "title": "第4章：典故与历史"
+    },
+    {
+      "file": "05-classical-stories.md",
+      "title": "第5章：音律与诗歌"
+    },
+    {
+      "file": "06-poetry-and-rhythm.md",
+      "title": "第6章：风景名胜"
+    },
+    {
+      "file": "07-scenic-spots.md",
+      "title": "第7章：文化古迹"
+    },
+    {
+      "file": "08-cultural-heritage.md",
+      "title": "第8章：片假字的未来发展与学习建议"
+    },
+    {
+      "file": "09-music-and-anime.md",
+      "title": "第9章：音乐与动漫中的片假字"
+    }
+  ]
+}
