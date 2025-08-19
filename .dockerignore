@@ -1,0 +1,19 @@
+# 忽略所有 .git 文件夹及其内容
+.git
+.gitlab-ci.yml
+# 忽略所有 .DS_Store 文件
+**/.DS_Store
+# 忽略 node_modules 文件夹及其内容
+.env
+# 忽略 .vscode 文件夹及其内容
+.vscode
+# 忽略 helm 文件夹及其内容
+SQL
+# 忽略 README.md 文件
+README.md
+helm
+*/__pycache__
+node_modules
+.kilocode
+*/__pycache__
+build

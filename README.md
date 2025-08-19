@@ -1,6 +1,6 @@
 # MarkEdit Web Editor
 
-一个基于FastAPI的Web图形化编辑器，用于编辑src目录下的所有类型内容。
+一个基于FastAPI的Web图形化编辑器，用于编辑src目录下的所有类型内容，用来生成电子书。
 
 ## 功能特性
 
@@ -47,6 +47,25 @@
    ```
    http://localhost:8000
    ```
+
+## 使用 Docker 运行
+
+1. 构建 Docker 镜像：
+   ```
+   docker build -t markeditor .
+   ```
+
+2. 运行容器：
+   ```
+   docker run -p 8000:8000 -v $(pwd)/src:/app/src markeditor
+   ```
+
+3. 在浏览器中访问：
+   ```
+   http://localhost:8000
+   ```
+
+注意：使用 `-v` 参数将本地的 src 目录挂载到容器中，以确保文件修改持久化保存在本地。
 
 ## 项目结构
 
