@@ -6,8 +6,8 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: #f8f9fa;
+    color: #212529;
 }
 
 .container {
@@ -18,10 +18,10 @@ body {
 }
 
 header {
-    background: linear-gradient(135deg, #2c3e50, #8e44ad);
+    background-color: #343a40;
     color: white;
     padding: 1rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-bottom: 1px solid #dee2e6;
 }
 
 header h1 {
@@ -51,16 +51,16 @@ header h1 {
 
 .sidebar {
     width: 250px;
-    background-color: #ecf0f1;
+    background-color: #e9ecef;
     padding: 1rem;
-    border-right: 1px solid #bdc3c7;
+    border-right: 1px solid #dee2e6;
     overflow-y: auto;
 }
 
 .sidebar h2 {
     font-size: 1.2rem;
     margin-bottom: 1rem;
-    color: #2c3e50;
+    color: #343a40;
 }
 
 #file-tree {
@@ -70,7 +70,7 @@ header h1 {
 .file-area {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #bdc3c7;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .file-area:last-child {
@@ -81,9 +81,9 @@ header h1 {
 .file-area h3 {
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
-    color: #2c3e50;
+    color: #343a40;
     padding-bottom: 0.3rem;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #ced4da;
 }
 
 .tree-container {
@@ -109,14 +109,14 @@ header h1 {
 .file-item {
     padding: 0.5rem;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 2px;
     margin-bottom: 0.2rem;
     display: flex;
     align-items: center;
 }
 
 .file-item:hover {
-    background-color: #d5dbdb;
+    background-color: #dee2e6;
 }
 
 .file-item.directory {
@@ -129,7 +129,7 @@ header h1 {
 }
 
 .file-item.active {
-    background-color: #3498db;
+    background-color: #007bff;
     color: white;
 }
 
@@ -143,7 +143,7 @@ header h1 {
 .editor-header {
     padding: 1rem;
     background-color: #fff;
-    border-bottom: 1px solid #bdc3c7;
+    border-bottom: 1px solid #dee2e6;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -151,7 +151,7 @@ header h1 {
 
 #current-file {
     font-weight: bold;
-    color: #2c3e50;
+    color: #343a40;
     flex: 1;
     margin-right: 1rem;
     overflow: hidden;
@@ -166,58 +166,56 @@ header h1 {
 }
 
 .btn-primary {
-    background-color: #3498db;
+    background-color: #007bff;
     color: white;
-    border: none;
+    border: 1px solid #007bff;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: all 0.3s ease;
+    transition: background-color 0.2s;
 }
 
 .btn-primary:hover {
-    background-color: #2980b9;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background-color: #0069d9;
+    border-color: #0062cc;
 }
 
 .btn-secondary {
-    background-color: #2c98a0;
+    background-color: #6c757d;
     color: white;
-    border: none;
+    border: 1px solid #6c757d;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: all 0.3s ease;
+    transition: background-color 0.2s;
 }
 
 .btn-secondary:hover {
-    background-color: #6c757d;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background-color: #5a6268;
+    border-color: #545b62;
 }
 
 .btn-danger {
-    background-color: #e74c3c;
+    background-color: #dc3545;
     color: white;
-    border: none;
+    border: 1px solid #dc3545;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: all 0.3s ease;
+    transition: background-color 0.2s;
 }
 
 .btn-danger:hover {
-    background-color: #c0392b;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background-color: #c82333;
+    border-color: #bd2130;
 }
 
 .btn-danger:disabled {
-    background-color: #bdc3c7;
+    background-color: #6c757d;
+    border-color: #6c757d;
     cursor: not-allowed;
 }
 
@@ -313,8 +311,8 @@ header h1 {
 
 /* 代码高亮样式优化 */
 pre[class*="language-"] {
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 2px;
+    border: 1px solid #dee2e6;
     margin: 1rem 0;
 }
 
@@ -348,34 +346,39 @@ code[class*="language-"] {
     top: 20px;
     right: 20px;
     padding: 10px 20px;
-    border-radius: 4px;
+    border-radius: 2px;
     color: white;
     font-weight: bold;
     z-index: 1000;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    border: 1px solid transparent;
 }
 
 .message-success {
-    background-color: #27ae60;
+    background-color: #28a745;
+    border-color: #1e7e34;
 }
 
 .message-error {
-    background-color: #e74c3c;
+    background-color: #dc3545;
+    border-color: #bd2130;
 }
 
 .message-warning {
-    background-color: #f39c12;
+    background-color: #ffc107;
+    border-color: #d39e00;
+    color: #212529;
 }
 
 .message-info {
-    background-color: #3498db;
+    background-color: #17a2b8;
+    border-color: #117a8b;
 }
 
 /* Markdown预览样式 */
 #preview-container {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
-    color: #333;
+    color: #212529;
     padding: 20px;
     background-color: #fff;
 }
@@ -394,13 +397,13 @@ code[class*="language-"] {
 
 #preview-container h1 {
     font-size: 2em;
-    border-bottom: 1px solid #eaecef;
+    border-bottom: 1px solid #e9ecef;
     padding-bottom: 0.3em;
 }
 
 #preview-container h2 {
     font-size: 1.5em;
-    border-bottom: 1px solid #eaecef;
+    border-bottom: 1px solid #e9ecef;
     padding-bottom: 0.3em;
 }
 
@@ -414,7 +417,7 @@ code[class*="language-"] {
 }
 
 #preview-container a {
-    color: #0366d6;
+    color: #007bff;
     text-decoration: none;
 }
 
@@ -457,8 +460,8 @@ code[class*="language-"] {
     padding: 0.2em 0.4em;
     margin: 0;
     font-size: 85%;
-    background-color: rgba(27, 31, 35, 0.05);
-    border-radius: 3px;
+    background-color: #f1f3f4;
+    border-radius: 2px;
     font-family: 'Consolas', 'Courier New', monospace;
 }
 
@@ -467,10 +470,11 @@ code[class*="language-"] {
     overflow: auto;
     font-size: 85%;
     line-height: 1.45;
-    background-color: #f6f8fa;
-    border-radius: 3px;
+    background-color: #f8f9fa;
+    border-radius: 2px;
     margin-top: 0;
     margin-bottom: 16px;
+    border: 1px solid #e9ecef;
 }
 
 #preview-container pre code {
@@ -483,8 +487,8 @@ code[class*="language-"] {
 
 #preview-container blockquote {
     padding: 0 1em;
-    color: #6a737d;
-    border-left: 0.25em solid #dfe2e5;
+    color: #6c757d;
+    border-left: 0.25em solid #dee2e6;
     margin: 0 0 16px 0;
 }
 
@@ -502,7 +506,7 @@ code[class*="language-"] {
     height: 0.25em;
     padding: 0;
     margin: 24px 0;
-    background-color: #e1e4e8;
+    background-color: #e9ecef;
     border: 0;
 }
 
@@ -521,16 +525,16 @@ code[class*="language-"] {
 #preview-container table th,
 #preview-container table td {
     padding: 6px 13px;
-    border: 1px solid #dfe2e5;
+    border: 1px solid #dee2e6;
 }
 
 #preview-container table tr {
     background-color: #fff;
-    border-top: 1px solid #c6cbd1;
+    border-top: 1px solid #ced4da;
 }
 
 #preview-container table tr:nth-child(2n) {
-    background-color: #f6f8fa;
+    background-color: #f8f9fa;
 }
 
 /* 抽屉式菜单样式 */
@@ -541,7 +545,7 @@ code[class*="language-"] {
     width: 300px;
     height: 100%;
     background-color: #fff;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    border-left: 1px solid #dee2e6;
     z-index: 1001;
     transition: right 0.3s ease;
     display: flex;
@@ -554,7 +558,7 @@ code[class*="language-"] {
 
 .drawer-header {
     padding: 1rem;
-    background-color: #2c3e50;
+    background-color: #343a40;
     color: white;
     display: flex;
     justify-content: space-between;
@@ -580,7 +584,7 @@ code[class*="language-"] {
 
 .drawer-content li {
     padding: 0.8rem 0;
-    border-bottom: 1px solid #ecf0f1;
+    border-bottom: 1px solid #e9ecef;
 }
 
 .drawer-content li:last-child {
@@ -589,16 +593,16 @@ code[class*="language-"] {
 
 .drawer-content a {
     text-decoration: none;
-    color: #2c3e50;
+    color: #343a40;
     font-size: 1rem;
     display: block;
     padding: 0.5rem;
-    border-radius: 4px;
+    border-radius: 2px;
     transition: background-color 0.2s;
 }
 
 .drawer-content a:hover {
-    background-color: #ecf0f1;
+    background-color: #e9ecef;
 }
 
 .drawer-overlay {
@@ -607,7 +611,7 @@ code[class*="language-"] {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0,0,0,0.3);
     z-index: 1000;
     display: none;
 }
@@ -632,7 +636,7 @@ code[class*="language-"] {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
 .llm-dialog-content {
@@ -641,8 +645,8 @@ code[class*="language-"] {
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #dee2e6;
+    border-radius: 2px;
     width: 90%;
     max-width: 600px;
     max-height: 80vh;
@@ -653,7 +657,7 @@ code[class*="language-"] {
 
 .llm-dialog-header {
     padding: 1rem;
-    background-color: #2c3e50;
+    background-color: #343a40;
     color: white;
     display: flex;
     justify-content: space-between;
@@ -695,8 +699,8 @@ code[class*="language-"] {
     width: 100%;
     min-height: 120px;
     padding: 0.5rem;
-    border: 1px solid #bdc3c7;
-    border-radius: 4px;
+    border: 1px solid #ced4da;
+    border-radius: 2px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 14px;
     resize: vertical;
@@ -707,6 +711,8 @@ code[class*="language-"] {
     justify-content: flex-end;
     gap: 0.5rem;
     margin-top: 1rem;
+    padding: 1rem;
+    border-top: 1px solid #dee2e6;
 }
 
 .llm-dialog-buttons button {
@@ -717,12 +723,12 @@ code[class*="language-"] {
 .context-menu {
     position: absolute;
     background-color: #fff;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    border: 1px solid #ced4da;
+    border-radius: 2px;
     padding: 5px 0;
     min-width: 150px;
     z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .context-menu-item {
@@ -732,11 +738,11 @@ code[class*="language-"] {
 }
 
 .context-menu-item:hover {
-    background-color: #f5f5f5;
+    background-color: #e9ecef;
 }
 
 .context-menu-item.disabled {
-    color: #999;
+    color: #6c757d;
     cursor: not-allowed;
 }
 
