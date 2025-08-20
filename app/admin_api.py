@@ -409,26 +409,20 @@ async def upload_src(file: UploadFile = File(...)):
             temp_file_path.unlink()
             raise HTTPException(status_code=400, detail="上传的文件不是有效的zip文件")
         
-        # 备份当前src目录
-        backup_src_directory()
+        # 创建临时解压目录
+        temp_extract_dir = BASE_DIR / f"temp_extract_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        temp_extract_dir.mkdir(exist_ok=True)
         
-        # 删除当前src目录
-        if SRC_DIR.exists():
-            shutil.rmtree(SRC_DIR)
-        
-        # 解压上传的zip文件到src目录
+        # 解压到临时目录进行校验
         with zipfile.ZipFile(temp_file_path, 'r') as zip_ref:
-            # 先创建src目录
-            SRC_DIR.mkdir(exist_ok=True)
-            # 解压到src目录
             for member in zip_ref.infolist():
-                # 处理路径，确保文件解压到src目录中
+                # 处理解压路径
                 if member.filename.startswith('src/'):
                     # 移除路径前缀
-                    target_path = SRC_DIR / member.filename[4:]
+                    target_path = temp_extract_dir / member.filename[4:]
                 else:
-                    # 如果没有src/前缀，直接解压到src目录
-                    target_path = SRC_DIR / member.filename
+                    # 如果没有src/前缀，直接解压到临时目录
+                    target_path = temp_extract_dir / member.filename
                 
                 # 处理目录
                 if member.is_dir():
@@ -439,6 +433,45 @@ async def upload_src(file: UploadFile = File(...)):
                     # 解压文件
                     with zip_ref.open(member) as source, open(target_path, 'wb') as target:
                         shutil.copyfileobj(source, target)
+        
+        # 校验必要文件是否存在
+        required_files = [
+            "chapter-config.json",
+            "metadata.yml",
+            "book.md"
+        ]
+        
+        missing_files = []
+        for required_file in required_files:
+            if not (temp_extract_dir / required_file).exists():
+                missing_files.append(required_file)
+        
+        # 如果有缺失的文件，删除临时文件和目录，返回错误信息
+        if missing_files:
+            # 删除临时文件和目录
+            temp_file_path.unlink()
+            shutil.rmtree(temp_extract_dir)
+            
+            raise HTTPException(
+                status_code=400,
+                detail=f"上传的zip包格式不正确，缺少以下必要文件: {', '.join(missing_files)}。必须包含: {', '.join(required_files)}"
+            )
+        
+        # 校验通过，备份当前src目录
+        backup_src_directory()
+        
+        # 删除当前src目录
+        if SRC_DIR.exists():
+            shutil.rmtree(SRC_DIR)
+        
+        # 将临时解压目录重命名为src目录
+        temp_src_dir = temp_extract_dir / "src"
+        if temp_src_dir.exists():
+            # 如果解压后有src目录，直接移动
+            shutil.move(str(temp_src_dir), str(SRC_DIR))
+        else:
+            # 如果解压后没有src目录，将临时目录重命名为src
+            shutil.move(str(temp_extract_dir), str(SRC_DIR))
         
         # 删除临时文件
         temp_file_path.unlink()
