@@ -20,9 +20,12 @@ def copy_illustrations(src_illustrations_dir: Path, build_illustrations_dir: Pat
     if not build_illustrations_dir.exists():
         build_illustrations_dir.mkdir(parents=True, exist_ok=True)
     
-    # 复制所有SVG插图到构建目录
+    # 支持的图像格式
+    supported_formats = {'.svg', '.jpg', '.jpeg', '.png', '.gif'}
+    
+    # 复制所有支持的图像文件到构建目录
     for file in src_illustrations_dir.iterdir():
-        if file.suffix == '.svg':
+        if file.suffix.lower() in supported_formats:
             dest_path = build_illustrations_dir / file.name
             shutil.copy2(file, dest_path)
             logger.info(f"已复制插图文件: {file.name}")

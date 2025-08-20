@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 全局变量存储启动备份文件名
-startup_backup_filename = None
+# startup_backup_filename = None  # 已移至 app/shared.py
 
 # 导入管理API路由器
 try:
@@ -61,8 +61,8 @@ def backup_src_directory(startup_backup=False):
         
         # 如果是启动备份，保存备份文件名到特定文件和全局变量
         if startup_backup:
-            global startup_backup_filename
-            startup_backup_filename = backup_filename
+            from app.shared import set_startup_backup_filename
+            set_startup_backup_filename(backup_filename)
             
             startup_backup_file = backup_dir / "startup_backup.txt"
             with open(startup_backup_file, 'w') as f:

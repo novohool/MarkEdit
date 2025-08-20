@@ -27,9 +27,11 @@ if project_root not in sys.path:
 
 # 导入自定义的构建工具
 from app.build_utils import build_epub, build_pdf
+# 导入EPUB到ZIP转换工具
+from app.epub_to_zip import convert_epub_dir_to_zip
 
 # 导入全局变量
-from app.main import startup_backup_filename
+# from app.main import startup_backup_filename  # 已移至 app/shared.py
 
 # 安装ebooklib库（如果尚未安装）
 try:
@@ -535,7 +537,8 @@ async def reset_src():
             raise HTTPException(status_code=404, detail="备份目录不存在")
         
         # 使用全局变量获取启动备份文件名
-        from app.main import startup_backup_filename
+        from app.shared import get_startup_backup_filename
+        startup_backup_filename = get_startup_backup_filename()
         if not startup_backup_filename:
             logger.error("启动备份文件记录不存在")
             raise HTTPException(status_code=404, detail="启动备份文件记录不存在")
@@ -799,10 +802,82 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
         # 创建一个字典来存储图片文件名映射
         image_files = {}
         
-        # 处理每个章节
-        chapter_index = 1
+        # 首先提取所有图片资源
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_IMAGE:
+                # 获取图片文件名
+                image_filename = os.path.basename(item.get_name())
+                # 确保文件名唯一
+                counter = 1
+                original_filename = image_filename
+                while image_filename in image_files:
+                    name, ext = os.path.splitext(original_filename)
+                    image_filename = f"{name}_{counter}{ext}"
+                    counter += 1
+                
+                # 保存图片文件
+                image_path = illustrations_dir / image_filename
+                with open(image_path, 'wb') as f:
+                    f.write(item.get_content())
+                
+                # 记录图片文件映射
+                image_files[image_filename] = item.get_name()
+        
+        # 获取导航信息（章节结构）
+        nav_items = []
+        nav_item = book.get_item_with_id('nav')
+        if nav_item:
+            nav_content = nav_item.get_content().decode('utf-8')
+            nav_soup = BeautifulSoup(nav_content, 'html.parser')
+            
+            # 查找目录项
+            toc_links = nav_soup.select('nav#toc a[href]')
+            for link in toc_links:
+                href = link.get('href')
+                title = link.get_text().strip()
+                if href and title:
+                    # 处理href，提取文件名和锚点
+                    if '#' in href:
+                        file_path, anchor = href.split('#', 1)
+                    else:
+                        file_path, anchor = href, None
+                    
+                    nav_items.append({
+                        'href': href,
+                        'file_path': file_path,
+                        'anchor': anchor,
+                        'title': title
+                    })
+        
+        # 创建章节到文件的映射
+        chapter_file_mapping = {}
         for item in book.get_items():
             if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                file_path = item.get_name()
+                # 获取文件名（不包含路径）
+                file_name = os.path.basename(file_path)
+                chapter_file_mapping[file_name] = item
+        
+        # 按导航顺序处理章节
+        processed_files = set()  # 跟踪已处理的文件
+        chapter_index = 1
+        
+        if nav_items:
+            # 使用导航信息处理章节
+            for nav_item in nav_items:
+                file_name = os.path.basename(nav_item['file_path'])
+                
+                # 检查是否已处理过该文件
+                if file_name in processed_files:
+                    continue
+                
+                # 查找对应的章节文件
+                if file_name in chapter_file_mapping:
+                    item = chapter_file_mapping[file_name]
+                    processed_files.add(file_name)
+                else:
+                    continue  # 跳过未找到的文件
+                
                 # 获取章节内容
                 content = item.get_content().decode('utf-8')
                 
@@ -810,11 +885,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                 soup = BeautifulSoup(content, 'html.parser')
                 
                 # 提取标题
-                title_elem = soup.find('h1') or soup.find('h2') or soup.find('h3')
-                if title_elem:
-                    chapter_title = title_elem.get_text().strip()
-                else:
-                    chapter_title = f"第{chapter_index}章"
+                chapter_title = nav_item['title']
                 
                 # 移除脚本和样式标签
                 for script in soup.find_all('script'):
@@ -895,30 +966,23 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                     if src:
                         # 检查是否为相对路径
                         if not src.startswith('http'):
-                            # 从EPUB中提取图片文件
-                            image_item = book.get_item_with_href(src)
-                            if image_item:
-                                # 生成新的图片文件名
-                                image_filename = f"{chapter_index:02d}_{os.path.basename(src)}"
-                                # 确保文件名唯一
-                                counter = 1
-                                original_filename = image_filename
-                                while image_filename in image_files:
-                                    name, ext = os.path.splitext(original_filename)
-                                    image_filename = f"{name}_{counter}{ext}"
-                                    counter += 1
-                                
-                                # 保存图片文件
-                                image_path = illustrations_dir / image_filename
-                                with open(image_path, 'wb') as f:
-                                    f.write(image_item.get_content())
-                                
-                                # 记录图片文件映射
-                                image_files[image_filename] = src
-                                
+                            # 从EPUB中查找对应的图片文件
+                            # 处理相对路径
+                            from urllib.parse import unquote
+                            src_unquoted = unquote(src)
+                            src_filename = os.path.basename(src_unquoted)
+                            
+                            # 查找对应的图片文件
+                            matched_image = None
+                            for image_filename, image_path in image_files.items():
+                                if src_filename in image_path:
+                                    matched_image = image_filename
+                                    break
+                            
+                            if matched_image:
                                 # 更新图片引用路径
-                                src = f'../illustrations/{image_filename}'
-                        
+                                src = f'../illustrations/{matched_image}'
+                         
                         img.insert_before(f'![{alt}]({src})')
                     img.decompose()
                 
@@ -947,6 +1011,147 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                 })
                 
                 chapter_index += 1
+        else:
+            # 如果没有导航信息，按原有方式处理章节
+            for item in book.get_items():
+                if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                    # 获取章节内容
+                    content = item.get_content().decode('utf-8')
+                    
+                    # 使用BeautifulSoup解析HTML内容
+                    soup = BeautifulSoup(content, 'html.parser')
+                    
+                    # 提取标题
+                    title_elem = soup.find('h1') or soup.find('h2') or soup.find('h3')
+                    if title_elem:
+                        chapter_title = title_elem.get_text().strip()
+                    else:
+                        chapter_title = f"第{chapter_index}章"
+                    
+                    # 移除脚本和样式标签
+                    for script in soup.find_all('script'):
+                        script.decompose()
+                    for style in soup.find_all('style'):
+                        style.decompose()
+                    
+                    # 转换HTML标签为Markdown
+                    # 处理标题
+                    for h1 in soup.find_all('h1'):
+                        h1.insert_before('# ')
+                        h1.unwrap()
+                    for h2 in soup.find_all('h2'):
+                        h2.insert_before('## ')
+                        h2.unwrap()
+                    for h3 in soup.find_all('h3'):
+                        h3.insert_before('### ')
+                        h3.unwrap()
+                    for h4 in soup.find_all('h4'):
+                        h4.insert_before('#### ')
+                        h4.unwrap()
+                    for h5 in soup.find_all('h5'):
+                        h5.insert_before('##### ')
+                        h5.unwrap()
+                    for h6 in soup.find_all('h6'):
+                        h6.insert_before('###### ')
+                        h6.unwrap()
+                    
+                    # 处理段落
+                    for p in soup.find_all('p'):
+                        p.insert_before('\n')
+                        p.insert_after('\n')
+                        p.unwrap()
+                    
+                    # 处理粗体
+                    for b in soup.find_all('b'):
+                        b.insert_before('**')
+                        b.insert_after('**')
+                        b.unwrap()
+                    for strong in soup.find_all('strong'):
+                        strong.insert_before('**')
+                        strong.insert_after('**')
+                        strong.unwrap()
+                    
+                    # 处理斜体
+                    for i in soup.find_all('i'):
+                        i.insert_before('*')
+                        i.insert_after('*')
+                        i.unwrap()
+                    for em in soup.find_all('em'):
+                        em.insert_before('*')
+                        em.insert_after('*')
+                        em.unwrap()
+                    
+                    # 处理列表
+                    for ul in soup.find_all('ul'):
+                        ul.insert_after('\n')
+                    for ol in soup.find_all('ol'):
+                        ol.insert_after('\n')
+                    for li in soup.find_all('li'):
+                        li.insert_before('- ')
+                        li.insert_after('\n')
+                        li.unwrap()
+                    
+                    # 处理链接
+                    for a in soup.find_all('a'):
+                        href = a.get('href', '')
+                        if href:
+                            a.insert_before('[')
+                            a.insert_after(f']({href})')
+                        else:
+                            a.unwrap()
+                    
+                    # 处理图片
+                    for img in soup.find_all('img'):
+                        src = img.get('src', '')
+                        alt = img.get('alt', '')
+                        if src:
+                            # 检查是否为相对路径
+                            if not src.startswith('http'):
+                                # 从EPUB中查找对应的图片文件
+                                # 处理相对路径
+                                from urllib.parse import unquote
+                                src_unquoted = unquote(src)
+                                src_filename = os.path.basename(src_unquoted)
+                                
+                                # 查找对应的图片文件
+                                matched_image = None
+                                for image_filename, image_path in image_files.items():
+                                    if src_filename in image_path:
+                                        matched_image = image_filename
+                                        break
+                                
+                                if matched_image:
+                                    # 更新图片引用路径
+                                    src = f'../illustrations/{matched_image}'
+                             
+                            img.insert_before(f'![{alt}]({src})')
+                        img.decompose()
+                    
+                    # 处理表格
+                    for table in soup.find_all('table'):
+                        table.insert_before('\n')
+                        table.insert_after('\n')
+                    
+                    # 获取处理后的文本内容
+                    text_content = soup.get_text()
+                    
+                    # 创建章节文件名
+                    chapter_filename = f"{chapter_index:02d}-{chapter_title.replace(' ', '-').replace('/', '-').replace('\\', '-')}.md"
+                    chapter_filename = re.sub(r'[<>:"/\\|?*]', '', chapter_filename)  # 移除非法字符
+                    
+                    # 保存章节内容
+                    chapter_path = chapters_dir / chapter_filename
+                    with open(chapter_path, 'w', encoding='utf-8') as f:
+                        f.write(f"# {chapter_title}\n\n")
+                        f.write(text_content)
+                    
+                    # 添加到章节配置
+                    chapter_config["chapters"].append({
+                        "file": chapter_filename,
+                        "title": chapter_title
+                    })
+                    
+                    chapter_index += 1
         
         # 保存章节配置文件
         chapter_config_path = output_dir / "chapter-config.json"
