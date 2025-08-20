@@ -193,29 +193,51 @@ def _convert_nav_map_to_chapter_config(nav_map: List[Dict]) -> Dict:
         chapter-config.json格式的字典
     """
     chapters = []
+    counter = [0]  # 使用列表来保持计数器的引用
     
-    def extract_chapters(nav_points):
+    def extract_chapters(nav_points, level=0):
         for nav_point in nav_points:
             # 提取内容链接中的文件名
             content = nav_point.get('content', '')
-            if content:
+            # 提取导航点标签
+            label = nav_point.get('label', '')
+            
+            if content and label:
                 # 移除锚点部分，只保留文件名
                 file_name = content.split('#')[0]
+                # 移除目录结构，只保留文件名
+                file_name = Path(file_name).name
                 # 将.xhtml扩展名替换为.md
                 if file_name.endswith('.xhtml'):
                     file_name = file_name[:-6] + '.md'
                 elif file_name.endswith('.html'):
                     file_name = file_name[:-5] + '.md'
                 
+                # 生成章节标题，保留原始标签文本
+                title = label
+                
+                # 生成文件名，基于章节标题
+                # 移除非法字符并替换空格为连字符
+                import re
+                safe_label = re.sub(r'[<>:"/\\|?*\x00-\x1F]', '', label)
+                safe_label = re.sub(r'\s+', '-', safe_label)
+                # 限制文件名长度
+                if len(safe_label) > 100:
+                    safe_label = safe_label[:100]
+                
+                # 递增计数器并生成文件名，添加序号前缀
+                counter[0] += 1
+                file_name = f"{counter[0]:02d}-{safe_label}.md"
+                
                 # 添加章节信息
                 chapters.append({
                     'file': file_name,
-                    'title': nav_point.get('label', '')
+                    'title': title
                 })
             
             # 递归处理子导航点
             if 'children' in nav_point:
-                extract_chapters(nav_point['children'])
+                extract_chapters(nav_point['children'], level + 1)
     
     extract_chapters(nav_map)
     
@@ -252,7 +274,6 @@ def _format_toc_structure(nav_map: List[Dict], indent: str = "") -> str:
     
     return result
 
-    return nav_points
 
 def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path):
     """
@@ -361,25 +382,31 @@ def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path):
                 zipf.write(source_path, target_path)
             
             logger.info(f"已添加文件到ZIP: {target_path}")
-    
-    # 如果解析了目录结构，将其也添加到ZIP文件中
-    if toc_structure:
-        # 创建一个包含目录结构信息的文本文件
-        toc_info = f"EPUB目录结构信息\n"
-        toc_info += f"标题: {toc_structure.get('title', 'N/A')}\n"
-        toc_info += f"目录项数量: {len(toc_structure.get('nav_map', []))}\n\n"
-        toc_info += "目录结构:\n"
-        toc_info += _format_toc_structure(toc_structure.get('nav_map', []))
-        
-        # 将目录信息添加到ZIP文件
-        zipf.writestr("toc_info.txt", toc_info)
-        logger.info("已添加目录结构信息到ZIP文件")
-        
-        # 将目录结构转换为chapter-config.json格式并添加到ZIP文件中
-        chapter_config = _convert_nav_map_to_chapter_config(toc_structure.get('nav_map', []))
-        chapter_config_json = json.dumps(chapter_config, ensure_ascii=False, indent=2)
-        zipf.writestr("chapter-config.json", chapter_config_json)
-        logger.info("已添加chapter-config.json到ZIP文件")
+     
+        # 如果解析了目录结构，将其也添加到ZIP文件中
+        if toc_structure:
+            # 创建一个包含目录结构信息的文本文件
+            toc_info = f"EPUB目录结构信息\n"
+            toc_info += f"标题: {toc_structure.get('title', 'N/A')}\n"
+            toc_info += f"目录项数量: {len(toc_structure.get('nav_map', []))}\n\n"
+            toc_info += "目录结构:\n"
+            toc_info += _format_toc_structure(toc_structure.get('nav_map', []))
+            
+            # 将目录信息添加到ZIP文件
+            zipf.writestr("toc_info.txt", toc_info)
+            logger.info("已添加目录结构信息到ZIP文件")
+            
+            # 将目录结构转换为chapter-config.json格式并添加到ZIP文件中
+            chapter_config = _convert_nav_map_to_chapter_config(toc_structure.get('nav_map', []))
+            chapter_config_json = json.dumps(chapter_config, ensure_ascii=False, indent=2)
+            zipf.writestr("chapter-config.json", chapter_config_json)
+            logger.info("已添加chapter-config.json到ZIP文件")
+            
+            # 同时在EPUB根目录下生成chapter-config.json文件
+            chapter_config_path = epub_root_path.parent / 'chapter-config.json'
+            with open(chapter_config_path, 'w', encoding='utf-8') as f:
+                f.write(chapter_config_json)
+            logger.info(f"已生成chapter-config.json文件: {chapter_config_path}")
 
 def convert_epub_dir_to_zip(epub_dir: Path, output_dir: Path = None) -> Path:
     """

@@ -28,7 +28,7 @@ if project_root not in sys.path:
 # 导入自定义的构建工具
 from app.build_utils import build_epub, build_pdf
 # 导入EPUB到ZIP转换工具
-from app.epub_to_zip import convert_epub_dir_to_zip
+from app.epub_to_zip import convert_epub_dir_to_zip, parse_ncx_file
 
 # 导入全局变量
 # from app.main import startup_backup_filename  # 已移至 app/shared.py
@@ -754,13 +754,73 @@ async def delete_backup_file(filename: str):
         raise HTTPException(status_code=500, detail=f"删除备份文件时出错: {str(e)}")
 
 def epub_to_markdown(epub_path: Path, output_dir: Path):
-    """将EPUB文件转换为Markdown格式"""
+    """将EPUB文件或目录转换为Markdown格式"""
     try:
         # 创建输出目录
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 读取EPUB文件
-        book = epub.read_epub(str(epub_path))
+        # 检查epub_path是文件还是目录
+        if epub_path.is_file():
+            # 读取EPUB文件
+            book = epub.read_epub(str(epub_path))
+        elif epub_path.is_dir():
+            # 如果是目录，假定它是一个已解压的EPUB目录
+            # 我们需要手动创建一个EPUB对象
+            book = epub.EpubBook()
+            
+            # 读取content.opf文件
+            content_opf_path = epub_path / 'EPUB' / 'content.opf'
+            if not content_opf_path.exists():
+                raise FileNotFoundError(f"content.opf文件不存在: {content_opf_path}")
+            
+            # 解析content.opf文件
+            from app.epub_to_zip import parse_content_opf
+            epub_data = parse_content_opf(content_opf_path)
+            
+            # 设置元数据
+            metadata = epub_data.get('metadata', {})
+            if 'title' in metadata:
+                book.set_title(metadata['title'])
+            if 'creator' in metadata:
+                book.add_author(metadata['creator'])
+            
+            # 添加manifest中的项目
+            manifest = epub_data.get('manifest', {})
+            for item_id, item_info in manifest.items():
+                href = item_info['href']
+                media_type = item_info.get('media_type', '')
+                properties = item_info.get('properties', '')
+                
+                # 构造文件的完整路径
+                file_path = epub_path / 'EPUB' / href
+                if file_path.exists():
+                    # 读取文件内容
+                    with open(file_path, 'rb') as f:
+                        content = f.read()
+                    
+                    # 创建EPUB项目
+                    item = epub.EpubItem(
+                        uid=item_id,
+                        file_name=href,
+                        media_type=media_type,
+                        content=content
+                    )
+                    book.add_item(item)
+            
+            # 设置spine
+            spine = epub_data.get('spine', [])
+            book.spine = [item['idref'] for item in spine]
+            
+            # 添加NCX项目（如果存在）
+            ncx_href = epub_data.get('ncx_href')
+            if ncx_href:
+                ncx_path = epub_path / 'EPUB' / ncx_href
+                if ncx_path.exists():
+                    with open(ncx_path, 'rb') as f:
+                        ncx_content = f.read()
+                    ncx_item = epub.EpubNcx(uid='ncx', file_name=ncx_href)
+                    ncx_item.content = ncx_content
+                    book.add_item(ncx_item)
         
         # 获取书籍元数据
         title = book.get_metadata('DC', 'title')
@@ -806,7 +866,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
         for item in book.get_items():
             if item.get_type() == ebooklib.ITEM_IMAGE:
                 # 获取图片文件名
-                image_filename = os.path.basename(item.get_name())
+                image_filename = Path(item.get_name()).name
                 # 确保文件名唯一
                 counter = 1
                 original_filename = image_filename
@@ -825,6 +885,8 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
         
         # 获取导航信息（章节结构）
         nav_items = []
+        
+        # 首先尝试使用EPUB 3的导航文档
         nav_item = book.get_item_with_id('nav')
         if nav_item:
             nav_content = nav_item.get_content().decode('utf-8')
@@ -848,6 +910,50 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                         'anchor': anchor,
                         'title': title
                     })
+        else:
+            # 如果没有EPUB 3的导航文档，尝试使用NCX文件
+            # 查找NCX文件
+            ncx_item = None
+            for item in book.get_items():
+                if item.get_type() == ebooklib.ITEM_NAVIGATION:
+                    ncx_item = item
+                    break
+            
+            # 如果找到了NCX文件，解析它
+            logger.info("找到了NCX文件")
+            if ncx_item:
+                # 创建临时文件来保存NCX内容
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode='wb', suffix='.ncx', delete=False) as f:
+                    f.write(ncx_item.get_content())
+                    ncx_temp_path = f.name
+                
+                try:
+                    # 解析NCX文件
+                    toc_structure = parse_ncx_file(Path(ncx_temp_path))
+                    logger.info(f"toc_structure: {toc_structure}")
+                    logger.info(f"nav_map: {toc_structure.get('nav_map', [])}")
+                    
+                    # 将导航点转换为nav_items格式
+                    def convert_nav_points(nav_points, level=0):
+                        items = []
+                        for nav_point in nav_points:
+                            # 添加当前导航点
+                            items.append({
+                                'label': nav_point.get('label', ''),
+                                'content': nav_point.get('content', ''),
+                                'anchor': nav_point.get('content', '').split('#')[1] if nav_point.get('content') and '#' in nav_point.get('content') else None
+                            })
+                            
+                            # 递归处理子导航点
+                            if 'children' in nav_point:
+                                items.extend(convert_nav_points(nav_point['children'], level + 1))
+                        return items
+                    
+                    nav_items = convert_nav_points(toc_structure.get('nav_map', []))
+                    logger.info(f"nav_items: {nav_items}")
+                finally:
+                    os.unlink(ncx_temp_path)
         
         # 创建章节到文件的映射
         chapter_file_mapping = {}
@@ -859,40 +965,41 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                 chapter_file_mapping[file_name] = item
         
         # 按导航顺序处理章节
+        logger.info(f"nav_items: {nav_items}")
         processed_files = set()  # 跟踪已处理的文件
         chapter_index = 1
-        
+         
+        # 使用导航信息处理章节
         if nav_items:
-            # 使用导航信息处理章节
             for nav_item in nav_items:
-                file_name = os.path.basename(nav_item['file_path'])
-                
+                file_name = os.path.basename(nav_item['content'])
+                 
                 # 检查是否已处理过该文件
                 if file_name in processed_files:
                     continue
-                
+                 
                 # 查找对应的章节文件
                 if file_name in chapter_file_mapping:
                     item = chapter_file_mapping[file_name]
                     processed_files.add(file_name)
                 else:
                     continue  # 跳过未找到的文件
-                
+                 
                 # 获取章节内容
                 content = item.get_content().decode('utf-8')
-                
+                 
                 # 使用BeautifulSoup解析HTML内容
                 soup = BeautifulSoup(content, 'html.parser')
-                
+                 
                 # 提取标题
-                chapter_title = nav_item['title']
-                
+                chapter_title = nav_item.get('label', nav_item.get('title', '未知章节'))
+                 
                 # 移除脚本和样式标签
                 for script in soup.find_all('script'):
                     script.decompose()
                 for style in soup.find_all('style'):
                     style.decompose()
-                
+                 
                 # 转换HTML标签为Markdown
                 # 处理标题
                 for h1 in soup.find_all('h1'):
@@ -913,13 +1020,13 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                 for h6 in soup.find_all('h6'):
                     h6.insert_before('###### ')
                     h6.unwrap()
-                
+                 
                 # 处理段落
                 for p in soup.find_all('p'):
                     p.insert_before('\n')
                     p.insert_after('\n')
                     p.unwrap()
-                
+                 
                 # 处理粗体
                 for b in soup.find_all('b'):
                     b.insert_before('**')
@@ -929,7 +1036,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                     strong.insert_before('**')
                     strong.insert_after('**')
                     strong.unwrap()
-                
+                 
                 # 处理斜体
                 for i in soup.find_all('i'):
                     i.insert_before('*')
@@ -939,7 +1046,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                     em.insert_before('*')
                     em.insert_after('*')
                     em.unwrap()
-                
+                 
                 # 处理列表
                 for ul in soup.find_all('ul'):
                     ul.insert_after('\n')
@@ -949,7 +1056,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                     li.insert_before('- ')
                     li.insert_after('\n')
                     li.unwrap()
-                
+                 
                 # 处理链接
                 for a in soup.find_all('a'):
                     href = a.get('href', '')
@@ -958,7 +1065,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                         a.insert_after(f']({href})')
                     else:
                         a.unwrap()
-                
+                 
                 # 处理图片
                 for img in soup.find_all('img'):
                     src = img.get('src', '')
@@ -971,45 +1078,45 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                             from urllib.parse import unquote
                             src_unquoted = unquote(src)
                             src_filename = os.path.basename(src_unquoted)
-                            
+                             
                             # 查找对应的图片文件
                             matched_image = None
                             for image_filename, image_path in image_files.items():
                                 if src_filename in image_path:
                                     matched_image = image_filename
                                     break
-                            
+                             
                             if matched_image:
                                 # 更新图片引用路径
                                 src = f'../illustrations/{matched_image}'
-                         
+                           
                         img.insert_before(f'![{alt}]({src})')
                     img.decompose()
-                
+                 
                 # 处理表格
                 for table in soup.find_all('table'):
                     table.insert_before('\n')
                     table.insert_after('\n')
-                
+                 
                 # 获取处理后的文本内容
                 text_content = soup.get_text()
-                
+                 
                 # 创建章节文件名
                 chapter_filename = f"{chapter_index:02d}-{chapter_title.replace(' ', '-').replace('/', '-').replace('\\', '-')}.md"
                 chapter_filename = re.sub(r'[<>:"/\\|?*]', '', chapter_filename)  # 移除非法字符
-                
+                 
                 # 保存章节内容
                 chapter_path = chapters_dir / chapter_filename
                 with open(chapter_path, 'w', encoding='utf-8') as f:
                     f.write(f"# {chapter_title}\n\n")
                     f.write(text_content)
-                
+                 
                 # 添加到章节配置
                 chapter_config["chapters"].append({
                     "file": chapter_filename,
                     "title": chapter_title
                 })
-                
+                 
                 chapter_index += 1
         else:
             # 如果没有导航信息，按原有方式处理章节
@@ -1017,23 +1124,23 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                 if item.get_type() == ebooklib.ITEM_DOCUMENT:
                     # 获取章节内容
                     content = item.get_content().decode('utf-8')
-                    
+                     
                     # 使用BeautifulSoup解析HTML内容
                     soup = BeautifulSoup(content, 'html.parser')
-                    
+                     
                     # 提取标题
                     title_elem = soup.find('h1') or soup.find('h2') or soup.find('h3')
                     if title_elem:
                         chapter_title = title_elem.get_text().strip()
                     else:
                         chapter_title = f"第{chapter_index}章"
-                    
+                     
                     # 移除脚本和样式标签
                     for script in soup.find_all('script'):
                         script.decompose()
                     for style in soup.find_all('style'):
                         style.decompose()
-                    
+                     
                     # 转换HTML标签为Markdown
                     # 处理标题
                     for h1 in soup.find_all('h1'):
@@ -1054,13 +1161,13 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                     for h6 in soup.find_all('h6'):
                         h6.insert_before('###### ')
                         h6.unwrap()
-                    
+                     
                     # 处理段落
                     for p in soup.find_all('p'):
                         p.insert_before('\n')
                         p.insert_after('\n')
                         p.unwrap()
-                    
+                     
                     # 处理粗体
                     for b in soup.find_all('b'):
                         b.insert_before('**')
@@ -1070,7 +1177,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                         strong.insert_before('**')
                         strong.insert_after('**')
                         strong.unwrap()
-                    
+                     
                     # 处理斜体
                     for i in soup.find_all('i'):
                         i.insert_before('*')
@@ -1080,7 +1187,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                         em.insert_before('*')
                         em.insert_after('*')
                         em.unwrap()
-                    
+                     
                     # 处理列表
                     for ul in soup.find_all('ul'):
                         ul.insert_after('\n')
@@ -1090,7 +1197,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                         li.insert_before('- ')
                         li.insert_after('\n')
                         li.unwrap()
-                    
+                     
                     # 处理链接
                     for a in soup.find_all('a'):
                         href = a.get('href', '')
@@ -1099,7 +1206,7 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                             a.insert_after(f']({href})')
                         else:
                             a.unwrap()
-                    
+                     
                     # 处理图片
                     for img in soup.find_all('img'):
                         src = img.get('src', '')
@@ -1112,45 +1219,45 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
                                 from urllib.parse import unquote
                                 src_unquoted = unquote(src)
                                 src_filename = os.path.basename(src_unquoted)
-                                
+                                 
                                 # 查找对应的图片文件
                                 matched_image = None
                                 for image_filename, image_path in image_files.items():
                                     if src_filename in image_path:
                                         matched_image = image_filename
                                         break
-                                
+                                 
                                 if matched_image:
                                     # 更新图片引用路径
                                     src = f'../illustrations/{matched_image}'
-                             
+                               
                             img.insert_before(f'![{alt}]({src})')
                         img.decompose()
-                    
+                     
                     # 处理表格
                     for table in soup.find_all('table'):
                         table.insert_before('\n')
                         table.insert_after('\n')
-                    
+                     
                     # 获取处理后的文本内容
                     text_content = soup.get_text()
-                    
+                     
                     # 创建章节文件名
                     chapter_filename = f"{chapter_index:02d}-{chapter_title.replace(' ', '-').replace('/', '-').replace('\\', '-')}.md"
                     chapter_filename = re.sub(r'[<>:"/\\|?*]', '', chapter_filename)  # 移除非法字符
-                    
+                     
                     # 保存章节内容
                     chapter_path = chapters_dir / chapter_filename
                     with open(chapter_path, 'w', encoding='utf-8') as f:
                         f.write(f"# {chapter_title}\n\n")
                         f.write(text_content)
-                    
+                     
                     # 添加到章节配置
                     chapter_config["chapters"].append({
                         "file": chapter_filename,
                         "title": chapter_title
                     })
-                    
+                     
                     chapter_index += 1
         
         # 保存章节配置文件
