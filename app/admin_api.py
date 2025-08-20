@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from pathlib import Path
+from bs4 import BeautifulSoup
+import re
 import json
 import os
 import subprocess
@@ -12,6 +14,10 @@ import sys
 import zipfile
 import shutil
 import datetime
+import tempfile
+import ebooklib
+
+
 
 # 添加项目根目录到Python路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +30,19 @@ from app.build_utils import build_epub, build_pdf
 
 # 导入全局变量
 from app.main import startup_backup_filename
+
+# 安装ebooklib库（如果尚未安装）
+try:
+    import ebooklib
+    from ebooklib import epub
+except ImportError:
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "ebooklib"])
+    import ebooklib
+    from ebooklib import epub
+    from bs4 import BeautifulSoup
+    import re
 
 
 # 获取当前文件所在目录
@@ -592,6 +611,22 @@ def backup_src_directory():
         logger.error(f"备份src目录时出错: {str(e)}")
         raise
 
+def cleanup_temp_files():
+    """清理临时文件"""
+    try:
+        temp_files_dir = BASE_DIR / "temp" / "epub_conversions"
+        if temp_files_dir.exists():
+            # 删除超过1小时的文件
+            import time
+            current_time = time.time()
+            for file_path in temp_files_dir.iterdir():
+                if file_path.is_file():
+                    file_modified = file_path.stat().st_mtime
+                    if current_time - file_modified > 3600:  # 1小时
+                        file_path.unlink()
+    except Exception as e:
+        logger.error(f"清理临时文件时出错: {str(e)}")
+
 @router.get("/backups")
 async def list_backup_files():
     """获取备份文件列表"""
@@ -714,3 +749,369 @@ async def delete_backup_file(filename: str):
     except Exception as e:
         logger.error(f"删除备份文件时出错: {str(e)}")
         raise HTTPException(status_code=500, detail=f"删除备份文件时出错: {str(e)}")
+
+def epub_to_markdown(epub_path: Path, output_dir: Path):
+    """将EPUB文件转换为Markdown格式"""
+    try:
+        # 创建输出目录
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 读取EPUB文件
+        book = epub.read_epub(str(epub_path))
+        
+        # 获取书籍元数据
+        title = book.get_metadata('DC', 'title')
+        if title:
+            book_title = title[0][0]
+        else:
+            book_title = "Unknown Title"
+        
+        # 创建书籍主文件
+        book_md_path = output_dir / "book.md"
+        with open(book_md_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {book_title}\n\n")
+            f.write("这是一个从EPUB转换而来的Markdown书籍。\n\n")
+            f.write("作者：Unknown Author\n")
+        
+        # 创建元数据文件
+        metadata_path = output_dir / "metadata.yml"
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            f.write("---\n")
+            f.write(f"title: {book_title}\n")
+            f.write("author: Unknown Author\n")
+            f.write("date: 2025-01-01\n")
+            f.write("language: zh-CN\n")
+            f.write("---\n")
+        
+        # 创建章节配置文件
+        chapter_config = {
+            "chapters": []
+        }
+        
+        # 创建章节目录
+        chapters_dir = output_dir / "chapters"
+        chapters_dir.mkdir(exist_ok=True)
+        
+        # 创建插图目录
+        illustrations_dir = output_dir / "illustrations"
+        illustrations_dir.mkdir(exist_ok=True)
+        
+        # 创建一个字典来存储图片文件名映射
+        image_files = {}
+        
+        # 处理每个章节
+        chapter_index = 1
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                # 获取章节内容
+                content = item.get_content().decode('utf-8')
+                
+                # 使用BeautifulSoup解析HTML内容
+                soup = BeautifulSoup(content, 'html.parser')
+                
+                # 提取标题
+                title_elem = soup.find('h1') or soup.find('h2') or soup.find('h3')
+                if title_elem:
+                    chapter_title = title_elem.get_text().strip()
+                else:
+                    chapter_title = f"第{chapter_index}章"
+                
+                # 移除脚本和样式标签
+                for script in soup.find_all('script'):
+                    script.decompose()
+                for style in soup.find_all('style'):
+                    style.decompose()
+                
+                # 转换HTML标签为Markdown
+                # 处理标题
+                for h1 in soup.find_all('h1'):
+                    h1.insert_before('# ')
+                    h1.unwrap()
+                for h2 in soup.find_all('h2'):
+                    h2.insert_before('## ')
+                    h2.unwrap()
+                for h3 in soup.find_all('h3'):
+                    h3.insert_before('### ')
+                    h3.unwrap()
+                for h4 in soup.find_all('h4'):
+                    h4.insert_before('#### ')
+                    h4.unwrap()
+                for h5 in soup.find_all('h5'):
+                    h5.insert_before('##### ')
+                    h5.unwrap()
+                for h6 in soup.find_all('h6'):
+                    h6.insert_before('###### ')
+                    h6.unwrap()
+                
+                # 处理段落
+                for p in soup.find_all('p'):
+                    p.insert_before('\n')
+                    p.insert_after('\n')
+                    p.unwrap()
+                
+                # 处理粗体
+                for b in soup.find_all('b'):
+                    b.insert_before('**')
+                    b.insert_after('**')
+                    b.unwrap()
+                for strong in soup.find_all('strong'):
+                    strong.insert_before('**')
+                    strong.insert_after('**')
+                    strong.unwrap()
+                
+                # 处理斜体
+                for i in soup.find_all('i'):
+                    i.insert_before('*')
+                    i.insert_after('*')
+                    i.unwrap()
+                for em in soup.find_all('em'):
+                    em.insert_before('*')
+                    em.insert_after('*')
+                    em.unwrap()
+                
+                # 处理列表
+                for ul in soup.find_all('ul'):
+                    ul.insert_after('\n')
+                for ol in soup.find_all('ol'):
+                    ol.insert_after('\n')
+                for li in soup.find_all('li'):
+                    li.insert_before('- ')
+                    li.insert_after('\n')
+                    li.unwrap()
+                
+                # 处理链接
+                for a in soup.find_all('a'):
+                    href = a.get('href', '')
+                    if href:
+                        a.insert_before('[')
+                        a.insert_after(f']({href})')
+                    else:
+                        a.unwrap()
+                
+                # 处理图片
+                for img in soup.find_all('img'):
+                    src = img.get('src', '')
+                    alt = img.get('alt', '')
+                    if src:
+                        # 检查是否为相对路径
+                        if not src.startswith('http'):
+                            # 从EPUB中提取图片文件
+                            image_item = book.get_item_with_href(src)
+                            if image_item:
+                                # 生成新的图片文件名
+                                image_filename = f"{chapter_index:02d}_{os.path.basename(src)}"
+                                # 确保文件名唯一
+                                counter = 1
+                                original_filename = image_filename
+                                while image_filename in image_files:
+                                    name, ext = os.path.splitext(original_filename)
+                                    image_filename = f"{name}_{counter}{ext}"
+                                    counter += 1
+                                
+                                # 保存图片文件
+                                image_path = illustrations_dir / image_filename
+                                with open(image_path, 'wb') as f:
+                                    f.write(image_item.get_content())
+                                
+                                # 记录图片文件映射
+                                image_files[image_filename] = src
+                                
+                                # 更新图片引用路径
+                                src = f'../illustrations/{image_filename}'
+                        
+                        img.insert_before(f'![{alt}]({src})')
+                    img.decompose()
+                
+                # 处理表格
+                for table in soup.find_all('table'):
+                    table.insert_before('\n')
+                    table.insert_after('\n')
+                
+                # 获取处理后的文本内容
+                text_content = soup.get_text()
+                
+                # 创建章节文件名
+                chapter_filename = f"{chapter_index:02d}-{chapter_title.replace(' ', '-').replace('/', '-').replace('\\', '-')}.md"
+                chapter_filename = re.sub(r'[<>:"/\\|?*]', '', chapter_filename)  # 移除非法字符
+                
+                # 保存章节内容
+                chapter_path = chapters_dir / chapter_filename
+                with open(chapter_path, 'w', encoding='utf-8') as f:
+                    f.write(f"# {chapter_title}\n\n")
+                    f.write(text_content)
+                
+                # 添加到章节配置
+                chapter_config["chapters"].append({
+                    "file": chapter_filename,
+                    "title": chapter_title
+                })
+                
+                chapter_index += 1
+        
+        # 保存章节配置文件
+        chapter_config_path = output_dir / "chapter-config.json"
+        with open(chapter_config_path, 'w', encoding='utf-8') as f:
+            json.dump(chapter_config, f, indent=2, ensure_ascii=False)
+        
+        # 创建CSS目录和样式文件
+        css_dir = output_dir / "css"
+        css_dir.mkdir(exist_ok=True)
+        
+        # 复制默认样式文件（如果存在）
+        default_css_path = BASE_DIR / "src" / "css" / "common-style.css"
+        if default_css_path.exists():
+            shutil.copy(default_css_path, css_dir / "common-style.css")
+        else:
+            # 创建默认样式文件
+            with open(css_dir / "common-style.css", 'w', encoding='utf-8') as f:
+                f.write("/* 默认样式 */\nbody { font-family: Arial, sans-serif; }\n")
+        
+        # 创建模板目录
+        templates_dir = output_dir / "templates"
+        templates_dir.mkdir(exist_ok=True)
+        
+        # 创建章节模板
+        with open(templates_dir / "chapter-template.md", 'w', encoding='utf-8') as f:
+            f.write("# 第X章：章节标题\n\n")
+            f.write("## 章节简介\n\n")
+            f.write("简要介绍本章的主要内容和学习目标。\n\n")
+            f.write("## 主要内容\n\n")
+            f.write("### 第一部分：内容标题\n详细内容...\n\n")
+            f.write("### 第二部分：内容标题\n详细内容...\n\n")
+            f.write("### 第三部分：内容标题\n详细内容...\n\n")
+            f.write("## 重点词汇\n\n")
+            f.write("| 片假字 | 罗马音 | 中文意思 | 使用例句 |\n")
+            f.write("|--------|--------|----------|----------|\n")
+            f.write("|        |        |          |          |\n")
+            f.write("|        |        |          |          |\n")
+            f.write("|        |        |          |          |\n\n")
+            f.write("## 练习题\n\n")
+            f.write("1. 问题一...\n2. 问题二...\n3. 问题三...\n\n")
+            f.write("## 本章小结\n\n")
+            f.write("总结本章的重点内容和学习要点。\n\n")
+            f.write("## 延伸阅读\n\n")
+            f.write("推荐相关的阅读材料和学习资源。\n")
+        
+        return {
+            "status": "success",
+            "message": "EPUB转换为Markdown成功",
+            "output_dir": str(output_dir)
+        }
+    except Exception as e:
+        logger.error(f"EPUB转换为Markdown时出错: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "status": "error",
+            "message": f"EPUB转换为Markdown时出错: {str(e)}"
+        }
+
+@router.post("/convert-epub")
+async def convert_epub(file: UploadFile = File(...)):
+    """上传并转换EPUB文件为Markdown格式"""
+    try:
+        # 检查文件类型
+        if not file.filename.endswith('.epub'):
+            raise HTTPException(status_code=400, detail="只允许上传.epub文件")
+        
+        # 创建临时目录
+        temp_dir = BASE_DIR / "temp" / f"epub_convert_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 保存上传的EPUB文件
+        epub_path = temp_dir / file.filename
+        with open(epub_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 创建包含src目录的输出目录
+        src_output_dir = temp_dir / "src"
+        src_output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 转换EPUB为Markdown，输出到src_output_dir
+        result = epub_to_markdown(epub_path, src_output_dir)
+        
+        if result["status"] == "success":
+            # 创建zip文件
+            zip_filename = f"converted_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            zip_path = temp_dir / zip_filename
+            
+            # 创建zip文件，保留src/前缀
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(temp_dir):
+                    # 添加目录本身到zip文件
+                    root_path = Path(root)
+                    if "src" in root_path.parts:
+                        arcname = root_path.relative_to(temp_dir)
+                        zip_info = zipfile.ZipInfo(str(arcname) + '/')
+                        zip_info.external_attr = 0o755 << 16  # 设置目录权限
+                        zipf.writestr(zip_info, '')
+                    
+                    # 添加文件到zip文件
+                    for file in files:
+                        file_path = Path(root) / file
+                        # 只添加src目录下的文件到zip
+                        if "src" in file_path.parts:
+                            arcname = file_path.relative_to(temp_dir)
+                            zipf.write(file_path, arcname)
+            
+            # 保存zip文件路径到临时文件，以便后续下载使用
+            temp_files_dir = BASE_DIR / "temp" / "epub_conversions"
+            temp_files_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 移动zip文件到临时目录
+            final_zip_path = temp_files_dir / zip_filename
+            shutil.move(str(zip_path), str(final_zip_path))
+            
+            # 清理临时目录（除了zip文件）
+            shutil.rmtree(temp_dir)
+            
+            # 返回成功标识和文件名
+            return {
+                "status": "success",
+                "message": "EPUB转换为Markdown成功",
+                "filename": zip_filename
+            }
+        else:
+            # 清理临时目录
+            shutil.rmtree(temp_dir)
+            raise HTTPException(status_code=500, detail=result["message"])
+    except Exception as e:
+        logger.error(f"转换EPUB文件时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"转换EPUB文件时出错: {str(e)}")
+
+@router.get("/download-converted/{filename}")
+async def download_converted_file(filename: str):
+    """下载转换后的文件"""
+    try:
+        # 验证文件名是否安全
+        if ".." in filename or "/" in filename or "\\" in filename:
+            raise HTTPException(status_code=400, detail="无效的文件名")
+        
+        # 确保文件名以.zip结尾
+        if not filename.endswith(".zip"):
+            raise HTTPException(status_code=400, detail="只能下载.zip文件")
+        
+        # 构造文件路径
+        temp_files_dir = BASE_DIR / "temp" / "epub_conversions"
+        file_path = temp_files_dir / filename
+        
+        # 检查文件是否存在
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 检查是否为文件（而不是目录）
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail="指定路径不是文件")
+        
+        # 返回文件下载
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type='application/zip'
+        )
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        logger.error(f"下载转换文件时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"下载转换文件时出错: {str(e)}")

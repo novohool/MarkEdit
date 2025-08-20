@@ -276,6 +276,61 @@
             background-color: #bdc3c7;
             cursor: not-allowed;
         }
+        
+        /* EPUB转换结果弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1002;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 5px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: black;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -349,8 +404,40 @@
                     <p>正在加载备份文件列表...</p>
                 </div>
             </div>
+            
+            <!-- EPUB转Markdown -->
+            <div class="section">
+                <h2>EPUB转Markdown</h2>
+                <div class="form-group">
+                    <label for="epub-upload">上传EPUB文件:</label>
+                    <input type="file" id="epub-upload" accept=".epub" />
+                    <button type="button" id="convert-epub-btn" class="btn-primary">转换为Markdown</button>
+                </div>
+                <div id="conversion-result" class="hidden">
+                    <p id="conversion-message"></p>
+                </div>
+            </div>
         </div>
     </div>
+    
+    <!-- EPUB转换结果弹窗 -->
+    <div id="conversion-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>EPUB转换完成</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>EPUB文件已成功转换为Markdown格式。</p>
+                <p>请选择您要执行的操作：</p>
+            </div>
+            <div class="modal-footer">
+                <button id="replace-src-btn" class="btn-primary">强制替换src</button>
+                <button id="download-btn" class="btn-secondary">下载</button>
+            </div>
+        </div>
+    </div>
+</div>
     
     <script>
         // 全局变量
@@ -902,6 +989,179 @@
             if (resetBtn) {
                 resetBtn.addEventListener('click', resetSrc);
             }
+        });
+        
+        // 全局变量存储转换后的文件名
+        let convertedFilename = null;
+
+        // EPUB转换功能
+        async function convertEpub() {
+            const fileInput = document.getElementById('epub-upload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('请选择一个EPUB文件', 'warning');
+                return;
+            }
+            
+            if (!file.name.endsWith('.epub')) {
+                showMessage('只允许上传.epub文件', 'error');
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                showMessage('正在转换EPUB文件...', 'info');
+                
+                const response = await fetch('/api/admin/convert-epub', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    // 保存转换后的文件名
+                    convertedFilename = result.filename;
+                    
+                    // 显示弹窗
+                    showConversionModal();
+                } else {
+                    throw new Error(result.detail || '转换失败');
+                }
+            } catch (error) {
+                console.error('转换EPUB文件失败:', error);
+                showMessage('转换EPUB文件失败: ' + error.message, 'error');
+            }
+        }
+
+        // 显示EPUB转换结果弹窗
+        function showConversionModal() {
+            const modal = document.getElementById('conversion-modal');
+            modal.style.display = 'block';
+        }
+
+        // 关闭EPUB转换结果弹窗
+        function closeConversionModal() {
+            const modal = document.getElementById('conversion-modal');
+            modal.style.display = 'none';
+        }
+
+        // 下载转换后的文件
+        async function downloadConvertedFile() {
+            if (!convertedFilename) {
+                showMessage('没有可下载的文件', 'error');
+                return;
+            }
+            
+            try {
+                // 创建下载链接
+                const downloadUrl = `/api/admin/download-converted/${convertedFilename}`;
+                
+                // 创建一个隐藏的iframe来触发下载
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = downloadUrl;
+                document.body.appendChild(iframe);
+                
+                // 一段时间后移除iframe
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                }, 1000);
+                
+                // 关闭弹窗
+                closeConversionModal();
+                
+                showMessage('正在下载转换后的文件...', 'success');
+            } catch (error) {
+                console.error('下载转换文件失败:', error);
+                showMessage('下载转换文件失败: ' + error.message, 'error');
+            }
+        }
+
+        // 强制替换src目录
+        async function replaceSrcDirectory() {
+            if (!convertedFilename) {
+                showMessage('没有可替换的文件', 'error');
+                return;
+            }
+            
+            try {
+                // 确认替换操作
+                if (!confirm('确定要将转换后的文件替换到src目录吗？这将覆盖当前的src目录。')) {
+                    return;
+                }
+                
+                // 创建FormData来上传文件
+                const formData = new FormData();
+                
+                // 从服务器下载转换后的文件
+                const response = await fetch(`/api/admin/download-converted/${convertedFilename}`);
+                if (!response.ok) {
+                    throw new Error('无法获取转换后的文件');
+                }
+                
+                const blob = await response.blob();
+                const file = new File([blob], convertedFilename, { type: 'application/zip' });
+                formData.append('file', file);
+                
+                // 调用上传src目录的API
+                const uploadResponse = await fetch('/api/admin/upload-src', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (uploadResponse.ok) {
+                    // 关闭弹窗
+                    closeConversionModal();
+                    
+                    showMessage('Src目录替换成功', 'success');
+                    // 刷新页面
+                    location.reload();
+                } else {
+                    const result = await uploadResponse.json();
+                    throw new Error(result.detail || '替换失败');
+                }
+            } catch (error) {
+                console.error('替换Src目录失败:', error);
+                showMessage('替换Src目录失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 页面加载完成后初始化EPUB转换按钮事件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 绑定EPUB转换按钮事件
+            const convertBtn = document.getElementById('convert-epub-btn');
+            if (convertBtn) {
+                convertBtn.addEventListener('click', convertEpub);
+            }
+            
+            // 绑定弹窗相关事件
+            const modal = document.getElementById('conversion-modal');
+            const closeBtn = modal.querySelector('.close');
+            const downloadBtn = document.getElementById('download-btn');
+            const replaceBtn = document.getElementById('replace-src-btn');
+            
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeConversionModal);
+            }
+            
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', downloadConvertedFile);
+            }
+            
+            if (replaceBtn) {
+                replaceBtn.addEventListener('click', replaceSrcDirectory);
+            }
+            
+            // 点击弹窗外部关闭弹窗
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeConversionModal();
+                }
+            });
         });
     </script>
 </body>
