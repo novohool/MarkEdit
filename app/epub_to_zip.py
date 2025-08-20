@@ -1,6 +1,7 @@
 import os
 import zipfile
 import xml.etree.ElementTree as ET
+import json
 from pathlib import Path
 from typing import Dict, List
 import logging
@@ -33,6 +34,7 @@ def parse_content_opf(content_opf_path: Path) -> Dict:
     
     # 提取manifest信息
     manifest = {}
+    ncx_href = None  # 用于存储NCX文件的href
     manifest_element = root.find('opf:manifest', namespaces)
     if manifest_element is not None:
         for item in manifest_element.findall('opf:item', namespaces):
@@ -40,6 +42,10 @@ def parse_content_opf(content_opf_path: Path) -> Dict:
             href = item.get('href')
             media_type = item.get('media-type')
             properties = item.get('properties')
+            
+            # 检查是否为NCX文件
+            if media_type == 'application/x-dtbncx+xml':
+                ncx_href = href
             
             manifest[item_id] = {
                 'href': href,
@@ -77,12 +83,176 @@ def parse_content_opf(content_opf_path: Path) -> Dict:
         language_element = metadata_element.find('dc:language', namespaces)
         if language_element is not None:
             metadata['language'] = language_element.text
+            
+        # 提取封面信息
+        cover_meta = metadata_element.find(".//opf:meta[@name='cover']", namespaces)
+        if cover_meta is not None:
+            metadata['cover'] = cover_meta.get('content')
+    
+    # 提取guide中的封面引用
+    guide_element = root.find('opf:guide', namespaces)
+    if guide_element is not None:
+        cover_reference = guide_element.find(".//opf:reference[@type='cover']", namespaces)
+        if cover_reference is not None:
+            metadata['cover_href'] = cover_reference.get('href')
     
     return {
         'manifest': manifest,
         'spine': spine,
-        'metadata': metadata
+        'metadata': metadata,
+        'ncx_href': ncx_href
     }
+    
+def parse_ncx_file(ncx_path: Path) -> Dict:
+    """
+    解析EPUB的NCX文件，提取目录结构
+    
+    Args:
+        ncx_path: NCX文件的路径
+        
+    Returns:
+        包含目录结构信息的字典
+    """
+    # 注册NCX命名空间
+    namespaces = {
+        'ncx': 'http://www.daisy.org/z3986/2005/ncx/'
+    }
+    
+    for prefix, uri in namespaces.items():
+        ET.register_namespace(prefix, uri)
+    
+    # 解析XML文件
+    tree = ET.parse(ncx_path)
+    root = tree.getroot()
+    
+    # 提取文档标题
+    doc_title = ""
+    doc_title_element = root.find('ncx:docTitle/ncx:text', namespaces)
+    if doc_title_element is not None:
+        doc_title = doc_title_element.text or ""
+    
+    # 提取导航地图
+    nav_map = []
+    nav_map_element = root.find('ncx:navMap', namespaces)
+    if nav_map_element is not None:
+        nav_map = _parse_nav_points(nav_map_element, namespaces)
+    
+    return {
+        'title': doc_title,
+        'nav_map': nav_map
+    }
+
+def _parse_nav_points(nav_point_element, namespaces: Dict, level: int = 0) -> List[Dict]:
+    """
+    递归解析导航点
+    
+    Args:
+        nav_point_element: navPoint元素
+        namespaces: 命名空间字典
+        level: 当前层级
+        
+    Returns:
+        导航点列表
+    """
+    nav_points = []
+    
+    # 查找所有navPoint子元素
+    for nav_point in nav_point_element.findall('ncx:navPoint', namespaces):
+        # 提取导航点信息
+        nav_label_element = nav_point.find('ncx:navLabel/ncx:text', namespaces)
+        nav_label = nav_label_element.text if nav_label_element is not None and nav_label_element.text else ""
+        
+        # 提取内容链接
+        content_element = nav_point.find('ncx:content', namespaces)
+        content_src = content_element.get('src') if content_element is not None else ""
+        
+        # 创建导航点对象
+        nav_point_obj = {
+            'label': nav_label,
+            'content': content_src,
+            'level': level
+        }
+        
+        # 递归处理子导航点
+        child_nav_points = nav_point.findall('ncx:navPoint', namespaces)
+        if child_nav_points:
+            nav_point_obj['children'] = _parse_nav_points(nav_point, namespaces, level + 1)
+        
+        nav_points.append(nav_point_obj)
+    
+    return nav_points
+
+def _convert_nav_map_to_chapter_config(nav_map: List[Dict]) -> Dict:
+    """
+    将导航点映射转换为chapter-config.json格式
+    
+    Args:
+        nav_map: 导航点列表
+        
+    Returns:
+        chapter-config.json格式的字典
+    """
+    chapters = []
+    
+    def extract_chapters(nav_points):
+        for nav_point in nav_points:
+            # 提取内容链接中的文件名
+            content = nav_point.get('content', '')
+            if content:
+                # 移除锚点部分，只保留文件名
+                file_name = content.split('#')[0]
+                # 将.xhtml扩展名替换为.md
+                if file_name.endswith('.xhtml'):
+                    file_name = file_name[:-6] + '.md'
+                elif file_name.endswith('.html'):
+                    file_name = file_name[:-5] + '.md'
+                
+                # 添加章节信息
+                chapters.append({
+                    'file': file_name,
+                    'title': nav_point.get('label', '')
+                })
+            
+            # 递归处理子导航点
+            if 'children' in nav_point:
+                extract_chapters(nav_point['children'])
+    
+    extract_chapters(nav_map)
+    
+    return {
+        'chapters': chapters
+    }
+
+def _format_toc_structure(nav_map: List[Dict], indent: str = "") -> str:
+    """
+    格式化目录结构为字符串
+    
+    Args:
+        nav_map: 导航点列表
+        indent: 缩进字符串
+        
+    Returns:
+        格式化后的目录结构字符串
+    """
+    result = ""
+    for nav_point in nav_map:
+        label = nav_point.get('label', '')
+        content = nav_point.get('content', '')
+        level = nav_point.get('level', 0)
+        
+        # 添加缩进和标签
+        result += f"{indent}{label}"
+        if content:
+            result += f" ({content})"
+        result += "\n"
+        
+        # 递归处理子导航点
+        if 'children' in nav_point:
+            result += _format_toc_structure(nav_point['children'], indent + "  ")
+    
+    return result
+
+    return nav_points
 
 def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path):
     """
@@ -102,6 +272,18 @@ def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path):
     
     epub_data = parse_content_opf(content_opf_path)
     manifest = epub_data['manifest']
+    ncx_href = epub_data.get('ncx_href')
+    
+    # 如果存在NCX文件，则解析它以获取目录结构
+    toc_structure = None
+    if ncx_href:
+        ncx_path = epub_root_path / ncx_href
+        if ncx_path.exists():
+            try:
+                toc_structure = parse_ncx_file(ncx_path)
+                logger.info(f"已解析NCX目录文件: {ncx_href}")
+            except Exception as e:
+                logger.warning(f"解析NCX文件失败: {e}")
     
     # 创建ZIP文件
     with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -179,6 +361,25 @@ def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path):
                 zipf.write(source_path, target_path)
             
             logger.info(f"已添加文件到ZIP: {target_path}")
+    
+    # 如果解析了目录结构，将其也添加到ZIP文件中
+    if toc_structure:
+        # 创建一个包含目录结构信息的文本文件
+        toc_info = f"EPUB目录结构信息\n"
+        toc_info += f"标题: {toc_structure.get('title', 'N/A')}\n"
+        toc_info += f"目录项数量: {len(toc_structure.get('nav_map', []))}\n\n"
+        toc_info += "目录结构:\n"
+        toc_info += _format_toc_structure(toc_structure.get('nav_map', []))
+        
+        # 将目录信息添加到ZIP文件
+        zipf.writestr("toc_info.txt", toc_info)
+        logger.info("已添加目录结构信息到ZIP文件")
+        
+        # 将目录结构转换为chapter-config.json格式并添加到ZIP文件中
+        chapter_config = _convert_nav_map_to_chapter_config(toc_structure.get('nav_map', []))
+        chapter_config_json = json.dumps(chapter_config, ensure_ascii=False, indent=2)
+        zipf.writestr("chapter-config.json", chapter_config_json)
+        logger.info("已添加chapter-config.json到ZIP文件")
 
 def convert_epub_dir_to_zip(epub_dir: Path, output_dir: Path = None) -> Path:
     """
