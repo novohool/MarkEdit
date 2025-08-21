@@ -275,13 +275,14 @@ def _format_toc_structure(nav_map: List[Dict], indent: str = "") -> str:
     return result
 
 
-def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path):
+def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path, user_src_dir: Path = None):
     """
     将EPUB目录结构转换为ZIP文件，严格遵循content.opf定义
     
     Args:
         epub_root_path: EPUB根目录路径（包含content.opf文件的目录）
         output_zip_path: 输出ZIP文件路径
+        user_src_dir: 用户src目录路径，用于生成chapter-config.json文件
     """
     # 确保输出目录存在
     output_zip_path.parent.mkdir(parents=True, exist_ok=True)
@@ -403,18 +404,25 @@ def convert_epub_to_zip(epub_root_path: Path, output_zip_path: Path):
             logger.info("已添加chapter-config.json到ZIP文件")
             
             # 同时在EPUB根目录下生成chapter-config.json文件
-            chapter_config_path = epub_root_path.parent / 'chapter-config.json'
+            if user_src_dir:
+                # 如果指定了用户src目录，则在用户src目录下生成chapter-config.json文件
+                chapter_config_path = user_src_dir / 'chapter-config.json'
+            else:
+                # 否则在EPUB根目录的父目录下生成chapter-config.json文件（保持原有行为）
+                chapter_config_path = epub_root_path.parent / 'chapter-config.json'
+            
             with open(chapter_config_path, 'w', encoding='utf-8') as f:
                 f.write(chapter_config_json)
             logger.info(f"已生成chapter-config.json文件: {chapter_config_path}")
 
-def convert_epub_dir_to_zip(epub_dir: Path, output_dir: Path = None) -> Path:
+def convert_epub_dir_to_zip(epub_dir: Path, output_dir: Path = None, user_src_dir: Path = None) -> Path:
     """
     将EPUB目录转换为ZIP文件的便捷函数
     
     Args:
         epub_dir: EPUB目录路径（包含mimetype, META-INF, EPUB等子目录）
         output_dir: 输出目录路径，默认为EPUB目录同级的build目录
+        user_src_dir: 用户src目录路径，用于生成chapter-config.json文件
         
     Returns:
         生成的ZIP文件路径
@@ -442,7 +450,7 @@ def convert_epub_dir_to_zip(epub_dir: Path, output_dir: Path = None) -> Path:
     output_zip_path = output_dir / f"{safe_title}.zip"
     
     # 执行转换
-    convert_epub_to_zip(epub_root_path, output_zip_path)
+    convert_epub_to_zip(epub_root_path, output_zip_path, user_src_dir)
     
     logger.info(f"EPUB到ZIP转换完成: {output_zip_path}")
     return output_zip_path

@@ -400,6 +400,9 @@
             <!-- 备份文件管理 -->
             <div class="section">
                 <h2>备份文件管理</h2>
+                <div class="btn-group">
+                    <button type="button" id="backup-src-btn" class="btn-primary">手动备份Src目录</button>
+                </div>
                 <div id="backup-files-container">
                     <p>正在加载备份文件列表...</p>
                 </div>
@@ -535,11 +538,6 @@
                 const fileItem = document.createElement('div');
                 fileItem.className = 'backup-file-item';
                 
-                // 如果是启动时备份，添加特殊类名
-                if (file.is_startup_backup) {
-                    fileItem.classList.add('startup-backup');
-                }
-                
                 // 格式化文件大小
                 const formattedSize = formatFileSize(file.size);
                 
@@ -547,32 +545,15 @@
                 const formattedDate = new Date(file.modified * 1000).toLocaleString('zh-CN');
                 
                 // 构建文件名显示
-                let fileNameDisplay = file.name;
-                if (file.is_startup_backup) {
-                    fileNameDisplay = `<div class="file-name startup-backup-label">${file.name}</div>`;
-                } else {
-                    fileNameDisplay = `<div class="file-name">${file.name}</div>`;
-                }
+                const fileNameDisplay = `<div class="file-name">${file.name}</div>`;
                 
                 // 构建操作按钮
-                let actionButtons = '';
-                if (file.is_startup_backup) {
-                    // 启动时备份文件只能下载，不能删除
-                    actionButtons = `
-                        <div class="backup-file-actions">
-                            <button class="btn-download download-backup-btn" data-filename="${file.name}">下载</button>
-                            <button class="btn-delete" disabled>删除</button>
-                        </div>
-                    `;
-                } else {
-                    // 普通备份文件可以下载和删除
-                    actionButtons = `
-                        <div class="backup-file-actions">
-                            <button class="btn-download download-backup-btn" data-filename="${file.name}">下载</button>
-                            <button class="btn-delete delete-backup-btn" data-filename="${file.name}">删除</button>
-                        </div>
-                    `;
-                }
+                const actionButtons = `
+                    <div class="backup-file-actions">
+                        <button class="btn-download download-backup-btn" data-filename="${file.name}">下载</button>
+                        <button class="btn-delete delete-backup-btn" data-filename="${file.name}">删除</button>
+                    </div>
+                `;
                 
                 fileItem.innerHTML = `
                     <div class="file-info">
@@ -729,6 +710,11 @@
             document.getElementById('build-pdf-btn').addEventListener('click', function() {
                 buildBook('build:pdf');
             });
+            
+            // 手动备份Src目录按钮事件
+            document.getElementById('backup-src-btn').addEventListener('click', function() {
+                backupSrc();
+            });
         }
         
         // 保存章节顺序
@@ -865,6 +851,31 @@
             setTimeout(() => {
                 document.body.removeChild(iframe);
             }, 1000);
+        }
+        
+        // 手动备份Src目录
+        async function backupSrc() {
+            try {
+                showMessage('正在备份Src目录...', 'info');
+                
+                // 发送备份请求
+                const response = await fetch('/api/admin/backup-src', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('Src目录备份成功', 'success');
+                    // 重新加载备份文件列表
+                    loadBackupFiles();
+                } else {
+                    throw new Error(result.detail || '备份失败');
+                }
+            } catch (error) {
+                console.error('备份Src目录失败:', error);
+                showMessage('备份Src目录失败: ' + error.message, 'error');
+            }
         }
         
         // 上传Src目录

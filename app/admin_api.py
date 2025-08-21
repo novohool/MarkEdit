@@ -67,6 +67,10 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = BASE_DIR / "src"
 
+# 导入认证和共享模块
+from app.auth import get_session
+from app.shared import get_user_src_directory
+
 # 定义允许管理的文件
 ALLOWED_FILES = {
     "package.json": BASE_DIR / "package.json",
@@ -170,10 +174,20 @@ async def save_admin_file(file_name: str, request: Request):
     return {"message": "File saved successfully"}
 
 @router.get("/chapters/{script_type}")
-async def get_chapter_order(script_type: str):
+async def get_chapter_order(script_type: str, request: Request):
     """获取章节顺序"""
-    # 从统一配置文件加载章节顺序
-    chapter_config_path = BASE_DIR / "src" / "chapter-config.json"
+    # 获取当前用户
+    session = get_session(request)
+    if not session.username:
+        raise HTTPException(status_code=401, detail="用户未登录")
+    
+    # 从用户特定的配置文件加载章节顺序
+    user_src_dir = get_user_src_directory(session.username)
+    chapter_config_path = user_src_dir / "chapter-config.json"
+    
+    # 如果用户特定的配置文件不存在，尝试使用全局配置文件
+    if not chapter_config_path.exists():
+        chapter_config_path = BASE_DIR / "src" / "chapter-config.json"
     
     if not chapter_config_path.exists():
         raise HTTPException(status_code=404, detail="Chapter config file not found")
@@ -189,10 +203,20 @@ async def get_chapter_order(script_type: str):
         raise HTTPException(status_code=500, detail=f"Error reading chapter config: {str(e)}")
 
 @router.get("/chapter-config")
-async def get_chapter_config():
+async def get_chapter_config(request: Request):
     """获取完整的章节配置信息"""
-    # 从统一配置文件加载章节配置
-    chapter_config_path = BASE_DIR / "src" / "chapter-config.json"
+    # 获取当前用户
+    session = get_session(request)
+    if not session.username:
+        raise HTTPException(status_code=401, detail="用户未登录")
+    
+    # 从用户特定的配置文件加载章节配置
+    user_src_dir = get_user_src_directory(session.username)
+    chapter_config_path = user_src_dir / "chapter-config.json"
+    
+    # 如果用户特定的配置文件不存在，尝试使用全局配置文件
+    if not chapter_config_path.exists():
+        chapter_config_path = BASE_DIR / "src" / "chapter-config.json"
     
     if not chapter_config_path.exists():
         raise HTTPException(status_code=404, detail="Chapter config file not found")
@@ -210,6 +234,11 @@ async def get_chapter_config():
 async def save_chapter_config(request: Request):
     """保存章节配置信息"""
     try:
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
         # 获取请求体中的JSON数据
         chapter_config = await request.json()
         
@@ -222,8 +251,12 @@ async def save_chapter_config(request: Request):
             if "file" not in chapter or "title" not in chapter:
                 raise HTTPException(status_code=400, detail="Invalid chapter config format: each chapter must have 'file' and 'title' keys")
         
-        # 保存到章节配置文件
-        chapter_config_path = BASE_DIR / "src" / "chapter-config.json"
+        # 保存到用户特定的章节配置文件
+        user_src_dir = get_user_src_directory(session.username)
+        chapter_config_path = user_src_dir / "chapter-config.json"
+        
+        # 确保用户src目录存在
+        user_src_dir.mkdir(parents=True, exist_ok=True)
         
         # 读取原始配置文件内容
         original_content = None
@@ -311,9 +344,14 @@ async def process_with_llm(request: Request):
         raise HTTPException(status_code=500, detail=f"Error processing with LLM: {str(e)}")
 
 @router.post("/build/{script_name}")
-async def build_book(script_name: str):
-    """执行图书构建脚本"""
-    logger.info(f"Starting build process for script: {script_name}")
+async def build_book(request: Request, script_name: str):
+    """执行图书构建脚本（针对当前用户）"""
+    # 获取当前用户
+    session = get_session(request)
+    if not session.username:
+        raise HTTPException(status_code=401, detail="用户未登录")
+    
+    logger.info(f"Starting build process for user {session.username}, script: {script_name}")
     
     # 验证脚本名称
     allowed_scripts = ["build", "build:epub", "build:pdf"]
@@ -321,20 +359,26 @@ async def build_book(script_name: str):
         logger.warning(f"Invalid script name received: {script_name}")
         raise HTTPException(status_code=400, detail="Invalid script name")
     
-    # 确定源目录和构建目录
-    src_dir = BASE_DIR / "src"
-    build_dir = BASE_DIR / "build"
+    # 确定源目录和构建目录（针对当前用户）
+    src_dir = get_user_src_directory(session.username)
+    # 创建用户特定的构建目录
+    build_dir = BASE_DIR / "users" / session.username / "build"
+    build_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 检查源目录是否存在
+    if not src_dir.exists():
+        raise HTTPException(status_code=404, detail="用户src目录不存在")
     
     try:
         # 根据脚本名称执行相应的构建过程
         if script_name == "build":
             # 构建EPUB和PDF
-            logger.info("Building both EPUB and PDF")
+            logger.info(f"Building both EPUB and PDF for user {session.username}")
             
             # 构建EPUB
             epub_result = build_epub(src_dir, build_dir)
             if epub_result["status"] != "success":
-                logger.error(f"EPUB build failed: {epub_result['message']}")
+                logger.error(f"EPUB build failed for user {session.username}: {epub_result['message']}")
                 return {
                     "status": "error",
                     "message": f"EPUB构建失败: {epub_result['message']}",
@@ -344,14 +388,14 @@ async def build_book(script_name: str):
             # 构建PDF
             pdf_result = build_pdf(src_dir, build_dir)
             if pdf_result["status"] != "success":
-                logger.error(f"PDF build failed: {pdf_result['message']}")
+                logger.error(f"PDF build failed for user {session.username}: {pdf_result['message']}")
                 return {
                     "status": "error",
                     "message": f"PDF构建失败: {pdf_result['message']}",
                     "details": pdf_result
                 }
             
-            logger.info("Both EPUB and PDF build completed successfully")
+            logger.info(f"Both EPUB and PDF build completed successfully for user {session.username}")
             return {
                 "status": "success",
                 "message": "EPUB和PDF文件生成成功",
@@ -362,17 +406,17 @@ async def build_book(script_name: str):
             }
         elif script_name == "build:epub":
             # 只构建EPUB
-            logger.info("Building EPUB")
+            logger.info(f"Building EPUB for user {session.username}")
             result = build_epub(src_dir, build_dir)
             if result["status"] == "success":
-                logger.info("EPUB build completed successfully")
+                logger.info(f"EPUB build completed successfully for user {session.username}")
                 return {
                     "status": "success",
                     "message": "EPUB文件生成成功",
                     "details": result
                 }
             else:
-                logger.error(f"EPUB build failed: {result['message']}")
+                logger.error(f"EPUB build failed for user {session.username}: {result['message']}")
                 return {
                     "status": "error",
                     "message": f"EPUB构建失败: {result['message']}",
@@ -380,24 +424,24 @@ async def build_book(script_name: str):
                 }
         elif script_name == "build:pdf":
             # 只构建PDF
-            logger.info("Building PDF")
+            logger.info(f"Building PDF for user {session.username}")
             result = build_pdf(src_dir, build_dir)
             if result["status"] == "success":
-                logger.info("PDF build completed successfully")
+                logger.info(f"PDF build completed successfully for user {session.username}")
                 return {
                     "status": "success",
                     "message": "PDF文件生成成功",
                     "details": result
                 }
             else:
-                logger.error(f"PDF build failed: {result['message']}")
+                logger.error(f"PDF build failed for user {session.username}: {result['message']}")
                 return {
                     "status": "error",
                     "message": f"PDF构建失败: {result['message']}",
                     "details": result
                 }
     except Exception as e:
-        error_msg = f"Unexpected error during build process: {str(e)}"
+        error_msg = f"Unexpected error during build process for user {session.username}: {str(e)}"
         logger.error(error_msg)
         logger.error(f"Exception type: {type(e).__name__}")
         # 记录堆栈跟踪信息
@@ -406,9 +450,17 @@ async def build_book(script_name: str):
         raise HTTPException(status_code=500, detail=f"构建过程中出现未预期的错误: {str(e)}")
 
 @router.post("/upload-src")
-async def upload_src(file: UploadFile = File(...)):
-    """上传src目录的zip包"""
+async def upload_src(request: Request, file: UploadFile = File(...)):
+    """上传src目录的zip包到当前用户目录"""
     try:
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取当前用户的src目录
+        user_src_dir = get_user_src_directory(session.username)
+        
         # 检查文件类型
         if not file.filename.endswith('.zip'):
             raise HTTPException(status_code=400, detail="只允许上传.zip文件")
@@ -478,38 +530,50 @@ async def upload_src(file: UploadFile = File(...)):
                 detail=f"上传的zip包格式不正确，缺少以下必要文件: {', '.join(missing_files)}。必须包含: {', '.join(required_files)}"
             )
         
-        # 校验通过，备份当前src目录
-        backup_src_directory()
+        # 校验通过，备份当前用户src目录（如果存在）
+        if user_src_dir.exists():
+            backup_user_src_directory(session.username)
         
-        # 删除当前src目录
-        if SRC_DIR.exists():
-            shutil.rmtree(SRC_DIR)
+        # 删除当前用户src目录
+        if user_src_dir.exists():
+            shutil.rmtree(user_src_dir)
         
-        # 将临时解压目录重命名为src目录
+        # 将临时解压目录重命名为用户src目录
         temp_src_dir = temp_extract_dir / "src"
         if temp_src_dir.exists():
             # 如果解压后有src目录，直接移动
-            shutil.move(str(temp_src_dir), str(SRC_DIR))
+            shutil.move(str(temp_src_dir), str(user_src_dir))
         else:
-            # 如果解压后没有src目录，将临时目录重命名为src
-            shutil.move(str(temp_extract_dir), str(SRC_DIR))
+            # 如果解压后没有src目录，将临时目录重命名为src并移动到用户目录
+            temp_src_dir = temp_extract_dir
+            # 创建用户src目录
+            user_src_dir.mkdir(parents=True, exist_ok=True)
+            # 移动所有文件到用户src目录
+            for item in temp_src_dir.iterdir():
+                shutil.move(str(item), str(user_src_dir / item.name))
         
         # 删除临时文件
         temp_file_path.unlink()
+        shutil.rmtree(temp_extract_dir)
         
-        logger.info("Src目录上传并替换成功")
+        logger.info(f"用户 {session.username} 的Src目录上传并替换成功")
         return {"message": "Src目录上传并替换成功"}
     except Exception as e:
         logger.error(f"上传src目录时出错: {str(e)}")
         raise HTTPException(status_code=500, detail=f"上传src目录时出错: {str(e)}")
 
 @router.get("/download-src")
-async def download_src():
-    """下载src目录的zip包"""
+async def download_src(request: Request):
+    """下载当前用户的src目录zip包"""
     try:
-        logger.info("开始下载src目录")
-        # 创建备份
-        backup_path = backup_src_directory()
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        logger.info(f"开始下载用户 {session.username} 的src目录")
+        # 创建用户src目录的备份
+        backup_path = backup_user_src_directory(session.username)
         logger.info(f"备份文件路径: {backup_path}")
         
         # 返回文件下载
@@ -524,70 +588,75 @@ async def download_src():
         logger.error(f"下载src目录时出错: {str(e)}")
         raise HTTPException(status_code=500, detail=f"下载src目录时出错: {str(e)}")
 
-@router.post("/reset-src")
-async def reset_src():
-    """重置src目录到启动时备份"""
+@router.post("/backup-src")
+async def manual_backup_src(request: Request):
+    """手动备份当前用户的src目录"""
     try:
-        logger.info("开始重置src目录")
-        # 查找启动时备份文件
-        backup_dir = BASE_DIR / "backups"
-        logger.info(f"备份目录路径: {backup_dir}")
-        if not backup_dir.exists():
-            logger.error("备份目录不存在")
-            raise HTTPException(status_code=404, detail="备份目录不存在")
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
         
-        # 使用全局变量获取启动备份文件名
-        from app.shared import get_startup_backup_filename
-        startup_backup_filename = get_startup_backup_filename()
-        if not startup_backup_filename:
-            logger.error("启动备份文件记录不存在")
-            raise HTTPException(status_code=404, detail="启动备份文件记录不存在")
+        logger.info(f"开始手动备份用户 {session.username} 的src目录")
+        # 创建用户src目录的备份
+        backup_path = backup_user_src_directory(session.username)
+        logger.info(f"备份文件路径: {backup_path}")
         
-        startup_backup_path = backup_dir / startup_backup_filename
-        logger.info(f"启动备份文件路径: {startup_backup_path}")
-        if not startup_backup_path.exists():
-            logger.error("启动备份文件不存在")
-            raise HTTPException(status_code=404, detail="启动备份文件不存在")
+        return {"message": "Src目录备份成功", "filename": backup_path.name}
+    except Exception as e:
+        logger.error(f"手动备份src目录时出错: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"手动备份src目录时出错: {str(e)}")
+
+@router.post("/reset-src")
+async def reset_src(request: Request):
+    """重置当前用户的src目录到默认模板"""
+    try:
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
         
-        # 删除当前src目录
+        logger.info(f"开始重置用户 {session.username} 的src目录")
+        
+        # 获取当前用户的src目录
+        user_src_dir = get_user_src_directory(session.username)
+        
+        # 删除当前用户src目录
+        if user_src_dir.exists():
+            logger.info(f"删除用户 {session.username} 的当前src目录")
+            shutil.rmtree(user_src_dir)
+        
+        # 从全局src目录复制模板到用户src目录
         if SRC_DIR.exists():
-            logger.info("删除当前src目录")
-            shutil.rmtree(SRC_DIR)
+            logger.info(f"从全局模板复制到用户 {session.username} 的src目录")
+            shutil.copytree(SRC_DIR, user_src_dir)
+        else:
+            # 如果全局src目录不存在，创建一个基本的用户src目录
+            user_src_dir.mkdir(parents=True, exist_ok=True)
+            # 创建基本文件
+            with open(user_src_dir / "book.md", "w", encoding="utf-8") as f:
+                f.write("# 我的书籍\n\n这是我的书籍内容。\n")
+            with open(user_src_dir / "metadata.yml", "w", encoding="utf-8") as f:
+                f.write("---\ntitle: 我的书籍\nauthor: 用户\nlanguage: zh-CN\n---\n")
+            with open(user_src_dir / "chapter-config.json", "w", encoding="utf-8") as f:
+                f.write('{"chapters": []}')
+            # 创建章节目录
+            (user_src_dir / "chapters").mkdir(exist_ok=True)
+            # 创建插图目录
+            (user_src_dir / "illustrations").mkdir(exist_ok=True)
+            # 创建CSS目录
+            (user_src_dir / "css").mkdir(exist_ok=True)
+            with open(user_src_dir / "css" / "common-style.css", "w", encoding="utf-8") as f:
+                f.write("/* 默认样式 */\nbody { font-family: Arial, sans-serif; }\n")
         
-        # 解压启动备份文件到src目录
-        logger.info("开始解压启动备份文件")
-        with zipfile.ZipFile(startup_backup_path, 'r') as zip_ref:
-            # 先创建src目录
-            SRC_DIR.mkdir(exist_ok=True)
-            # 解压到src目录
-            for member in zip_ref.infolist():
-                # 处理路径，确保文件解压到src目录中
-                if member.filename.startswith('src/'):
-                    # 移除路径前缀
-                    target_path = SRC_DIR / member.filename[4:]
-                else:
-                    # 如果没有src/前缀，直接解压到src目录
-                    target_path = SRC_DIR / member.filename
-                
-                # 处理目录
-                if member.is_dir():
-                    target_path.mkdir(parents=True, exist_ok=True)
-                else:
-                    # 确保父目录存在
-                    target_path.parent.mkdir(parents=True, exist_ok=True)
-                    # 解压文件
-                    with zip_ref.open(member) as source, open(target_path, 'wb') as target:
-                        shutil.copyfileobj(source, target)
-        logger.info("启动备份文件解压完成")
-        
-        logger.info("Src目录重置成功")
+        logger.info(f"用户 {session.username} 的Src目录重置成功")
         return {"message": "Src目录重置成功"}
     except Exception as e:
         logger.error(f"重置src目录时出错: {str(e)}")
         raise HTTPException(status_code=500, detail=f"重置src目录时出错: {str(e)}")
 
 def backup_src_directory():
-    """备份src目录到zip文件"""
+    """备份全局src目录到zip文件"""
     try:
         # 创建备份目录
         backup_dir = BASE_DIR / "backups"
@@ -608,10 +677,45 @@ def backup_src_directory():
                     arcname = file_path.relative_to(BASE_DIR)
                     zipf.write(file_path, arcname)
         
-        logger.info(f"Src目录备份成功: {backup_path}")
+        logger.info(f"全局Src目录备份成功: {backup_path}")
         return backup_path
     except Exception as e:
-        logger.error(f"备份src目录时出错: {str(e)}")
+        logger.error(f"备份全局src目录时出错: {str(e)}")
+        raise
+
+def backup_user_src_directory(username: str):
+    """备份指定用户的src目录到zip文件"""
+    try:
+        # 获取用户src目录
+        user_src_dir = get_user_src_directory(username)
+        
+        # 检查用户src目录是否存在
+        if not user_src_dir.exists():
+            raise FileNotFoundError(f"用户 {username} 的src目录不存在")
+        
+        # 创建备份目录
+        backup_dir = BASE_DIR / "backups" / "users" / username
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 生成备份文件名
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"src_backup_{timestamp}.zip"
+        backup_path = backup_dir / backup_filename
+        
+        # 创建zip文件
+        with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 遍历用户src目录中的所有文件和子目录
+            for root, dirs, files in os.walk(user_src_dir):
+                for file in files:
+                    file_path = Path(root) / file
+                    # 计算相对路径
+                    arcname = file_path.relative_to(user_src_dir.parent)
+                    zipf.write(file_path, arcname)
+        
+        logger.info(f"用户 {username} 的Src目录备份成功: {backup_path}")
+        return backup_path
+    except Exception as e:
+        logger.error(f"备份用户 {username} 的src目录时出错: {str(e)}")
         raise
 
 def cleanup_temp_files():
@@ -631,37 +735,32 @@ def cleanup_temp_files():
         logger.error(f"清理临时文件时出错: {str(e)}")
 
 @router.get("/backups")
-async def list_backup_files():
-    """获取备份文件列表"""
+async def list_backup_files(request: Request):
+    """获取当前用户的备份文件列表"""
     try:
-        # 定义备份目录
-        backup_dir = BASE_DIR / "backups"
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 定义用户备份目录
+        backup_dir = BASE_DIR / "backups" / "users" / session.username
         
         # 检查备份目录是否存在
         if not backup_dir.exists():
             return {"files": []}
         
-        # 获取启动时备份文件名
-        startup_backup_filename = None
-        startup_backup_file = backup_dir / "startup_backup.txt"
-        if startup_backup_file.exists():
-            with open(startup_backup_file, 'r') as f:
-                startup_backup_filename = f.read().strip()
-        
         # 获取所有.zip文件
-        import glob
         zip_files = list(backup_dir.glob("*.zip"))
         
         # 提取文件信息
         files_info = []
         for file_path in zip_files:
             stat = file_path.stat()
-            is_startup_backup = (file_path.name == startup_backup_filename) if startup_backup_filename else False
             files_info.append({
                 "name": file_path.name,
                 "size": stat.st_size,
-                "modified": stat.st_mtime,
-                "is_startup_backup": is_startup_backup
+                "modified": stat.st_mtime
             })
         
         # 按修改时间倒序排列
@@ -673,9 +772,14 @@ async def list_backup_files():
         raise HTTPException(status_code=500, detail=f"获取备份文件列表时出错: {str(e)}")
 
 @router.get("/backups/{filename}/download")
-async def download_backup_file(filename: str):
-    """下载指定的备份文件"""
+async def download_backup_file(request: Request, filename: str):
+    """下载当前用户的指定备份文件"""
     try:
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
         # 验证文件名是否安全
         if ".." in filename or "/" in filename or "\\" in filename:
             raise HTTPException(status_code=400, detail="无效的文件名")
@@ -685,7 +789,7 @@ async def download_backup_file(filename: str):
             raise HTTPException(status_code=400, detail="只能下载.zip文件")
         
         # 构造文件路径
-        backup_dir = BASE_DIR / "backups"
+        backup_dir = BASE_DIR / "backups" / "users" / session.username
         file_path = backup_dir / filename
         
         # 检查文件是否存在
@@ -710,9 +814,14 @@ async def download_backup_file(filename: str):
         raise HTTPException(status_code=500, detail=f"下载备份文件时出错: {str(e)}")
 
 @router.delete("/backups/{filename}")
-async def delete_backup_file(filename: str):
-    """删除指定的备份文件"""
+async def delete_backup_file(request: Request, filename: str):
+    """删除当前用户的指定备份文件"""
     try:
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
         # 验证文件名是否安全
         if ".." in filename or "/" in filename or "\\" in filename:
             raise HTTPException(status_code=400, detail="无效的文件名")
@@ -722,7 +831,7 @@ async def delete_backup_file(filename: str):
             raise HTTPException(status_code=400, detail="只能删除.zip文件")
         
         # 构造文件路径
-        backup_dir = BASE_DIR / "backups"
+        backup_dir = BASE_DIR / "backups" / "users" / session.username
         file_path = backup_dir / filename
         
         # 检查文件是否存在
@@ -733,18 +842,10 @@ async def delete_backup_file(filename: str):
         if not file_path.is_file():
             raise HTTPException(status_code=400, detail="指定路径不是文件")
         
-        # 检查是否为启动时备份文件
-        startup_backup_file = backup_dir / "startup_backup.txt"
-        if startup_backup_file.exists():
-            with open(startup_backup_file, 'r') as f:
-                startup_backup_filename = f.read().strip()
-            if filename == startup_backup_filename:
-                raise HTTPException(status_code=403, detail="不能删除启动时备份文件")
-        
         # 删除文件
         file_path.unlink()
         
-        logger.info(f"备份文件已删除: {filename}")
+        logger.info(f"用户 {session.username} 的备份文件已删除: {filename}")
         return {"message": f"备份文件 {filename} 已删除"}
     except HTTPException:
         # 重新抛出HTTP异常
@@ -1319,15 +1420,20 @@ def epub_to_markdown(epub_path: Path, output_dir: Path):
         }
 
 @router.post("/convert-epub")
-async def convert_epub(file: UploadFile = File(...)):
+async def convert_epub(request: Request, file: UploadFile = File(...)):
     """上传并转换EPUB文件为Markdown格式"""
     try:
+        # 获取当前用户
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
         # 检查文件类型
         if not file.filename.endswith('.epub'):
             raise HTTPException(status_code=400, detail="只允许上传.epub文件")
         
-        # 创建临时目录
-        temp_dir = BASE_DIR / "temp" / f"epub_convert_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # 创建用户特定的临时目录
+        temp_dir = BASE_DIR / "users" / session.username / "temp" / f"epub_convert_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
         temp_dir.mkdir(parents=True, exist_ok=True)
         
         # 保存上传的EPUB文件
