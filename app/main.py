@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # 导入管理API路由器
 try:
     from app.admin_api import router as admin_router
+    from app.auth import setup_auth_routes
 except ImportError:
     # 如果绝对导入失败，尝试相对导入
     import sys
@@ -30,8 +31,9 @@ except ImportError:
     # 将项目根目录添加到sys.path
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    # 现在可以导入admin_api
+    # 现在可以导入admin_api和auth
     from app.admin_api import router as admin_router
+    from app.auth import setup_auth_routes
 
 
 def backup_src_directory(startup_backup=False):
@@ -75,6 +77,9 @@ def backup_src_directory(startup_backup=False):
         raise
 
 app = FastAPI(title="MarkEdit Web Editor")
+
+# 设置认证路由
+setup_auth_routes(app)
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")

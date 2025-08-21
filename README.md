@@ -12,6 +12,7 @@
 - 创建新文件
 - 保存文件修改
 - 删除文件
+- GitHub认证登录（可选）
 
 ## 安装和运行
 
@@ -33,7 +34,22 @@
    pip install -r requirements.txt
    ```
 
-4. 运行应用：
+4. 配置环境变量（如果需要使用GitHub认证功能）：
+   ```
+   # GitHub OAuth应用配置
+   export GITHUB_APP_CLIENT_ID=your_github_app_client_id
+   export GITHUB_APP_CLIENT_SECRET=your_github_app_client_secret
+   export GITHUB_APP_REDIRECT_URI=http://localhost:8080/callback
+   ```
+
+   Windows系统使用以下命令：
+   ```
+   set GITHUB_APP_CLIENT_ID=your_github_app_client_id
+   set GITHUB_APP_CLIENT_SECRET=your_github_app_client_secret
+   set GITHUB_APP_REDIRECT_URI=http://localhost:8080/callback
+   ```
+
+5. 运行应用：
    ```
    python app/main.py
    ```
@@ -43,7 +59,7 @@
    python -m uvicorn app.main:app --reload
    ```
 
-5. 在浏览器中访问：
+6. 在浏览器中访问：
    ```
    http://localhost:8080
    ```
@@ -55,9 +71,13 @@
    docker build -t markeditor .
    ```
 
-2. 运行容器：
+2. 运行容器（如果需要使用GitHub认证功能，需要设置环境变量）：
    ```
-   docker run -p 8080:8080 -v $(pwd)/src:/app/src markeditor
+   docker run -p 8080:8080 \
+     -e GITHUB_APP_CLIENT_ID=your_github_app_client_id \
+     -e GITHUB_APP_CLIENT_SECRET=your_github_app_client_secret \
+     -e GITHUB_APP_REDIRECT_URI=http://localhost:8080/callback \
+     -v $(pwd)/src:/app/src markeditor
    ```
 
 3. 在浏览器中访问：
@@ -104,3 +124,32 @@ MarkEdit/
 ## 许可证
 
 MIT
+
+## GitHub认证
+
+本应用支持使用GitHub账户进行认证登录。要启用此功能，需要先在GitHub上创建一个OAuth应用，然后配置相应的环境变量。
+
+### 创建GitHub OAuth应用
+
+1. 登录GitHub账户，访问 [GitHub Developer Settings](https://github.com/settings/developers)
+2. 点击 "OAuth Apps"，然后点击 "New OAuth App"
+3. 填写应用信息：
+   - Application name: MarkEdit Web Editor
+   - Homepage URL: http://localhost:8080
+   - Authorization callback URL: http://localhost:8080/callback
+4. 点击 "Register application"
+5. 创建完成后，点击应用名称进入详情页面，记录下 "Client ID" 和 "Client Secret"
+
+### 配置环境变量
+
+需要设置以下三个环境变量：
+
+- `GITHUB_APP_CLIENT_ID`: GitHub OAuth应用的Client ID
+- `GITHUB_APP_CLIENT_SECRET`: GitHub OAuth应用的Client Secret
+- `GITHUB_APP_REDIRECT_URI`: 回调URL，必须与GitHub应用配置中的Authorization callback URL一致
+
+### 使用GitHub认证
+
+配置好环境变量后，启动应用时会自动启用GitHub认证功能。用户访问应用时会被重定向到登录页面，点击"使用GitHub登录"按钮即可进行认证。
+
+认证成功后，用户可以正常访问应用的所有功能。点击页面右上角的"退出登录"可以注销当前会话。
