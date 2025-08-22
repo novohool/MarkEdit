@@ -21,3 +21,6 @@ backups
 temp
 caddy
 users
+fly-template.toml
+fly.toml
+.github

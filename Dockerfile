@@ -4,8 +4,9 @@ ENV PYTHONUNBUFFERED=1
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
 WORKDIR /app
-COPY . .
+ENV PYTHONPATH="/app"
 
+COPY . .
 RUN apt-get update && \
     apt-get install -y python3.12 python3.12-venv python3-pip python3-dev pandoc wkhtmltopdf build-essential zip unzip \
     libssl-dev libffi-dev  fonts-wqy-zenhei fonts-wqy-microhei  xfonts-wqy fonts-takao-mincho fonts-takao-gothic language-pack-ja  && \
@@ -17,6 +18,8 @@ RUN apt-get update && \
     pip3 install --upgrade pip setuptools  && \
     pip3 install --no-cache-dir -r requirements.txt && \
     rm -rf /var/lib/apt/lists/*
+
+
 
 # 暴露端口
 EXPOSE 8080
