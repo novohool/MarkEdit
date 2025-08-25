@@ -8,6 +8,7 @@
 \usepackage{graphicx}
 \usepackage{longtable,booktabs}
 \usepackage{hyperref}
+\usepackage{caption}
 
 % 设置西文字体
 $if(mainfont)$
@@ -50,6 +51,18 @@ $endif$
 \def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
 \makeatother
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+
+% 支持SVG文件直接引入
+\DeclareGraphicsExtensions{.pdf,.png,.jpg,.jpeg,.svg}
+% 设置SVG文件的处理方式
+\DeclareGraphicsRule{.svg}{pdf}{.pdf}{}
+% 将SVG转换为PDF用于显示（如果支持）
+\makeatletter
+\@ifundefined{convertSVG}{
+  % 如果没有SVG转换工具，就使用默认的图片处理
+  \newcommand{\convertSVG}[1]{#1}
+}{}
+\makeatother
 
 % 定义pandoc使用的命令
 \providecommand{\pandocbounded}[1]{#1}

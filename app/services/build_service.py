@@ -204,22 +204,83 @@ class BuildService:
         
         return svg_content
     
-    def optimize_svgs(self, build_illustrations_dir: Path):
-        """优化所有SVG文件"""
+    def optimize_svgs_for_pdf(self, build_illustrations_dir: Path):
+        """优化SVG文件以用于PDF生成，修复中文字体问题"""
         for file in build_illustrations_dir.iterdir():
             if file.suffix == '.svg':
                 # 读取SVG内容
                 with open(file, 'r', encoding='utf-8') as f:
                     svg_content = f.read()
                 
-                # 优化SVG内容
-                optimized_svg_content = self.optimize_svg_for_epub(svg_content)
+                # 修复SVG字体问题
+                optimized_svg_content = self.fix_svg_fonts_for_pdf(svg_content)
                 
                 # 写入优化后的SVG内容
                 with open(file, 'w', encoding='utf-8') as f:
                     f.write(optimized_svg_content)
                 
-                logger.info(f"已优化SVG文件: {file.name}")
+                logger.info(f"已为PDF优化SVG文件: {file.name}")
+    
+    def fix_svg_fonts_for_pdf(self, svg_content: str) -> str:
+        """修复SVG文件中的字体设置以支持PDF中的中文显示"""
+        import re
+        
+        # 检测系统以确定合适的中文字体
+        is_windows = platform.system() == "Windows"
+        
+        # 根据系统选择合适的中文字体
+        if is_windows:
+            chinese_font = "Microsoft YaHei"
+            japanese_font = "Microsoft YaHei"
+        else:
+            chinese_font = "WenQuanYi Zen Hei"
+            japanese_font = "WenQuanYi Zen Hei"
+        
+        # 替换CSS样式中的字体定义
+        def replace_font_in_style(match):
+            style_content = match.group(0)
+            # 将 sans-serif 替换为支持中文的字体
+            style_content = re.sub(
+                r'font:\s*([^;]*?)\s*sans-serif',
+                rf'font: \1 "{chinese_font}", sans-serif',
+                style_content
+            )
+            # 处理单独的 font-family 属性
+            style_content = re.sub(
+                r'font-family:\s*sans-serif',
+                f'font-family: "{chinese_font}", sans-serif',
+                style_content
+            )
+            return style_content
+        
+        # 处理style标签内的字体
+        svg_content = re.sub(r'<style[^>]*>[\s\S]*?</style>', replace_font_in_style, svg_content)
+        
+        # 处理内联样式中的字体
+        def replace_inline_font(match):
+            style_attr = match.group(1)
+            # 替换内联样式中的sans-serif
+            style_attr = re.sub(
+                r'font:\s*([^;]*?)\s*sans-serif',
+                rf'font: \1 "{chinese_font}", sans-serif',
+                style_attr
+            )
+            style_attr = re.sub(
+                r'font-family:\s*sans-serif',
+                f'font-family: "{chinese_font}", sans-serif',
+                style_attr
+            )
+            return f'style="{style_attr}"'
+        
+        # 处理元素的内联style属性
+        svg_content = re.sub(r'style="([^"]*?)"', replace_inline_font, svg_content)
+        
+        # 确保SVG有正确的xmlns属性
+        if 'xmlns="http://www.w3.org/2000/svg"' not in svg_content:
+            svg_content = svg_content.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"')
+        
+        logger.info(f"已修复SVG字体，使用字体: {chinese_font}")
+        return svg_content
     
     def process_chapters_for_epub(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str]):
         """复制并修改章节文件，调整图片路径以适应EPUB"""
@@ -463,6 +524,9 @@ class BuildService:
             # 复制插图目录到构建目录
             build_illustrations_dir = build_dir / "illustrations"
             self.copy_illustrations(illustrations_dir, build_illustrations_dir)
+            
+            # 为PDF优化SVG文件，修复中文字体问题
+            self.optimize_svgs_for_pdf(build_illustrations_dir)
             
             # 从统一配置文件加载章节顺序
             chapter_config = self.load_chapter_config(src_dir)
