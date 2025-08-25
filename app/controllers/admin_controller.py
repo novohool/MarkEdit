@@ -551,6 +551,50 @@ async def get_user_list(request: Request):
         logger.error(f"获取用户列表失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"获取用户列表失败: {str(e)}")
 
+@admin_router.post("/users")
+@require_permission("user.create")
+async def create_user(request: Request):
+    """创建新用户"""
+    try:
+        body = await request.json()
+        username = body.get('username')
+        password = body.get('password')
+        theme = body.get('theme', 'default')
+        
+        if not username:
+            raise HTTPException(status_code=400, detail="用户名不能为空")
+        
+        if not password:
+            raise HTTPException(status_code=400, detail="密码不能为空")
+        
+        admin_service = get_admin_service_instance()
+        result = await admin_service.create_user(username, password, theme)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"创建用户失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.put("/users/{user_id}")
+@require_permission("user.edit")
+async def update_user(user_id: int, request: Request):
+    """更新用户信息"""
+    try:
+        body = await request.json()
+        username = body.get('username')
+        password = body.get('password')
+        theme = body.get('theme')
+        
+        admin_service = get_admin_service_instance()
+        result = await admin_service.update_user(user_id, username, password, theme)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"更新用户失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @admin_router.delete("/user/{user_id}")
 @require_permission("user.delete")
 async def delete_user(user_id: int, request: Request):

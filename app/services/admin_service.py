@@ -381,6 +381,152 @@ class AdminService:
             logger.error(f"获取用户列表失败: {str(e)}")
             raise Exception(f"获取用户列表失败: {str(e)}")
     
+    async def create_user(self, username: str, password: str, theme: str = "default") -> Dict[str, Any]:
+        """创建新用户"""
+        try:
+            # 检查用户名是否已存在
+            query = user_table.select().where(user_table.c.username == username)
+            existing_user = await database.fetch_one(query)
+            
+            if existing_user:
+                raise ValueError("用户名已存在")
+            
+            # 密码加密
+            hashed_password = hash_password(password)
+            
+            # 创建用户
+            query = user_table.insert().values(
+                username=username,
+                password=hashed_password,
+                user_type="user",
+                theme=theme
+            )
+            user_id = await database.execute(query)
+            
+            # 同时在admin表中创建记录（向后兼容）
+            try:
+                query = admin_table.insert().values(
+                    username=username,
+                    password=hashed_password
+                )
+                await database.execute(query)
+            except Exception as e:
+                # admin表插入失败不影响主流程
+                logger.warning(f"在admin表中创建用户记录失败: {str(e)}")
+            
+            # 分配默认用户角色
+            await self._assign_default_user_role(user_id)
+            
+            # 复制默认文件到用户目录
+            logger.info(f"为新用户 {username} 设置用户目录")
+            copy_default_files_to_user_directory(username)
+            
+            logger.info(f"创建新用户成功: {username} (ID: {user_id})")
+            
+            return {
+                "status": "success",
+                "message": "用户创建成功",
+                "user_id": user_id,
+                "username": username
+            }
+            
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"创建用户失败: {str(e)}")
+            raise Exception(f"创建用户失败: {str(e)}")
+    
+    async def _assign_default_user_role(self, user_id: int):
+        """为用户分配默认用户角色"""
+        try:
+            # 获取user角色ID
+            query = role_table.select().where(role_table.c.name == "user")
+            role_info = await database.fetch_one(query)
+            
+            if role_info:
+                # 分配用户角色
+                query = user_role_table.insert().values(
+                    user_id=user_id,
+                    role_id=role_info["id"]
+                )
+                await database.execute(query)
+                logger.info(f"为用户ID {user_id} 分配了user角色")
+            else:
+                logger.warning("user角色不存在，无法分配默认角色")
+                
+        except Exception as e:
+            logger.error(f"分配默认用户角色失败: {str(e)}")
+    
+    async def update_user(self, user_id: int, username: str = None, password: str = None, theme: str = None) -> Dict[str, Any]:
+        """更新用户信息"""
+        try:
+            # 检查用户是否存在
+            query = user_table.select().where(user_table.c.id == user_id)
+            existing_user = await database.fetch_one(query)
+            
+            if not existing_user:
+                raise ValueError("用户不存在")
+            
+            update_data = {}
+            
+            # 更新用户名（检查是否重复）
+            if username and username != existing_user["username"]:
+                username_query = user_table.select().where(
+                    (user_table.c.username == username) & 
+                    (user_table.c.id != user_id)
+                )
+                duplicate_user = await database.fetch_one(username_query)
+                if duplicate_user:
+                    raise ValueError("用户名已存在")
+                update_data["username"] = username
+            
+            # 更新密码
+            if password:
+                hashed_password = hash_password(password)
+                update_data["password"] = hashed_password
+                
+                # 同时更新admin表中的密码（向后兼容）
+                try:
+                    admin_update = admin_table.update().where(
+                        admin_table.c.username == existing_user["username"]
+                    ).values(password=hashed_password)
+                    await database.execute(admin_update)
+                except Exception as e:
+                    logger.warning(f"更新admin表密码失败: {str(e)}")
+            
+            # 更新主题
+            if theme:
+                update_data["theme"] = theme
+            
+            # 执行更新
+            if update_data:
+                query = user_table.update().where(user_table.c.id == user_id).values(**update_data)
+                await database.execute(query)
+                
+                # 如果用户名发生变化，同时更新admin表
+                if "username" in update_data:
+                    try:
+                        admin_update = admin_table.update().where(
+                            admin_table.c.username == existing_user["username"]
+                        ).values(username=update_data["username"])
+                        await database.execute(admin_update)
+                    except Exception as e:
+                        logger.warning(f"更新admin表用户名失败: {str(e)}")
+            
+            logger.info(f"更新用户成功: {existing_user['username']} (ID: {user_id})")
+            
+            return {
+                "status": "success",
+                "message": "用户更新成功",
+                "user_id": user_id
+            }
+            
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"更新用户失败: {str(e)}")
+            raise Exception(f"更新用户失败: {str(e)}")
+    
     async def delete_user(self, user_id: int) -> Dict[str, str]:
         """删除用户"""
         try:
