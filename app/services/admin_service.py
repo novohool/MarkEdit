@@ -31,7 +31,7 @@ from app.common import (
     permission_table, role_permission_table,
     generate_random_password, hash_password,
     get_user_backup_directory, ensure_user_backup_directory_exists,
-    get_user_src_directory
+    get_user_src_directory, copy_default_files_to_user_directory
 )
 
 logger = logging.getLogger(__name__)
