@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角色权限管理 - MarkEdit</title>
+    <link rel="stylesheet" href="/static/{{ theme }}/css/style.css" id="theme-link">
+    <link rel="stylesheet" href="/static/{{ theme }}/css/admin_panel.css">
+    <style>
+        .role-permission-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        
+        .tab-nav {
+            display: flex;
+            border-bottom: 2px solid #e1e1e1;
+            margin-bottom: 20px;
+        }
+        
+        .tab-button {
+            padding: 10px 20px;
+            background: #f5f5f5;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            font-size: 14px;
+        }
+        
+        .tab-button.active {
+            background: #007bff;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #e1e1e1;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .data-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .btn-edit {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-assign {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 5px;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e1e1e1;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .permission-group {
+            margin-bottom: 15px;
+            border: 1px solid #e1e1e1;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .permission-group-header {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e1e1e1;
+        }
+        
+        .batch-operations {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .batch-operations h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .role-hierarchy {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .hierarchy-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 3px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .hierarchy-level {
+            font-weight: bold;
+            color: #007bff;
+            margin-right: 10px;
+            min-width: 60px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>角色权限管理</h1>
+            <div class="header-buttons">
+                <button id="back-to-admin" class="btn-secondary">返回管理面板</button>
+                <button id="admin-menu-btn" class="btn-secondary">菜单</button>
+            </div>
+        </header>
+        
+        <!-- 抽屉式菜单 -->
+        <div id="admin-drawer" class="drawer">
+            <div class="drawer-header">
+                <h2>导航菜单</h2>
+                <button id="close-drawer-btn" class="btn-secondary">关闭</button>
+            </div>
+            <div class="drawer-content">
+                <ul>
+                    <li><a href="/">返回首页</a></li>
+                    <li><a href="/admin">超级管理员面板</a></li>
+                    <li><a href="/admin/role-permission">角色权限管理</a></li>
+                    <li><a href="/redoc" target="_blank">API 文档</a></li>
+                    <li><a href="/logout">登出</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="drawer-overlay" class="drawer-overlay"></div>
+        
+        <div class="role-permission-container">
+            <!-- 选项卡导航 -->
+            <div class="tab-container">
+                <div class="tab-nav">
+                    <button class="tab-button active" data-tab="users">用户管理</button>
+                    <button class="tab-button" data-tab="roles">角色管理</button>
+                    <button class="tab-button" data-tab="permissions">权限管理</button>
+                    <button class="tab-button" data-tab="assignments">角色分配</button>
+                    <button class="tab-button" data-tab="batch">批量操作</button>
+                </div>
+                
+                <!-- 用户管理标签页 -->
+                <div id="users-tab" class="tab-content active">
+                    <div class="section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>用户管理</h2>
+                            <button id="create-user-btn" class="btn-primary">创建用户</button>
+                        </div>
+                        
+                        <div id="users-loading" class="loading">正在加载用户列表...</div>
+                        <div id="users-error" class="error" style="display: none;"></div>
+                        
+                        <table id="users-table" class="data-table" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>用户ID</th>
+                                    <th>用户名</th>
+                                    <th>用户类型</th>
+                                    <th>角色</th>
+                                    <th>主题</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <!-- 用户数据将通过JavaScript填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 角色管理标签页 -->
+                <div id="roles-tab" class="tab-content">
+                    <div class="section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>角色管理</h2>
+                            <div>
+                                <button id="create-role-btn" class="btn-primary">创建角色</button>
+                                <button id="init-default-roles-btn" class="btn-secondary">初始化默认角色</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 角色层级结构 -->
+                        <div class="role-hierarchy">
+                            <h3>角色层级结构</h3>
+                            <div id="role-hierarchy-container">
+                                <div class="loading">正在加载角色层级...</div>
+                            </div>
+                        </div>
+                        
+                        <div id="roles-loading" class="loading">正在加载角色列表...</div>
+                        <div id="roles-error" class="error" style="display: none;"></div>
+                        
+                        <table id="roles-table" class="data-table" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>角色ID</th>
+                                    <th>角色名称</th>
+                                    <th>描述</th>
+                                    <th>权限数量</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="roles-tbody">
+                                <!-- 角色数据将通过JavaScript填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 权限管理标签页 -->
+                <div id="permissions-tab" class="tab-content">
+                    <div class="section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>权限管理</h2>
+                            <button id="create-permission-btn" class="btn-primary">创建权限</button>
+                        </div>
+                        
+                        <div id="permissions-loading" class="loading">正在加载权限列表...</div>
+                        <div id="permissions-error" class="error" style="display: none;"></div>
+                        
+                        <!-- 权限分组显示 -->
+                        <div id="permission-groups-container" style="display: none;">
+                            <!-- 权限分组将通过JavaScript填充 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 角色分配标签页 -->
+                <div id="assignments-tab" class="tab-content">
+                    <div class="section">
+                        <h2>用户角色分配</h2>
+                        <div id="assignments-container">
+                            <div class="loading">正在加载分配信息...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 批量操作标签页 -->
+                <div id="batch-tab" class="tab-content">
+                    <div class="section">
+                        <h2>批量操作</h2>
+                        
+                        <div class="batch-operations">
+                            <h3>批量角色分配</h3>
+                            <div class="form-group">
+                                <label>选择角色：</label>
+                                <select id="batch-role-select">
+                                    <option value="">请选择角色</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>选择用户：</label>
+                                <div id="batch-users-container" class="checkbox-group">
+                                    <!-- 用户复选框将通过JavaScript填充 -->
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button id="batch-assign-btn" class="btn-primary">批量分配</button>
+                                <button id="batch-remove-btn" class="btn-danger">批量移除</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 用户创建/编辑模态框 -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="user-modal-title">创建用户</h3>
+                <span class="close" id="user-modal-close">&times;</span>
+            </div>
+            <form id="user-form">
+                <div class="form-group">
+                    <label for="user-username">用户名：</label>
+                    <input type="text" id="user-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-password">密码：</label>
+                    <input type="password" id="user-password" name="password">
+                </div>
+                <div class="form-group">
+                    <label for="user-theme">主题：</label>
+                    <select id="user-theme" name="theme">
+                        <option value="default">默认主题</option>
+                        <option value="wooden">木质主题</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>分配角色：</label>
+                    <div id="user-roles-container" class="checkbox-group">
+                        <!-- 角色复选框将通过JavaScript填充 -->
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-primary">保存</button>
+                    <button type="button" id="user-modal-cancel" class="btn-secondary">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 角色创建/编辑模态框 -->
+    <div id="role-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="role-modal-title">创建角色</h3>
+                <span class="close" id="role-modal-close">&times;</span>
+            </div>
+            <form id="role-form">
+                <div class="form-group">
+                    <label for="role-name">角色名称：</label>
+                    <input type="text" id="role-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="role-description">描述：</label>
+                    <textarea id="role-description" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>分配权限：</label>
+                    <div id="role-permissions-container">
+                        <!-- 权限复选框将通过JavaScript填充 -->
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-primary">保存</button>
+                    <button type="button" id="role-modal-cancel" class="btn-secondary">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 权限创建/编辑模态框 -->
+    <div id="permission-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="permission-modal-title">创建权限</h3>
+                <span class="close" id="permission-modal-close">&times;</span>
+            </div>
+            <form id="permission-form">
+                <div class="form-group">
+                    <label for="permission-name">权限名称：</label>
+                    <input type="text" id="permission-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="permission-description">描述：</label>
+                    <textarea id="permission-description" name="description" rows="3"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn-primary">保存</button>
+                    <button type="button" id="permission-modal-cancel" class="btn-secondary">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 引入JavaScript -->
+    <script src="/static/common/js/common.js"></script>
+    <script src="/static/common/js/admin-common.js"></script>
+    <script src="/static/{{ theme }}/js/role-permission-management.js"></script>
+</body>
+</html>

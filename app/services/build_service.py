@@ -123,8 +123,9 @@ class BuildService:
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 修改图片路径，将 "../illustrations/" 替换为 "illustrations/"
+            # 修改图片路径，将 "../illustrations/" 和 "/user-illustrations/" 替换为 "illustrations/"
             content = content.replace('../illustrations/', 'illustrations/')
+            content = content.replace('/user-illustrations/', 'illustrations/')
             
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:
@@ -146,8 +147,9 @@ class BuildService:
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 修改图片路径，将 "../illustrations/" 替换为 "./illustrations/"
+            # 修改图片路径，将 "../illustrations/" 和 "/user-illustrations/" 替换为 "./illustrations/"
             content = content.replace('../illustrations/', './illustrations/')
+            content = content.replace('/user-illustrations/', './illustrations/')
             
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:
@@ -169,8 +171,9 @@ class BuildService:
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 修改图片路径，将 "../illustrations/" 替换为 "./illustrations/"
+            # 修改图片路径，将 "../illustrations/" 和 "/user-illustrations/" 替换为 "./illustrations/"
             content = content.replace('../illustrations/', './illustrations/')
+            content = content.replace('/user-illustrations/', './illustrations/')
             
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:
@@ -191,6 +194,7 @@ class BuildService:
             illustrations_dir = src_dir / "illustrations"
             metadata_file = src_dir / "metadata.yml"
             book_file = src_dir / "book.md"
+            css_file = src_dir / "css" / "epub-style.css"
             chapter_config_file = src_dir / "chapter-config.json"
             
             # 创建输出目录（如果不存在）
@@ -231,6 +235,7 @@ class BuildService:
                 "--toc",
                 "--toc-depth=2",
                 "--split-level=2",
+                f"--css={css_file}",
                 f"--resource-path={build_dir}"
             ]
             

@@ -56,8 +56,12 @@ function closeAdminDrawer() {
     const drawer = document.getElementById('admin-drawer');
     const overlay = document.getElementById('drawer-overlay');
     
-    drawer.classList.remove('open');
-    overlay.classList.remove('open');
+    if (drawer) {
+        drawer.classList.remove('open');
+    }
+    if (overlay) {
+        overlay.classList.remove('open');
+    }
 }
 
 // 初始化编辑器状态
@@ -1079,6 +1083,13 @@ function closeUserPanelDrawer() {
     }
 }
 
+// 处理用户面板登出
+function handleUserPanelLogout() {
+    if (confirm('确定要登出吗？')) {
+        window.location.href = '/logout';
+    }
+}
+
 // 显示LLM对话框
 function showLLMDialog() {
     // 创建对话框元素
@@ -1278,7 +1289,7 @@ async function uploadSrc() {
 // 重置Src目录
 async function resetSrc() {
     // 确认重置
-    if (!confirm('确定要重置Src目录到最新备份吗？这将删除当前的Src目录并恢复到最新备份。')) {
+    if (!confirm('确定要重置Src目录到默认状态吗？\n\n这将会：\n1. 自动备份当前的Src目录\n2. 删除当前的Src目录内容\n3. 从公共src目录复制默认文件')) {
         console.log('用户取消了重置操作');
         return;
     }
@@ -1294,8 +1305,19 @@ async function resetSrc() {
         console.log('收到重置响应:', response);
         
         if (response.ok) {
+            const result = await response.json();
             showMessage('Src目录重置成功', 'success');
-            console.log('Src目录重置成功');
+            console.log('Src目录重置成功:', result);
+            
+            // 显示详细的重置结果信息
+            if (result.statistics) {
+                const stats = result.statistics;
+                const detailMessage = `重置完成！\n复制了 ${stats.files_copied} 个文件，创建了 ${stats.directories_created} 个目录`;
+                setTimeout(() => {
+                    showMessage(detailMessage, 'success');
+                }, 1000);
+            }
+            
             // 刷新文件树
             await loadFileTree();
         } else {

@@ -192,6 +192,55 @@ async def download_backup(filename: str, request: Request):
         logger.error(f"下载备份失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"下载备份失败: {str(e)}")
 
+# 用户Src目录重置相关路由
+@admin_router.post("/reset-src")
+@require_permission("manual_backup")
+async def reset_user_src_directory(request: Request):
+    """重置用户的Src目录到默认状态"""
+    try:
+        session_service = get_session_service()
+        session = session_service.get_session(request)
+        
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        admin_service = get_admin_service_instance()
+        result = await admin_service.reset_user_src_directory(session.username)
+        
+        logger.info(f"用户 {session.username} 成功重置了src目录")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"重置用户src目录失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"重置失败: {str(e)}")
+
+@admin_router.post("/admin/reset-user-src/{username}")
+@require_permission("user.edit")
+async def admin_reset_user_src_directory(username: str, request: Request):
+    """管理员重置指定用户的Src目录到默认状态"""
+    try:
+        if not username or not username.strip():
+            raise HTTPException(status_code=400, detail="用户名不能为空")
+        
+        admin_service = get_admin_service_instance()
+        result = await admin_service.reset_user_src_directory(username)
+        
+        # 获取当前管理员信息用于日志
+        session_service = get_session_service()
+        admin_session = session_service.get_session(request)
+        admin_username = admin_session.username if admin_session else "unknown"
+        
+        logger.info(f"管理员 {admin_username} 重置了用户 {username} 的src目录")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"管理员重置用户src目录失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"重置失败: {str(e)}")
+
 # 构建相关路由
 @admin_router.post("/build/epub")
 async def build_epub_endpoint(session: SessionData = Depends(check_epub_permission)):
@@ -817,6 +866,131 @@ async def assign_role_permissions(role_id: int, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"分配角色权限失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.delete("/roles/{role_id}/permissions/{permission_id}")
+@require_permission("role.edit")
+async def remove_role_permission(role_id: int, permission_id: int, request: Request):
+    """移除角色的特定权限"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.remove_role_permission(role_id, permission_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"移除角色权限失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 权限分组和层级管理相关路由
+@admin_router.get("/permission-groups")
+@require_permission("permission.list")
+async def get_permission_groups(request: Request):
+    """获取权限分组"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_permission_groups()
+        return {"groups": result}
+    except Exception as e:
+        logger.error(f"获取权限分组失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.get("/role-hierarchy")
+@require_permission("role.list")
+async def get_role_hierarchy(request: Request):
+    """获取角色层级结构"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_role_hierarchy()
+        return {"hierarchy": result}
+    except Exception as e:
+        logger.error(f"获取角色层级失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 初始化默认角色和权限
+@admin_router.post("/initialize-default-roles")
+@require_permission("super_admin")
+async def initialize_default_roles(request: Request):
+    """初始化默认角色和权限"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.initialize_default_roles_and_permissions()
+        return result
+    except Exception as e:
+        logger.error(f"初始化默认角色和权限失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 批量操作相关路由
+@admin_router.post("/batch-assign-role")
+@require_permission("user.edit")
+async def batch_assign_users_to_role(request: Request):
+    """批量为用户分配角色"""
+    try:
+        body = await request.json()
+        user_ids = body.get('user_ids', [])
+        role_id = body.get('role_id')
+        
+        if not user_ids or not role_id:
+            raise HTTPException(status_code=400, detail="用户ID列表和角色ID不能为空")
+        
+        admin_service = get_admin_service_instance()
+        result = await admin_service.batch_assign_users_to_role(user_ids, role_id)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量分配角色失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.post("/batch-remove-role")
+@require_permission("user.edit")
+async def batch_remove_users_from_role(request: Request):
+    """批量移除用户角色"""
+    try:
+        body = await request.json()
+        user_ids = body.get('user_ids', [])
+        role_id = body.get('role_id')
+        
+        if not user_ids or not role_id:
+            raise HTTPException(status_code=400, detail="用户ID列表和角色ID不能为空")
+        
+        admin_service = get_admin_service_instance()
+        result = await admin_service.batch_remove_users_from_role(user_ids, role_id)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量移除角色失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 审计日志相关路由
+@admin_router.get("/audit-log/permissions")
+@require_permission("super_admin")
+async def get_permission_audit_log(request: Request, days: int = 30, operation: str = None, 
+                                 operator: str = None, target_type: str = None,
+                                 limit: int = 100, offset: int = 0):
+    """获取权限审计日志"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_permission_audit_log(
+            days=days, operation=operation, operator=operator, 
+            target_type=target_type, limit=limit, offset=offset
+        )
+        return {"logs": result}
+    except Exception as e:
+        logger.error(f"获取审计日志失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.get("/audit-log/statistics")
+@require_permission("super_admin")
+async def get_audit_log_statistics(request: Request, days: int = 30):
+    """获取审计日志统计信息"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_audit_log_statistics(days=days)
+        return result
+    except Exception as e:
+        logger.error(f"获取审计统计失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @admin_router.post("/reset-password")

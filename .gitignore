@@ -11,3 +11,5 @@ fly-template.toml
 fly.toml
 .github
 markedit.log
+bfg.jar
+..bfg-report

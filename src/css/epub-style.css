@@ -1,0 +1,333 @@
+/* 片假字日语词典 EPUB 专用样式 - 兼容性优化版本 */
+
+/* 基础样式 */
+body {
+    font-family: Georgia, serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 1em;
+    color: #333;
+    background-color: #fff;
+}
+
+/* 页面容器 */
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 1em;
+}
+
+/* 标题样式 */
+h1 {
+    font-size: 2.2em;
+    text-align: center;
+    margin: 1.5em 0 1em 0;
+    color: #2c3e50;
+    font-weight: bold;
+    page-break-after: avoid;
+}
+
+h2 {
+    font-size: 1.6em;
+    margin: 1.2em 0 0.8em 0;
+    color: #2c3e50;
+    font-weight: bold;
+    page-break-after: avoid;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.3em;
+}
+
+h3 {
+    font-size: 1.3em;
+    margin: 1em 0 0.6em 0;
+    color: #2c3e50;
+    font-weight: bold;
+    page-break-after: avoid;
+}
+
+h4 {
+    font-size: 1.1em;
+    margin: 0.8em 0 0.5em 0;
+    color: #2c3e50;
+    font-weight: bold;
+    page-break-after: avoid;
+}
+
+/* 段落样式 */
+p {
+    margin: 0.8em 0;
+    text-align: justify;
+    text-indent: 2em;
+    line-height: 1.7;
+    font-size: 1em;
+    orphans: 2;
+    widows: 2;
+}
+
+/* 首段不缩进 */
+h1 + p,
+h2 + p,
+h3 + p,
+h4 + p {
+    text-indent: 0;
+}
+
+/* 列表样式 */
+ul, ol {
+    margin: 0.8em 0;
+    padding-left: 2em;
+}
+
+li {
+    margin: 0.3em 0;
+    line-height: 1.6;
+}
+
+/* 表格样式 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    page-break-inside: avoid;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 0.5em;
+    text-align: left;
+}
+
+th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-align: center;
+}
+
+tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* 链接样式 */
+a {
+    color: #3498db;
+    text-decoration: underline;
+}
+
+a:visited {
+    color: #9b59b6;
+}
+
+/* 强调文本 */
+strong, b {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+em, i {
+    font-style: italic;
+}
+
+/* 代码样式 */
+code {
+    font-family: "Courier New", monospace;
+    font-size: 0.9em;
+    background-color: #f8f9fa;
+    padding: 0.1em 0.3em;
+    border: 1px solid #e9ecef;
+}
+
+pre {
+    font-family: "Courier New", monospace;
+    font-size: 0.9em;
+    background-color: #f8f9fa;
+    padding: 1em;
+    border: 1px solid #e9ecef;
+    overflow-x: auto;
+    page-break-inside: avoid;
+}
+
+/* 引用样式 */
+blockquote {
+    margin: 1em 2em;
+    padding: 0.5em 1em;
+    border-left: 4px solid #3498db;
+    background-color: #f8f9fa;
+    font-style: italic;
+    page-break-inside: avoid;
+}
+
+/* 分隔线 */
+hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 2em 0;
+    page-break-after: avoid;
+}
+
+/* 特殊内容框样式 */
+.info-box, .warning-box, .chapter-summary, .key-vocabulary,
+.dialogue-box, .cultural-box, .exercise-box,
+.literary-quote, .author-profile, .prose-poetry {
+    margin: 1.5em 0;
+    padding: 1em;
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+}
+
+.info-box {
+    background-color: #e3f2fd;
+    border-color: #3498db;
+}
+
+.warning-box {
+    background-color: #fff3e0;
+    border-color: #ff9800;
+}
+
+.chapter-summary {
+    background-color: #e8f4f8;
+    border-color: #3498db;
+}
+
+.key-vocabulary {
+    background-color: #fff8e1;
+    border-color: #ffc107;
+}
+
+.dialogue-box {
+    background-color: #f0f8ff;
+    border-color: #4caf50;
+}
+
+.cultural-box {
+    background-color: #f5f0ff;
+    border-color: #9c27b0;
+}
+
+.exercise-box {
+    background-color: #fff0f5;
+    border-color: #e91e63;
+}
+
+.literary-quote {
+    background-color: #f5f0ff;
+    border-color: #9c27b0;
+    font-style: italic;
+}
+
+.author-profile {
+    background-color: #fff0f5;
+    border-color: #e91e63;
+}
+
+.prose-poetry {
+    background-color: #e0f7fa;
+    border-color: #00bcd4;
+    font-family: serif;
+}
+
+/* 插图样式 */
+.chapter-illustration {
+    text-align: center;
+    margin: 1.5em 0;
+    page-break-inside: avoid;
+}
+
+.illustration-container {
+    display: inline-block;
+    max-width: 100%;
+}
+
+.illustration-title {
+    font-size: 0.9em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    color: #666;
+    text-align: center;
+}
+
+/* 图片样式 */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0.5em auto;
+}
+
+/* 分页控制 */
+.page-break {
+    page-break-before: always;
+}
+
+.no-break {
+    page-break-inside: avoid;
+}
+
+/* 小屏幕适配 */
+@media screen and (max-width: 600px) {
+    body {
+        font-size: 14px;
+    }
+    
+    h1 {
+        font-size: 1.8em;
+    }
+    
+    h2 {
+        font-size: 1.4em;
+    }
+    
+    h3 {
+        font-size: 1.2em;
+    }
+    
+    p {
+        text-indent: 1em;
+    }
+    
+    .container {
+        padding: 0.5em;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    body {
+        font-size: 12pt;
+        line-height: 1.4;
+    }
+    
+    h1, h2, h3, h4 {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+    
+    p, li {
+        orphans: 3;
+        widows: 3;
+    }
+    
+    table, figure, .chapter-illustration {
+        page-break-inside: avoid;
+    }
+    
+    thead {
+        display: table-header-group;
+    }
+    
+    tr {
+        page-break-inside: avoid;
+    }
+    
+    a {
+        text-decoration: none;
+        color: #000;
+    }
+    
+    .info-box, .warning-box, .chapter-summary, .key-vocabulary,
+    .dialogue-box, .cultural-box, .exercise-box,
+    .literary-quote, .author-profile, .prose-poetry {
+        border: 1px solid #000;
+        background-color: transparent;
+    }
+}

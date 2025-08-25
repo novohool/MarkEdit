@@ -26,6 +26,7 @@ from app.models import (
     database, metadata, DATABASE_URL,
     user_table, role_table, permission_table, user_role_table, role_permission_table, admin_table
 )
+from app.models.role_model import audit_log_table
 
 # ==========================================
 # Common module imports - 通用模块导入
@@ -88,7 +89,7 @@ __all__ = [
     # Database
     'database', 'metadata', 'DATABASE_URL',
     'user_table', 'role_table', 'permission_table', 
-    'user_role_table', 'role_permission_table', 'admin_table',
+    'user_role_table', 'role_permission_table', 'admin_table', 'audit_log_table',
     # Service getters
     'get_session_service', 'get_oauth_service', 'get_startup_service',
     'get_admin_service', 'get_build_service', 'get_epub_service',

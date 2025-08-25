@@ -17,6 +17,7 @@
                     <option value="wooden">木质主题</option>
                 </select>
                 <button id="back-btn" class="btn-secondary" onclick="window.history.back()">返回</button>
+                <button id="logout-btn" class="btn-secondary" onclick="handleLogout()">登出</button>
             </div>
         </header>
         
@@ -190,6 +191,12 @@
                     document.getElementById('llm-config').value = '{}';
                 }
             });
+        }
+        
+        function handleLogout() {
+            if (confirm('确定要登出吗？')) {
+                window.location.href = '/logout';
+            }
         }
     </script>
 </body>

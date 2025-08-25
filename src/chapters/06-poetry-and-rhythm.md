@@ -1,6 +1,6 @@
 # 第6章：风景名胜
 
-![风景名胜](../illustrations/chapter_06.svg)
+![风景名胜](/user-illustrations/chapter_06.svg)
 
 本章将介绍用片假字命名的日本风景名胜，探讨这些地名的由来和文化意义。
 

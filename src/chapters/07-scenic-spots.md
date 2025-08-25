@@ -1,6 +1,6 @@
 # 第7章：文化古迹
 
-![文化古迹](../illustrations/chapter_07.svg)
+![文化古迹](/user-illustrations/chapter_07.svg)
 
 本章将介绍片假字在日本文化古迹中的体现，探讨这些古迹的历史背景、文化价值和相关的故事传说。
 

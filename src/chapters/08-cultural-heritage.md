@@ -1,6 +1,6 @@
 # 第8章：片假字的未来发展与学习建议
 
-![片假字的未来发展与学习建议](../illustrations/chapter_08.svg)
+![片假字的未来发展与学习建议](/user-illustrations/chapter_08.svg)
 
 本章将探讨片假字在未来的发展趋势，并为学习者提供学习建议和方法。
 

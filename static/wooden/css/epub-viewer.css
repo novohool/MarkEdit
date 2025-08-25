@@ -10,9 +10,10 @@ body {
 #viewer {
     margin: 8px auto;
     max-width: 1200px;
-    box-shadow: 0 0 8px rgba(139, 69, 19, 0.2); /* 棕色阴影 */
-    background-color: #faf7f2; /* 奶白色背景 */
-    border: 1px solid #d2b48c; /* 棕褐色边框 */
+    /* 移除可能与 EPUB 内容冲突的样式，让 EPUB 内容的样式更好地显示 */
+    /* box-shadow: 0 0 8px rgba(139, 69, 19, 0.2); */
+    /* background-color: #faf7f2; */
+    /* border: 1px solid #d2b48c; */
 }
 
 #toc {

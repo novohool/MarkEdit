@@ -231,6 +231,17 @@ async function showMarkdownPreview(editor, cmEditorContainer, previewContainer, 
     // 使用marked.js库解析Markdown
     previewContainer.innerHTML = marked.parse(content);
     
+    // 处理图片路径，将相对路径转换为正确的静态文件服务端点
+    const images = previewContainer.querySelectorAll('img');
+    images.forEach(img => {
+        const src = img.getAttribute('src');
+        if (src && src.startsWith('../illustrations/')) {
+            // 将 ../illustrations/ 路径转换为 /user-illustrations/
+            const newSrc = src.replace('../illustrations/', '/user-illustrations/');
+            img.setAttribute('src', newSrc);
+        }
+    });
+    
     // 添加代码高亮
     if (typeof Prism !== 'undefined') {
         Prism.highlightAllUnder(previewContainer);

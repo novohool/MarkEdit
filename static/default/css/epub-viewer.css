@@ -5,13 +5,15 @@ body {
     margin: 0;
     padding: 0;
     background-color: #f5f5f5;
+    /* 移除可能与 EPUB 内容冲突的样式 */
 }
 
 #viewer {
     margin: 8px auto;
     max-width: 1200px;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-    background-color: white;
+    /* 移除 box-shadow 和 background-color，让 EPUB 内容的样式更好地显示 */
+    /* box-shadow: 0 0 8px rgba(0, 0, 0, 0.1); */
+    /* background-color: white; */
 }
 
 #toc {

@@ -1,6 +1,6 @@
 # 第3章：日常用语句式
 
-![日常用语句式](../illustrations/chapter_03.svg)
+![日常用语句式](/user-illustrations/chapter_03.svg)
 
 本章将介绍片假字在日常用语中的使用，包括常用词汇、句式结构和实际应用场景。
 

@@ -1,6 +1,6 @@
 # 第5章：音律与诗歌
 
-![音律与诗歌](../illustrations/chapter_05.svg)
+![音律与诗歌](/user-illustrations/chapter_05.svg)
 
 本章将探讨片假字在日语诗歌和音律中的运用，包括古典诗歌、现代诗歌以及音韵特点的分析。
 

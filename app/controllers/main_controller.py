@@ -77,6 +77,47 @@ async def admin_home_page(request: Request):
         "theme": theme
     })
 
+@main_router.get("/admin/role-permission", response_class=HTMLResponse)
+async def role_permission_management_page(request: Request):
+    """角色权限管理页面"""
+    from app.common import get_user_permissions, get_session_service, check_user_permission
+    
+    # 检查用户是否有管理权限
+    try:
+        session_service = get_session_service()
+        session = session_service.get_session(request)
+        if not session.username:
+            return templates.TemplateResponse("admin_login.html", {
+                "request": request,
+                "theme": "default",
+                "error": "请先登录"
+            })
+        
+        # 检查用户是否有管理权限
+        has_admin_permission = await check_user_permission(session.username, "admin_access") or \
+                              await check_user_permission(session.username, "super_admin")
+        
+        if not has_admin_permission:
+            return templates.TemplateResponse("index.html", {
+                "request": request,
+                "theme": "default",
+                "error": "权限不足，无法访问管理功能"
+            })
+        
+        theme = await get_user_theme_simple(request)
+        return templates.TemplateResponse("role_permission_management.html", {
+            "request": request,
+            "theme": theme
+        })
+        
+    except Exception as e:
+        theme = await get_user_theme_simple(request)
+        return templates.TemplateResponse("admin_login.html", {
+            "request": request,
+            "theme": theme,
+            "error": "访问失败，请重新登录"
+        })
+
 @main_router.get("/myaccount", response_class=HTMLResponse)
 async def read_myaccount(request: Request):
     """我的账户页面"""
