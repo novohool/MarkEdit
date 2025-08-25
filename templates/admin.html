@@ -135,28 +135,28 @@
                 </div>
             </div>
             {% endif %}
-             
-             <!-- 权限管理 - 需要管理员权限 -->
-             {% if permissions.has_admin_access %}
-             <div class="section" id="permission-management-section">
-                 <h2>权限管理</h2>
-                 <div class="btn-group">
-                     <button type="button" id="check-permissions-btn" class="btn-primary">检查权限</button>
-                 </div>
-                 <div id="permissions-container">
-                     <p>正在加载权限信息...</p>
-                 </div>
-             </div>
-             {% endif %}
-             
-             <!-- 如果用户没有任何特殊权限，显示提示信息 -->
-             {% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf or permissions.has_system_config or permissions.has_epub_conversion or permissions.has_manual_backup or permissions.has_admin_access) %}
-             <div class="section">
-                 <h2>欢迎</h2>
-                 <p>您当前没有特殊的操作权限。如需要更多功能，请联系管理员为您分配相应的权限。</p>
-                 <p>您可以通过左上角的菜单访问其他功能，或者<a href="/">返回首页</a>进行文件编辑。</p>
-             </div>
-             {% endif %}
+            
+            <!-- 权限管理 - 需要管理员权限 -->
+            {% if permissions.has_admin_access %}
+            <div class="section" id="permission-management-section">
+                <h2>权限管理</h2>
+                <div class="btn-group">
+                    <button type="button" id="check-permissions-btn" class="btn-primary">检查权限</button>
+                </div>
+                <div id="permissions-container">
+                    <p>正在加载权限信息...</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 如果用户没有任何特殊权限，显示提示信息 -->
+            {% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf or permissions.has_system_config or permissions.has_epub_conversion or permissions.has_manual_backup or permissions.has_admin_access) %}
+            <div class="section">
+                <h2>欢迎</h2>
+                <p>您当前没有特殊的操作权限。如需要更多功能，请联系管理员为您分配相应的权限。</p>
+                <p>您可以通过左上角的菜单访问其他功能，或者<a href="/">返回首页</a>进行文件编辑。</p>
+            </div>
+            {% endif %}
         </div>
     </div>
     
@@ -167,9 +167,12 @@
     <script src="/static/{{ theme }}/js/admin_panel.js"></script>
     
     <!-- 将权限信息传递给JavaScript -->
+    <script type="application/json" id="user-permissions">{{ user_permissions | tojson }}</script>
+    <script type="application/json" id="permission-flags">{{ permissions | tojson }}</script>
     <script>
-        window.userPermissions = {{ user_permissions | tojson }};
-        window.permissionFlags = {{ permissions | tojson }};
+        // 从JSON脚本标签中读取权限数据
+        window.userPermissions = JSON.parse(document.getElementById('user-permissions').textContent);
+        window.permissionFlags = JSON.parse(document.getElementById('permission-flags').textContent);
     </script>
 </body>
 </html>

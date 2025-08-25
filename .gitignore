@@ -9,7 +9,7 @@ caddy
 users
 fly-template.toml
 fly.toml
+*.log
 .github
-markedit.log
 bfg.jar
 ..bfg-report
