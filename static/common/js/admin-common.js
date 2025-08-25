@@ -1326,6 +1326,7 @@ function bindAdminPanelEvents() {
     const buildAllBtn = document.getElementById('build-all-btn');
     const buildEpubBtn = document.getElementById('build-epub-btn');
     const buildPdfBtn = document.getElementById('build-pdf-btn');
+    const buildPdfWkhtmltopdfBtn = document.getElementById('build-pdf-wkhtmltopdf-btn');
     
     if (buildAllBtn) {
         buildAllBtn.addEventListener('click', () => buildBook('build'));
@@ -1335,6 +1336,9 @@ function bindAdminPanelEvents() {
     }
     if (buildPdfBtn) {
         buildPdfBtn.addEventListener('click', () => buildBook('pdf'));
+    }
+    if (buildPdfWkhtmltopdfBtn) {
+        buildPdfWkhtmltopdfBtn.addEventListener('click', () => buildBook('pdf-wkhtmltopdf'));
     }
     
     // 章节管理按钮事件
@@ -1638,9 +1642,38 @@ async function downloadSrc() {
 // 图书构建函数
 async function buildBook(buildType) {
     try {
-        showMessage(`正在构建${buildType === 'build' ? '所有格式' : buildType.toUpperCase()}...`, 'info');
+        let buildMessage = ''; 
+        let buildUrl = '';
         
-        const response = await fetch(`/api/admin/build/${buildType}`, {
+        switch(buildType) {
+            case 'build':
+                buildMessage = '正在构建所有格式（EPUB + 2个PDF版本 + HTML）...';
+                buildUrl = '/api/admin/build/build';
+                break;
+            case 'epub':
+                buildMessage = '正在构建 EPUB...';
+                buildUrl = '/api/admin/build/epub';
+                break;
+            case 'pdf':
+                buildMessage = '正在使用 Pandoc 构建 PDF...';
+                buildUrl = '/api/admin/build/pdf';
+                break;
+            case 'pdf-wkhtmltopdf':
+                buildMessage = '正在使用 wkhtmltopdf 构建 PDF...';
+                buildUrl = '/api/admin/build/pdf-wkhtmltopdf';
+                break;
+            case 'html':
+                buildMessage = '正在构建 HTML...';
+                buildUrl = '/api/admin/build/html';
+                break;
+            default:
+                buildMessage = `正在构建${buildType.toUpperCase()}...`;
+                buildUrl = `/api/admin/build/${buildType}`;
+        }
+        
+        showMessage(buildMessage, 'info');
+        
+        const response = await fetch(buildUrl, {
             method: 'POST'
         });
         
@@ -1648,9 +1681,67 @@ async function buildBook(buildType) {
         
         if (response.ok) {
             if (result.status === 'success') {
-                showMessage(`${buildType === 'build' ? '所有格式' : buildType.toUpperCase()}构建成功`, 'success');
+                const method = result.method ? ` (${result.method})` : '';
+                
+                // 如果是构建所有格式，显示详细信息
+                if (buildType === 'build' && result.results) {
+                    let successDetails = [];
+                    if (result.results.epub && result.results.epub.status === 'success') {
+                        successDetails.push('EPUB');
+                    }
+                    if (result.results.pdf_pandoc && result.results.pdf_pandoc.status === 'success') {
+                        successDetails.push('PDF (Pandoc)');
+                    }
+                    if (result.results.pdf_wkhtmltopdf && result.results.pdf_wkhtmltopdf.status === 'success') {
+                        successDetails.push('PDF (wkhtmltopdf)');
+                    }
+                    if (result.results.html && result.results.html.status === 'success') {
+                        successDetails.push('HTML');
+                    }
+                    
+                    const detailMessage = `构建成功！生成的格式：${successDetails.join(', ')}`;
+                    showMessage(detailMessage, 'success');
+                } else {
+                    showMessage(`${buildType === 'build' ? '所有格式' : buildType.toUpperCase()}构建成功${method}`, 'success');
+                }
             } else if (result.status === 'partial') {
-                showMessage(result.message || '部分格式构建成功', 'warning');
+                // 显示部分成功的详细信息
+                if (result.results) {
+                    let successDetails = [];
+                    let failedDetails = [];
+                    
+                    Object.entries(result.results).forEach(([format, formatResult]) => {
+                        if (formatResult.status === 'success') {
+                            if (format === 'pdf_pandoc') {
+                                successDetails.push('PDF (Pandoc)');
+                            } else if (format === 'pdf_wkhtmltopdf') {
+                                successDetails.push('PDF (wkhtmltopdf)');
+                            } else {
+                                successDetails.push(format.toUpperCase());
+                            }
+                        } else {
+                            if (format === 'pdf_pandoc') {
+                                failedDetails.push('PDF (Pandoc)');
+                            } else if (format === 'pdf_wkhtmltopdf') {
+                                failedDetails.push('PDF (wkhtmltopdf)');
+                            } else {
+                                failedDetails.push(format.toUpperCase());
+                            }
+                        }
+                    });
+                    
+                    let detailMessage = result.message || '部分格式构建成功';
+                    if (successDetails.length > 0) {
+                        detailMessage += `\n成功：${successDetails.join(', ')}`;
+                    }
+                    if (failedDetails.length > 0) {
+                        detailMessage += `\n失败：${failedDetails.join(', ')}`;
+                    }
+                    
+                    showMessage(detailMessage, 'warning');
+                } else {
+                    showMessage(result.message || '部分格式构建成功', 'warning');
+                }
             } else {
                 showMessage(result.message || '构建完成', 'info');
             }

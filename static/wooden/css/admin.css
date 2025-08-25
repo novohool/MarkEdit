@@ -1,22 +1,83 @@
+body {
+    background: linear-gradient(135deg, #8d6e63 0%, #a1887f 35%, #f5f0e6 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(141, 110, 99, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(160, 82, 45, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+}
+
 .admin-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
 }
 
 .section {
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: rgba(255, 248, 240, 0.85);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(141, 110, 99, 0.2);
+    box-shadow: 0 8px 32px rgba(141, 110, 99, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+}
+
+.section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+                rgba(141, 110, 99, 0.06) 0%, 
+                rgba(255, 248, 240, 0.1) 50%,
+                rgba(160, 82, 45, 0.04) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    border-radius: 16px;
+}
+
+.section:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(141, 110, 99, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.section:hover::before {
+    opacity: 1;
 }
 
 .section h2 {
     margin-top: 0;
-    color: #2c3e50;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 10px;
+    color: #8d6e63;
+    border-bottom: 3px solid rgba(141, 110, 99, 0.4);
+    padding-bottom: 1rem;
+    font-weight: 700;
+    font-size: 1.5rem;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 1px 2px rgba(141, 110, 99, 0.15);
 }
 
 .form-group {
@@ -25,18 +86,40 @@
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #2c3e50;
+    margin-bottom: 0.8rem;
+    font-weight: 600;
+    color: #8d6e63;
+    font-size: 0.95rem;
 }
 
 .form-group input, 
 .form-group textarea {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #bdc3c7;
-    border-radius: 4px;
+    padding: 1rem 1.2rem;
+    border: 1px solid rgba(141, 110, 99, 0.3);
+    border-radius: 12px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: rgba(255, 248, 240, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 2px 8px rgba(141, 110, 99, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    font-size: 0.95rem;
+    position: relative;
+    z-index: 1;
+    color: #5d4037;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    background: rgba(255, 248, 240, 0.95);
+    border-color: rgba(141, 110, 99, 0.6);
+    box-shadow: 0 0 0 3px rgba(141, 110, 99, 0.25),
+                0 4px 16px rgba(141, 110, 99, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
 }
 
 .form-group textarea {
@@ -52,11 +135,34 @@
 .chapter-item {
     display: flex;
     align-items: center;
-    padding: 10px;
-    margin-bottom: 10px;
-    background: #f8f9fa;
-    border-radius: 4px;
-    border: 1px solid #e9ecef;
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    background: rgba(255, 248, 240, 0.9);
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+    border-radius: 16px;
+    border: 1px solid rgba(141, 110, 99, 0.2);
+    box-shadow: 0 4px 16px rgba(141, 110, 99, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+}
+
+.chapter-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+                rgba(141, 110, 99, 0.05) 0%, 
+                rgba(255, 248, 240, 0.08) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    border-radius: 16px;
 }
 
 .chapter-item.draggable {
@@ -64,7 +170,15 @@
 }
 
 .chapter-item.draggable:hover {
-    background: #e9ecef;
+    background: rgba(215, 204, 200, 0.9);
+    border-color: rgba(141, 110, 99, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(141, 110, 99, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.chapter-item.draggable:hover::before {
+    opacity: 1;
 }
 
 .chapter-item .drag-handle {
@@ -75,8 +189,29 @@
 
 .chapter-item input {
     flex: 1;
-    margin-right: 10px;
-    padding: 5px;
+    margin-right: 1rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid rgba(141, 110, 99, 0.3);
+    border-radius: 10px;
+    background: rgba(255, 248, 240, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 2px 8px rgba(141, 110, 99, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    font-size: 0.95rem;
+    position: relative;
+    z-index: 1;
+    color: #5d4037;
+}
+
+.chapter-item input:focus {
+    outline: none;
+    border-color: rgba(141, 110, 99, 0.6);
+    box-shadow: 0 0 0 2px rgba(141, 110, 99, 0.25),
+                0 4px 12px rgba(141, 110, 99, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
 }
 
 .chapter-item .remove-chapter-btn {

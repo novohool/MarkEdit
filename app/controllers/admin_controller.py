@@ -438,6 +438,31 @@ async def build_pdf_endpoint(request: Request):
         logger.error(f"构建PDF失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"构建PDF失败: {str(e)}")
 
+@admin_router.post("/build/pdf-wkhtmltopdf")
+@require_permission("build.pdf")
+async def build_pdf_wkhtmltopdf_endpoint(request: Request):
+    """使用wkhtmltopdf构建PDF文件"""
+    try:
+        from app.common import get_user_src_directory, get_user_directory
+        from pathlib import Path
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取用户特定的目录
+        user_src_dir = get_user_src_directory(session.username)
+        user_build_dir = get_user_directory(session.username) / "build"
+        user_build_dir.mkdir(parents=True, exist_ok=True)
+        
+        build_service = get_build_service_instance()
+        result = await build_service.build_pdf_with_wkhtmltopdf(src_dir=user_src_dir, build_dir=user_build_dir)
+        return result
+    except Exception as e:
+        logger.error(f"wkhtmltopdf构建PDF失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"wkhtmltopdf构建PDF失败: {str(e)}")
+
 @admin_router.post("/build/html")
 @require_permission("build.epub")
 async def build_html_endpoint(request: Request):
@@ -586,8 +611,13 @@ async def run_build_script(script_name: str, request: Request):
                 # 检查是否有PDF构建权限
                 has_pdf_permission = await check_user_permission(session.username, "build.pdf")
                 if has_pdf_permission:
-                    pdf_result = await build_service.build_pdf(src_dir=user_src_dir, build_dir=user_build_dir)
-                    results["pdf"] = pdf_result
+                    # 生成Pandoc版本的PDF
+                    pdf_pandoc_result = await build_service.build_pdf(src_dir=user_src_dir, build_dir=user_build_dir)
+                    results["pdf_pandoc"] = pdf_pandoc_result
+                    
+                    # 生成wkhtmltopdf版本的PDF
+                    pdf_wkhtmltopdf_result = await build_service.build_pdf_with_wkhtmltopdf(src_dir=user_src_dir, build_dir=user_build_dir)
+                    results["pdf_wkhtmltopdf"] = pdf_wkhtmltopdf_result
                 
                 # 构建 HTML（使用EPUB权限）
                 html_result = await build_service.build_html(src_dir=user_src_dir, build_dir=user_build_dir)

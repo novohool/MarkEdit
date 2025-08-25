@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MarkEdit Web Editor</title>
+    <title>MarkEdit</title>
     <link rel="stylesheet" href="/static/default/css/style.css" id="theme-link">
     <!-- 引入Marked.js库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -27,38 +27,73 @@
 <body>
     <div class="container">
         <header>
-            <h1>MarkEdit Web Editor</h1>
+            <h1>MarkEdit</h1>
             <div class="header-buttons">
-                <select id="theme-selector" class="btn-secondary">
+                <!-- 主题选择器 -->
+                <select id="theme-selector" class="btn-secondary header-select">
                     <option value="default">默认主题</option>
                     <option value="wooden">木质主题</option>
                 </select>
-                <button id="myaccount-btn" class="btn-secondary">用户面板</button>
-                <button id="dashboard-btn" class="btn-secondary">仪表板</button>
+                
+                <!-- 用户和管理功能 -->
+                <div class="button-group user-group">
+                    <button id="myaccount-btn" class="btn-secondary" title="用户面板">
+                        <i class="btn-icon">👤</i>
+                        <span class="btn-text">用户面板</span>
+                    </button>
+                    <button id="dashboard-btn" class="btn-secondary" title="仪表板">
+                        <i class="btn-icon">📊</i>
+                        <span class="btn-text">仪表板</span>
+                    </button>
 {% if has_admin_access %}
-                <button id="admin-menu-btn" class="btn-secondary">管理</button>
+                    <button id="admin-menu-btn" class="btn-secondary" title="管理">
+                        <i class="btn-icon">⚙️</i>
+                        <span class="btn-text">管理</span>
+                    </button>
 {% endif %}
-                <button id="build-all-btn" class="btn-primary">生成所有格式</button>
-<button id="build-epub-btn" class="btn-secondary">生成 EPUB</button>
-<button id="build-pdf-btn" class="btn-secondary">生成 PDF</button>
+                </div>
+                
+                <!-- 构建功能 -->
+                <div class="button-group build-group">
+                    <button id="build-all-btn" class="btn-primary" title="生成所有格式">
+                        <i class="btn-icon">📚</i>
+                        <span class="btn-text">生成所有格式</span>
+                    </button>
+                    <button id="build-epub-btn" class="btn-secondary" title="生成 EPUB">
+                        <i class="btn-icon">📖</i>
+                        <span class="btn-text-short">EPUB</span>
+                    </button>
+                    <button id="build-pdf-btn" class="btn-secondary" title="生成 PDF">
+                        <i class="btn-icon">📄</i>
+                        <span class="btn-text-short">PDF</span>
+                    </button>
+                </div>
             </div>
         </header>
         
 {% if has_admin_access %}
-        <!-- 抽屉式菜单 -->
+        <!-- 抽屉式管理菜单 -->
         <div id="admin-drawer" class="drawer">
             <div class="drawer-header">
-                <h2>管理菜单</h2>
-                <button id="close-drawer-btn" class="btn-secondary">关闭</button>
+                <h2><i class="icon-menu">☰</i> 管理菜单</h2>
+                <button id="close-drawer-btn" class="btn-secondary">✕</button>
             </div>
             <div class="drawer-content">
-                <ul>
-                    <li><a href="/dashboard">工作面板</a></li>
-                    <li><a href="/admin">系统管理</a></li>
-                    <li><a href="/admin/role-permission">角色权限管理</a></li>
-                    <li><a href="#" id="drawer-myaccount-link">个人设置</a></li>
-                    <li><a href="/logout">登出</a></li>
-                </ul>
+                <div class="menu-section">
+                    <h4 class="menu-section-title">管理功能</h4>
+                    <ul class="menu-list">
+                        <li><a href="/dashboard" class="menu-item"><i class="icon">📊</i>工作面板</a></li>
+                        <li><a href="/admin" class="menu-item"><i class="icon">⚙️</i>系统管理</a></li>
+                        <li><a href="/admin/role-permission" class="menu-item"><i class="icon">🔐</i>角色权限管理</a></li>
+                    </ul>
+                </div>
+                <div class="menu-section">
+                    <h4 class="menu-section-title">个人设置</h4>
+                    <ul class="menu-list">
+                        <li><a href="#" id="drawer-myaccount-link" class="menu-item"><i class="icon">👤</i>个人设置</a></li>
+                        <li><a href="/logout" class="menu-item logout-item"><i class="icon">🚪</i>登出</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
 {% endif %}

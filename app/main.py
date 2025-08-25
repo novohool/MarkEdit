@@ -44,7 +44,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # 确保全局build目录存在
 (BASE_DIR / "build").mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="MarkEdit Web Editor", docs_url=None)
+app = FastAPI(title="MarkEdit", docs_url=None)
 
 # 设置认证路由
 setup_auth_routes(app)

@@ -52,17 +52,13 @@ $endif$
 \makeatother
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
 
-% 支持SVG文件直接引入
+% 支持多种图片格式，优先使用PDF（由rsvg-convert转换）
 \DeclareGraphicsExtensions{.pdf,.png,.jpg,.jpeg,.svg}
-% 设置SVG文件的处理方式
-\DeclareGraphicsRule{.svg}{pdf}{.pdf}{}
-% 将SVG转换为PDF用于显示（如果支持）
-\makeatletter
-\@ifundefined{convertSVG}{
-  % 如果没有SVG转换工具，就使用默认的图片处理
-  \newcommand{\convertSVG}[1]{#1}
-}{}
-\makeatother
+% 设置SVG文件的处理方式 - rsvg-convert将协助Pandoc将SVG动态转换为PDF
+% 这确保了SVG中的字体和样式在PDF中正确渲染
+\DeclareGraphicsRule{.svg}{pdf}{.pdf}{`rsvg-convert --format=pdf --output=\noexpand\OutputFile\space #1}
+% 直接PDF文件处理
+\DeclareGraphicsRule{.pdf}{pdf}{.pdf}{}
 
 % 定义pandoc使用的命令
 \providecommand{\pandocbounded}[1]{#1}

@@ -15,6 +15,118 @@ let userInfo = {
     userType: 'user' // 用户类型
 };
 
+// 上传进度管理器
+class UploadProgressManager {
+    constructor() {
+        this.activeUploads = new Map();
+        this.progressContainer = null;
+        this.createProgressContainer();
+    }
+    
+    createProgressContainer() {
+        if (this.progressContainer) {
+            return;
+        }
+        
+        this.progressContainer = document.createElement('div');
+        this.progressContainer.className = 'upload-progress';
+        this.progressContainer.innerHTML = `
+            <div class="upload-progress-header">
+                <span class="upload-progress-icon">📄</span>
+                <span class="upload-progress-title">文件上传</span>
+            </div>
+            <div class="upload-progress-content">
+                <div class="upload-progress-text">正在准备...</div>
+                <div class="upload-progress-bar">
+                    <div class="upload-progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="upload-progress-details">
+                    <span class="upload-current">0</span> / <span class="upload-total">0</span>
+                    <span class="upload-percentage">0%</span>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(this.progressContainer);
+    }
+    
+    showProgress(uploadId, fileName, total = 1) {
+        this.activeUploads.set(uploadId, {
+            fileName,
+            total,
+            current: 0,
+            status: 'preparing'
+        });
+        
+        this.updateDisplay();
+        this.progressContainer.classList.add('show');
+    }
+    
+    updateProgress(uploadId, current, status = 'uploading') {
+        const upload = this.activeUploads.get(uploadId);
+        if (upload) {
+            upload.current = current;
+            upload.status = status;
+            this.updateDisplay();
+        }
+    }
+    
+    completeUpload(uploadId, success = true) {
+        const upload = this.activeUploads.get(uploadId);
+        if (upload) {
+            upload.status = success ? 'completed' : 'error';
+            upload.current = upload.total;
+            this.updateDisplay();
+            
+            // 延迟隐藏，让用户看到结果
+            setTimeout(() => {
+                this.activeUploads.delete(uploadId);
+                if (this.activeUploads.size === 0) {
+                    this.hideProgress();
+                } else {
+                    this.updateDisplay();
+                }
+            }, 2000);
+        }
+    }
+    
+    updateDisplay() {
+        if (this.activeUploads.size === 0) {
+            return;
+        }
+        
+        const uploads = Array.from(this.activeUploads.values());
+        const totalFiles = uploads.reduce((sum, upload) => sum + upload.total, 0);
+        const completedFiles = uploads.reduce((sum, upload) => sum + upload.current, 0);
+        const percentage = totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
+        
+        const textElement = this.progressContainer.querySelector('.upload-progress-text');
+        const fillElement = this.progressContainer.querySelector('.upload-progress-fill');
+        const currentElement = this.progressContainer.querySelector('.upload-current');
+        const totalElement = this.progressContainer.querySelector('.upload-total');
+        const percentageElement = this.progressContainer.querySelector('.upload-percentage');
+        
+        if (uploads.length === 1) {
+            const upload = uploads[0];
+            textElement.textContent = `正在上传: ${upload.fileName}`;
+        } else {
+            textElement.textContent = `批量上传进行中...`;
+        }
+        
+        fillElement.style.width = `${percentage}%`;
+        currentElement.textContent = completedFiles;
+        totalElement.textContent = totalFiles;
+        percentageElement.textContent = `${percentage}%`;
+    }
+    
+    hideProgress() {
+        this.progressContainer.classList.remove('show');
+    }
+}
+
+// 创建全局上传进度管理器
+const uploadProgressManager = new UploadProgressManager();
+
 // 显示消息函数
 function showMessage(message, type) {
     // 创建消息元素
@@ -183,7 +295,6 @@ async function loadFileTree() {
         const toolbar = document.createElement('div');
         toolbar.className = 'toolbar';
         toolbar.innerHTML = `
-            <button id="create-file-btn" class="btn-secondary">新建文件</button>
             <button id="refresh-btn" class="btn-secondary">刷新</button>
         `;
         fileTreeElement.appendChild(toolbar);
@@ -200,10 +311,24 @@ async function loadFileTree() {
             createFileBtn.addEventListener('click', showCreateFileDialog);
         }
         
+        // 添加上传文件按钮事件
+        const uploadFileBtn = document.getElementById('upload-file-btn');
+        if (uploadFileBtn) {
+            uploadFileBtn.addEventListener('click', () => showUploadFileDialog('', false));
+        }
+        
         // 创建src文件树容器
         const srcContainer = document.createElement('div');
         srcContainer.className = 'file-area';
-        srcContainer.innerHTML = '<h3>Src</h3>';
+        srcContainer.innerHTML = `
+            <div class="area-header">
+                <h3>Src</h3>
+                <button id="src-upload-btn" class="btn-secondary area-upload-btn" title="上传EPUB文件（自动转换为Markdown）">
+                    <i class="btn-icon">📚</i>
+                    <span class="btn-text">上传EPUB</span>
+                </button>
+            </div>
+        `;
         fileTreeElement.appendChild(srcContainer);
         
         const srcTreeContainer = document.createElement('div');
@@ -214,13 +339,33 @@ async function loadFileTree() {
         // 创建build文件树容器
         const buildContainer = document.createElement('div');
         buildContainer.className = 'file-area';
-        buildContainer.innerHTML = '<h3>Build</h3>';
+        buildContainer.innerHTML = `
+            <div class="area-header">
+                <h3>Build</h3>
+                <button id="build-upload-btn" class="btn-secondary area-upload-btn" title="上传电子书文件">
+                    <i class="btn-icon">📖</i>
+                    <span class="btn-text">上传文件</span>
+                </button>
+            </div>
+        `;
         fileTreeElement.appendChild(buildContainer);
         
         const buildTreeContainer = document.createElement('div');
         buildTreeContainer.id = 'build-tree-container';
         buildTreeContainer.className = 'tree-container';
         buildContainer.appendChild(buildTreeContainer);
+        
+        // 为src目录添加上传按钮事件监听器
+        const srcUploadBtn = document.getElementById('src-upload-btn');
+        if (srcUploadBtn) {
+            srcUploadBtn.addEventListener('click', () => showAreaUploadDialog('src'));
+        }
+        
+        // 为build目录添加上传按钮事件监听器
+        const buildUploadBtn = document.getElementById('build-upload-btn');
+        if (buildUploadBtn) {
+            buildUploadBtn.addEventListener('click', () => showAreaUploadDialog('build'));
+        }
         
         // 递归渲染文件树
         if (fileData.src) {
@@ -230,6 +375,9 @@ async function loadFileTree() {
         if (fileData.build) {
             renderFileTree(fileData.build, buildTreeContainer, 'build');
         }
+        
+        // 初始化拖拽上传功能
+        initializeDragAndDropUpload();
     } catch (error) {
         console.error('加载文件树失败:', error);
         showMessage('加载文件树失败: ' + error.message, 'error');
@@ -503,9 +651,34 @@ function renderFileTree(files, parentElement, area) {
             }
         } else {
             // 文件项
+            let fileDisplayName = file.name;
+            let fileIcon = '';
+            
+            // 根据文件类型添加图标和标识
+            if (file.file_category === 'epub') {
+                fileIcon = '📚 ';
+                fileDisplayName = `${fileIcon}${file.name}`;
+            } else if (file.file_category === 'pdf') {
+                fileIcon = '📄 ';
+                fileDisplayName = `${fileIcon}${file.name}`;
+            } else if (file.file_category === 'image') {
+                fileIcon = '🖼️ ';
+                fileDisplayName = `${fileIcon}${file.name}`;
+            } else if (file.extension === '.md') {
+                fileIcon = '📝 ';
+                fileDisplayName = `${fileIcon}${file.name}`;
+            }
+            
             fileItem.innerHTML = `
-                <span class="file-name">${file.name}</span>
+                <span class="file-name">${fileDisplayName}</span>
             `;
+            
+            // 为EPUB文件添加特殊样式类
+            if (file.file_category === 'epub') {
+                fileItem.classList.add('epub-file');
+            } else if (file.previewable) {
+                fileItem.classList.add('previewable-file');
+            }
             
             // 添加右键菜单事件监听器
             fileItem.addEventListener('contextmenu', function(e) {
@@ -583,11 +756,13 @@ function showContextMenu(x, y, path, area, type) {
         if (type === 'directory') {
             contextMenu.innerHTML = `
                 <div class="context-menu-item" data-action="create-file">新建文件</div>
+                <div class="context-menu-item" data-action="upload-file">上传文件</div>
                 <div class="context-menu-item" data-action="create-directory">新建目录</div>
                 <div class="context-menu-item" data-action="delete">删除目录</div>
             `;
         } else if (type === 'file') {
             contextMenu.innerHTML = `
+                <div class="context-menu-item" data-action="upload-file-replace">替换文件</div>
                 <div class="context-menu-item" data-action="delete">删除文件</div>
             `;
         }
@@ -650,6 +825,12 @@ function handleContextMenuAction(action, path, area, type) {
         case 'create-file':
             showCreateFileDialog(path);
             break;
+        case 'upload-file':
+            showUploadFileDialog(path, false);
+            break;
+        case 'upload-file-replace':
+            showUploadFileDialog(path, true);
+            break;
         case 'create-directory':
             showCreateDirectoryDialog(path);
             break;
@@ -679,6 +860,417 @@ function showCreateDirectoryDialog(directoryPath = '') {
     const dirName = prompt('请输入目录名:');
     if (dirName) {
         createDirectory(directoryPath, dirName);
+    }
+}
+
+// 显示区域特定的文件上传对话框
+function showAreaUploadDialog(area) {
+    // 创建文件输入元素
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = true; // 支持多文件选择
+    fileInput.style.display = 'none';
+    
+    // 根据区域设置文件类型限制和说明
+    if (area === 'src') {
+        fileInput.accept = '.epub,.md,.txt,.json,.yml,.yaml,.css,.html,.js,.xml,.csv';
+        fileInput.title = '选择文件上传到src目录（EPUB文件将自动转换为Markdown）';
+    } else if (area === 'build') {
+        fileInput.accept = '.epub,.pdf,.html,.zip,.tar,.gz';
+        fileInput.title = '选择电子书或构建文件上传到build目录';
+    }
+    
+    fileInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            // 支持批量上传
+            uploadMultipleFilesToArea(area, files);
+        }
+        // 移除临时元素
+        document.body.removeChild(fileInput);
+    });
+    
+    // 添加到页面并触发点击
+    document.body.appendChild(fileInput);
+    fileInput.click();
+}
+
+// 上传文件到指定区域
+async function uploadFileToArea(area, file) {
+    const uploadId = Date.now() + Math.random();
+    
+    try {
+        const fileName = file.name;
+        const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+        
+        // 定义支持的文件类型
+        const srcSupportedTypes = ['.epub', '.md', '.txt', '.json', '.yml', '.yaml', '.css', '.html', '.js', '.xml', '.csv'];
+        const buildSupportedTypes = ['.epub', '.pdf', '.html', '.zip', '.tar', '.gz'];
+        
+        // 验证文件类型
+        if (area === 'src' && !srcSupportedTypes.includes(fileExtension)) {
+            showMessage(`不支持的文件类型: ${fileExtension}\n支持的类型: ${srcSupportedTypes.join(', ')}`, 'error');
+            return;
+        }
+        
+        if (area === 'build' && !buildSupportedTypes.includes(fileExtension)) {
+            showMessage(`不支持的文件类型: ${fileExtension}\n支持的类型: ${buildSupportedTypes.join(', ')}`, 'error');
+            return;
+        }
+        
+        // 显示上传进度
+        uploadProgressManager.showProgress(uploadId, fileName, 1);
+        
+        // 创建 FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // 选择上传端点
+        const uploadUrl = `/api/upload-file/${area}/${fileName}`;
+        
+        uploadProgressManager.updateProgress(uploadId, 0, 'uploading');
+        
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            uploadProgressManager.updateProgress(uploadId, 1, 'completed');
+            
+            let message = `文件上传成功: ${fileName}`;
+            
+            // 对于EPUB文件，根据目标目录添加特殊提示
+            if (fileExtension === '.epub') {
+                if (area === 'src') {
+                    if (result.conversion_status === 'success') {
+                        message += ` （已转换为Markdown格式，共${result.chapters_count || 0}章）`;
+                    } else {
+                        message += ' （已转换为Markdown格式用于编辑）';
+                    }
+                } else if (area === 'build') {
+                    message += ' （可直接阅读和预览）';
+                }
+            }
+            
+            showMessage(message, 'success');
+            uploadProgressManager.completeUpload(uploadId, true);
+            
+            // 刷新文件树
+            await loadFileTree();
+        } else {
+            uploadProgressManager.completeUpload(uploadId, false);
+            
+            if (response.status === 400 && result.detail.includes('文件已存在')) {
+                // 文件已存在，询问是否覆盖
+                if (confirm(`文件 "${fileName}" 已存在，是否覆盖？`)) {
+                    await uploadFileToAreaWithOverwrite(area, file);
+                }
+            } else {
+                throw new Error(result.detail || '上传失败');
+            }
+        }
+    } catch (error) {
+        uploadProgressManager.completeUpload(uploadId, false);
+        console.error('上传文件失败:', error);
+        showMessage('上传文件失败: ' + error.message, 'error');
+    }
+}
+
+// 批量上传文件到指定区域
+async function uploadMultipleFilesToArea(area, files) {
+    if (!files || files.length === 0) {
+        showMessage('未选择文件', 'warning');
+        return;
+    }
+    
+    const uploadId = Date.now() + Math.random();
+    const totalFiles = files.length;
+    let successCount = 0;
+    let failCount = 0;
+    
+    // 初始化进度显示
+    uploadProgressManager.showProgress(uploadId, `${totalFiles}个文件`, totalFiles);
+    
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+            // 创建单独的上传ID处理单个文件
+            const singleUploadId = uploadId + '_' + i;
+            
+            // 验证文件类型
+            const fileName = file.name;
+            const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+            const srcSupportedTypes = ['.epub', '.md', '.txt', '.json', '.yml', '.yaml', '.css', '.html', '.js', '.xml', '.csv'];
+            const buildSupportedTypes = ['.epub', '.pdf', '.html', '.zip', '.tar', '.gz'];
+            
+            if ((area === 'src' && !srcSupportedTypes.includes(fileExtension)) ||
+                (area === 'build' && !buildSupportedTypes.includes(fileExtension))) {
+                console.warn(`跳过不支持的文件类型: ${fileName}`);
+                failCount++;
+                continue;
+            }
+            
+            // 创建 FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // 上传文件
+            const uploadUrl = `/api/upload-file/${area}/${fileName}`;
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                successCount++;
+            } else if (response.status === 400 && result.detail.includes('文件已存在')) {
+                // 自动覆盖已存在的文件
+                const overwriteUrl = `/api/upload-file/${area}/${fileName}/overwrite`;
+                const overwriteResponse = await fetch(overwriteUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (overwriteResponse.ok) {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } else {
+                failCount++;
+            }
+            
+            // 更新进度
+            uploadProgressManager.updateProgress(uploadId, i + 1, 'uploading');
+            
+            // 等待一小段时间避免服务器过载
+            if (i < files.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        } catch (error) {
+            console.error(`上传文件 ${file.name} 失败:`, error);
+            failCount++;
+        }
+    }
+    
+    // 完成上传并显示结果
+    uploadProgressManager.completeUpload(uploadId, failCount === 0);
+    
+    if (failCount === 0) {
+        showMessage(`批量上传完成! 成功上传 ${successCount} 个文件`, 'success');
+    } else {
+        showMessage(`批量上传完成! 成功: ${successCount}, 失败: ${failCount}`, 'warning');
+    }
+    
+    // 刷新文件树
+    await loadFileTree();
+}
+
+// 初始化拖拽上传功能
+function initializeDragAndDropUpload() {
+    // 为src和build区域添加拖拽上传
+    const srcContainer = document.getElementById('src-tree-container');
+    const buildContainer = document.getElementById('build-tree-container');
+    
+    if (srcContainer) {
+        setupDragAndDrop(srcContainer, 'src');
+    }
+    
+    if (buildContainer) {
+        setupDragAndDrop(buildContainer, 'build');
+    }
+}
+
+// 为指定容器设置拖拽上传
+function setupDragAndDrop(container, area) {
+    // 防止默认行为
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        container.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    // 进入拖拽区域时的效果
+    ['dragenter', 'dragover'].forEach(eventName => {
+        container.addEventListener(eventName, () => {
+            container.classList.add('drag-over');
+        }, false);
+    });
+    
+    // 离开拖拽区域时的效果
+    ['dragleave', 'drop'].forEach(eventName => {
+        container.addEventListener(eventName, () => {
+            container.classList.remove('drag-over');
+        }, false);
+    });
+    
+    // 处理文件放置
+    container.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = Array.from(dt.files);
+        
+        if (files.length > 0) {
+            if (files.length === 1) {
+                uploadFileToArea(area, files[0]);
+            } else {
+                uploadMultipleFilesToArea(area, files);
+            }
+        }
+    }, false);
+    
+    // 添加拖拽区域的视觉提示
+    if (!container.querySelector('.drag-drop-hint')) {
+        const hint = document.createElement('div');
+        hint.className = 'drag-drop-hint';
+        hint.innerHTML = `
+            <div class="drag-drop-content">
+                <i class="drag-icon">📁</i>
+                <p>拖拽文件到此处上传</p>
+                <small>${area === 'src' ? '支持: EPUB, MD, TXT, JSON, YML, CSS, HTML, JS, XML, CSV' : '支持: EPUB, PDF, HTML, ZIP, TAR, GZ'}</small>
+            </div>
+        `;
+        container.appendChild(hint);
+    }
+}
+async function uploadFileToAreaWithOverwrite(area, file) {
+    try {
+        const fileName = file.name;
+        
+        // 创建 FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // 选择覆盖上传端点
+        const uploadUrl = `/api/upload-file/${area}/${fileName}/overwrite`;
+        
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            const targetDisplay = area === 'src' ? 'Src' : 'Build';
+            let message = `文件替换成功: ${fileName} (在${targetDisplay}目录)`;
+            
+            const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+            if (fileExtension === '.epub') {
+                if (area === 'src') {
+                    if (result.conversion_status === 'success') {
+                        message += ` （已转换为Markdown格式，共${result.chapters_count || 0}章）`;
+                    } else {
+                        message += ' （已转换为Markdown格式用于编辑）';
+                    }
+                } else if (area === 'build') {
+                    message += ' （可直接阅读和预览）';
+                }
+            }
+            
+            showMessage(message, 'success');
+            // 刷新文件树
+            await loadFileTree();
+        } else {
+            throw new Error(result.detail || '替换失败');
+        }
+    } catch (error) {
+        console.error('替换文件失败:', error);
+        showMessage('替换文件失败: ' + error.message, 'error');
+    }
+}
+
+// 显示文件上传对话框
+function showUploadFileDialog(directoryPath = '', overwrite = false) {
+    // 创建文件输入元素
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = false;
+    fileInput.style.display = 'none';
+    
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            uploadFileToDirectory(directoryPath, file, overwrite);
+        }
+        // 移除临时元素
+        document.body.removeChild(fileInput);
+    });
+    
+    // 添加到页面并触发点击
+    document.body.appendChild(fileInput);
+    fileInput.click();
+}
+
+// 上传文件到指定目录
+async function uploadFileToDirectory(directoryPath, file, overwrite = false) {
+    try {
+        const fileName = file.name;
+        const filePath = directoryPath ? `${directoryPath}/${fileName}` : fileName;
+        
+        // 确定目标目录类型，默认为src
+        const targetArea = currentFileArea || 'src';
+        
+        // 显示上传进度
+        showMessage(`正在上传文件 "${fileName}" 到 ${targetArea} 目录...`, 'info');
+        
+        // 创建 FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // 选择上传端点，包含目录类型
+        const uploadUrl = overwrite 
+            ? `/api/upload-file/${targetArea}/${filePath}/overwrite`
+            : `/api/upload-file/${targetArea}/${filePath}`;
+        
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            const action = result.overwritten ? '替换' : '上传';
+            let message = `文件${action}成功: ${fileName}`;
+            
+            // 对于EPUB文件，根据目标目录添加特殊提示
+            if (fileName.toLowerCase().endsWith('.epub')) {
+                if (result.target_directory === 'src') {
+                    if (result.conversion_status === 'success') {
+                        message += ` (已转换为Markdown格式，共${result.chapters_count || 0}章)`;
+                    } else {
+                        message += ' (转换为Markdown格式用于编辑)';
+                    }
+                } else if (result.target_directory === 'build') {
+                    message += ' (可直接阅读和预览)';
+                }
+            }
+            
+            showMessage(message, 'success');
+            // 刷新文件树
+            await loadFileTree();
+        } else {
+            if (response.status === 400 && result.detail.includes('文件已存在')) {
+                // 文件已存在，询问是否覆盖
+                if (confirm(`文件 "${fileName}" 已存在，是否覆盖？`)) {
+                    await uploadFileToDirectory(directoryPath, file, true);
+                }
+            } else {
+                throw new Error(result.detail || '上传失败');
+            }
+        }
+    } catch (error) {
+        console.error('上传文件失败:', error);
+        showMessage('上传文件失败: ' + error.message, 'error');
     }
 }
 

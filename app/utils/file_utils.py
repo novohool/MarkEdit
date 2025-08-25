@@ -34,13 +34,29 @@ def scan_directory(path: Path, base_dir: Path) -> List[Dict[str, Any]]:
         
     for item in path.iterdir():
         if item.is_file():
-            files.append({
+            file_info = {
                 "name": item.name,
                 "path": str(item.relative_to(base_dir)),
                 "type": "file",
                 "size": item.stat().st_size,
                 "extension": item.suffix.lower()
-            })
+            }
+            
+            # 为特殊文件类型添加标识
+            if is_previewable_binary(item):
+                file_info["previewable"] = True
+                if item.suffix.lower() == '.epub':
+                    file_info["file_category"] = "epub"
+                elif item.suffix.lower() == '.pdf':
+                    file_info["file_category"] = "pdf"
+            elif is_image_file(item):
+                file_info["file_category"] = "image"
+            elif is_text_file(item):
+                file_info["file_category"] = "text"
+            else:
+                file_info["file_category"] = "binary"
+                
+            files.append(file_info)
         elif item.is_dir():
             files.append({
                 "name": item.name,

@@ -204,10 +204,36 @@ class BuildService:
         
         return svg_content
     
-    def optimize_svgs_for_pdf(self, build_illustrations_dir: Path):
-        """优化SVG文件以用于PDF生成，修复中文字体问题"""
+    def optimize_svgs(self, build_illustrations_dir: Path):
+        """优化SVG文件以提高epub兼容性，可选使用rsvg-convert"""
         for file in build_illustrations_dir.iterdir():
             if file.suffix == '.svg':
+                # 尝试使用rsvg-convert转换SVG为PNG（EPUB更好的兼容性）
+                if self._convert_svg_to_png_with_rsvg(file):
+                    logger.info(f"已使用rsvg-convert转换SVG为PNG: {file.name}")
+                else:
+                    # 如果rsvg-convert不可用，使用原有的SVG优化方案
+                    logger.info(f"rsvg-convert不可用，使用SVG优化方案: {file.name}")
+                    # 读取SVG内容
+                    with open(file, 'r', encoding='utf-8') as f:
+                        svg_content = f.read()
+                    
+                    # 优化SVG内容
+                    optimized_svg_content = self.optimize_svg_for_epub(svg_content)
+                    
+                    # 写入优化后的SVG内容
+                    with open(file, 'w', encoding='utf-8') as f:
+                        f.write(optimized_svg_content)
+                    
+                    logger.info(f"已优化SVG文件: {file.name}")
+    
+    def optimize_svgs_for_pdf(self, build_illustrations_dir: Path):
+        """优化SVG文件以用于PDF生成，修复字体问题但保持SVG格式"""
+        for file in build_illustrations_dir.iterdir():
+            if file.suffix == '.svg':
+                # 修复SVG字体问题，但保持SVG格式
+                # rsvg-convert将通过LaTeX模板中的DeclareGraphicsRule来处理SVG文件
+                logger.info(f"为PDF优化SVG文件（保持SVG格式）: {file.name}")
                 # 读取SVG内容
                 with open(file, 'r', encoding='utf-8') as f:
                     svg_content = f.read()
@@ -220,6 +246,57 @@ class BuildService:
                     f.write(optimized_svg_content)
                 
                 logger.info(f"已为PDF优化SVG文件: {file.name}")
+    
+
+    def _convert_svg_to_png_with_rsvg(self, svg_file: Path) -> bool:
+        """使用rsvg-convert将SVG转换为PNG，适用于EPUB"""
+        try:
+            # 生成对应的PNG文件名
+            png_file = svg_file.with_suffix('.png')
+            
+            # 构建rske g-convert命令
+            rsvg_cmd = [
+                'rsvg-convert',
+                '--format=png',
+                '--dpi-x=150',  # 设置高分辨率
+                '--dpi-y=150',
+                '--output', str(png_file),
+                str(svg_file)
+            ]
+            
+            logger.debug(f"rsvg-convert PNG命令: {' '.join(rsvg_cmd)}")
+            
+            # 执行rsvg-convert命令
+            result = subprocess.run(
+                rsvg_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=60,  # 1分钟超时
+                creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+            )
+            
+            if result.returncode == 0 and png_file.exists():
+                # 转换成功，删除原SVG文件
+                svg_file.unlink()
+                logger.info(f"成功将SVG转换为PNG: {svg_file.name} -> {png_file.name}")
+                return True
+            else:
+                if result.stderr:
+                    logger.warning(f"rsvg-convert PNG转换失败: {result.stderr}")
+                return False
+                
+        except FileNotFoundError:
+            logger.warning("rsvg-convert命令未找到，跳过SVG转换")
+            return False
+        except subprocess.TimeoutExpired:
+            logger.warning(f"rsvg-convert PNG转换超时: {svg_file.name}")
+            return False
+        except Exception as e:
+            logger.warning(f"rsvg-convert PNG转换出现异常: {e}")
+            return False
     
     def fix_svg_fonts_for_pdf(self, svg_content: str) -> str:
         """修复SVG文件中的字体设置以支持PDF中的中文显示"""
@@ -526,6 +603,8 @@ class BuildService:
             self.copy_illustrations(illustrations_dir, build_illustrations_dir)
             
             # 为PDF优化SVG文件，修复中文字体问题
+            # 注意：rsvg-convert将通过LaTeX模板中的DeclareGraphicsRule来协助Pandoc处理SVG文件
+            # 这里只是修复SVG文件的字体问题，保持SVG格式不变
             self.optimize_svgs_for_pdf(build_illustrations_dir)
             
             # 从统一配置文件加载章节顺序
@@ -548,7 +627,7 @@ class BuildService:
                 else:
                     input_files.append(temp_chapters_dir / file_name)
             
-            pdf_output_path = build_dir / "katakana-dictionary.pdf"
+            pdf_output_path = build_dir / "katakana-dictionary-pandoc.pdf"
             
             logger.info("开始生成PDF文件...")
             
@@ -604,9 +683,10 @@ class BuildService:
                 
                 return {
                     "status": "success",
-                    "message": "PDF文件生成成功",
+                    "message": "Pandoc PDF文件生成成功",
                     "output_file": str(pdf_output_path),
-                    "file_size": pdf_output_path.stat().st_size
+                    "file_size": pdf_output_path.stat().st_size,
+                    "method": "pandoc"
                 }
             else:
                 error_msg = f"生成PDF文件时出错: {result.stderr}"
@@ -839,3 +919,136 @@ class BuildService:
                 "last_build_time": None,
                 "error": f"获取构建信息失败: {str(e)}"
             }
+    
+    async def build_pdf_with_wkhtmltopdf(self, src_dir: Path = None, build_dir: Path = None) -> Dict[str, Any]:
+        """使用wkhtmltopdf将HTML转换为PDF"""
+        if src_dir is None:
+            src_dir = self.src_dir
+        if build_dir is None:
+            build_dir = self.build_dir
+            
+        try:
+            # 首先生成HTML文件
+            html_result = await self.build_html(src_dir, build_dir)
+            if html_result["status"] != "success":
+                return html_result
+            
+            # HTML文件路径
+            html_output_path = build_dir / "katakana-dictionary.html"
+            pdf_output_path = build_dir / "katakana-dictionary-wkhtmltopdf.pdf"
+            
+            if not html_output_path.exists():
+                error_msg = "HTML文件不存在，无法转换为PDF"
+                logger.error(error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg
+                }
+            
+            logger.info("开始使用wkhtmltopdf生成PDF文件...")
+            
+            # 检测wkhtmltopdf路径
+            wkhtmltopdf_path = self._find_wkhtmltopdf_path()
+            if not wkhtmltopdf_path:
+                error_msg = "wkhtmltopdf未找到，请确保已安装wkhtmltopdf"
+                logger.error(error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg
+                }
+            
+            # 使用wkhtmltopdf将HTML转换为PDF
+            wkhtmltopdf_command = [
+                wkhtmltopdf_path,
+                "--enable-local-file-access",
+                "--print-media-type",
+                "--margin-top", "20mm",
+                "--margin-bottom", "20mm",
+                "--margin-left", "15mm",
+                "--margin-right", "15mm",
+                "--encoding", "UTF-8",
+                "--disable-smart-shrinking",
+                str(html_output_path),
+                str(pdf_output_path)
+            ]
+            
+            logger.info(f"正在执行wkhtmltopdf命令: {' '.join(wkhtmltopdf_command)}")
+            
+            # 执行wkhtmltopdf命令
+            result = subprocess.run(
+                wkhtmltopdf_command,
+                cwd=src_dir.parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=300,  # 5分钟超时
+                creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+            )
+            
+            # 检查返回码
+            if result.returncode == 0 and pdf_output_path.exists():
+                logger.info(f"wkhtmltopdf PDF文件生成成功: {pdf_output_path}")
+                return {
+                    "status": "success",
+                    "message": "wkhtmltopdf PDF文件生成成功",
+                    "output_file": str(pdf_output_path),
+                    "file_size": pdf_output_path.stat().st_size,
+                    "method": "wkhtmltopdf"
+                }
+            else:
+                error_msg = f"wkhtmltopdf生成PDF文件时出错: {result.stderr}"
+                logger.error(error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                }
+                
+        except subprocess.TimeoutExpired as e:
+            error_msg = f"wkhtmltopdf生成PDF文件时超时: {str(e)}"
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "message": error_msg
+            }
+        except Exception as e:
+            error_msg = f"wkhtmltopdf生成PDF文件时出现未预期的错误: {str(e)}"
+            logger.error(error_msg)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {
+                "status": "error",
+                "message": error_msg
+            }
+    
+    def _find_wkhtmltopdf_path(self) -> str:
+        """查找wkhtmltopdf可执行文件路径"""
+        # 常见的wkhtmltopdf安装路径
+        possible_paths = [
+            "wkhtmltopdf",  # 系统PATH中
+            "/usr/bin/wkhtmltopdf",  # Linux常见路径
+            "/usr/local/bin/wkhtmltopdf",  # Linux常见路径
+            "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe",  # Windows常见路径
+            "C:\\Program Files (x86)\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"  # Windows 32位路径
+        ]
+        
+        for path in possible_paths:
+            try:
+                result = subprocess.run(
+                    [path, "--version"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=10,
+                    creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+                )
+                if result.returncode == 0:
+                    logger.info(f"找到wkhtmltopdf: {path}")
+                    return path
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+        
+        logger.warning("未找到wkhtmltopdf可执行文件")
+        return None

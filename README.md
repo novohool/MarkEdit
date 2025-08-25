@@ -1,4 +1,4 @@
-# MarkEdit Web Editor
+# MarkEdit
 
 一个基于FastAPI的Web图形化编辑器，用于编辑src目录下的所有类型内容，用来生成电子书。
 
@@ -144,7 +144,7 @@ MIT
 1. 登录GitHub账户，访问 [GitHub Developer Settings](https://github.com/settings/developers)
 2. 点击 "OAuth Apps"，然后点击 "New OAuth App"
 3. 填写应用信息：
-   - Application name: MarkEdit Web Editor
+   - Application name: MarkEdit
    - Homepage URL: http://localhost:8080
    - Authorization callback URL: http://localhost:8080/callback
 4. 点击 "Register application"

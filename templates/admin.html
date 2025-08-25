@@ -15,30 +15,96 @@
         
         .tab-container {
             margin-bottom: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
         }
         
         .tab-nav {
-            display: flex;
-            border-bottom: 2px solid #e1e1e1;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px;
         }
         
         .tab-button {
-            padding: 10px 20px;
-            background: #f5f5f5;
-            border: none;
+            padding: 1rem;
+            background: white;
+            border: 2px solid #e9ecef;
             cursor: pointer;
-            border-radius: 5px 5px 0 0;
-            margin-right: 5px;
-            margin-bottom: 5px;
+            border-radius: 8px;
             font-size: 14px;
-            white-space: nowrap;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tab-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+        
+        .tab-button:hover::before {
+            left: 100%;
+        }
+        
+        .tab-button:hover {
+            border-color: #007bff;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+            transform: translateY(-2px);
         }
         
         .tab-button.active {
-            background: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            border-color: #667eea;
+            box-shadow: 0 6px 20px rgba(102,126,234,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .tab-button.active:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102,126,234,0.4);
+        }
+        
+        .tab-icon {
+            font-size: 1.5rem;
+            opacity: 0.8;
+        }
+        
+        .tab-button.active .tab-icon {
+            opacity: 1;
+        }
+        
+        .tab-label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .tab-desc {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            font-weight: 400;
+        }
+        
+        .tab-button.active .tab-desc {
+            opacity: 0.9;
         }
         
         .tab-content {
@@ -131,21 +197,39 @@
         <!-- 抽屉式菜单 -->
         <div id="admin-drawer" class="drawer">
             <div class="drawer-header">
-                <h2>导航菜单</h2>
-                <button id="close-drawer-btn" class="btn-secondary">关闭</button>
+                <h2><i class="icon-menu">☰</i> 导航菜单</h2>
+                <button id="close-drawer-btn" class="btn-secondary">✕</button>
             </div>
             <div class="drawer-content">
-                <ul>
-                    <li><a href="/">返回首页</a></li>
-                    <li><a href="/dashboard" class="current-page">{% if permissions.has_admin_access %}工作面板{% else %}用户面板{% endif %}</a></li>
-                    {% if permissions.has_admin_access %}
-                    <li><a href="/admin">系统管理</a></li>
-                    <li><a href="/admin/role-permission">角色权限管理</a></li>
-                    {% endif %}
-                    <li><a href="/myaccount">个人设置</a></li>
-                    <li><a href="/redoc" target="_blank">API 文档</a></li>
-                    <li><a href="/logout">登出</a></li>
-                </ul>
+                <!-- 主要功能区 -->
+                <div class="menu-section">
+                    <h4 class="menu-section-title">主要功能</h4>
+                    <ul class="menu-list">
+                        <li><a href="/" class="menu-item"><i class="icon">🏠</i>返回首页</a></li>
+                        <li><a href="/dashboard" class="menu-item current-page"><i class="icon">📊</i>{% if permissions.has_admin_access %}工作面板{% else %}用户面板{% endif %}</a></li>
+                        <li><a href="/myaccount" class="menu-item"><i class="icon">👤</i>个人设置</a></li>
+                    </ul>
+                </div>
+                
+                {% if permissions.has_admin_access %}
+                <!-- 管理功能区 -->
+                <div class="menu-section">
+                    <h4 class="menu-section-title">系统管理</h4>
+                    <ul class="menu-list">
+                        <li><a href="/admin" class="menu-item"><i class="icon">⚙️</i>系统管理</a></li>
+                        <li><a href="/admin/role-permission" class="menu-item"><i class="icon">🔐</i>角色权限管理</a></li>
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- 其他工具 -->
+                <div class="menu-section">
+                    <h4 class="menu-section-title">其他工具</h4>
+                    <ul class="menu-list">
+                        <li><a href="/redoc" target="_blank" class="menu-item"><i class="icon">📋</i>API 文档</a></li>
+                        <li><a href="/logout" class="menu-item logout-item"><i class="icon">🚪</i>登出</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
         
@@ -161,23 +245,43 @@
             </div>
             {% endif %}
             
-            <!-- 选项卡导航 -->
+            <!-- 功能导航卡片 -->
             <div class="tab-container">
                 <div class="tab-nav">
                     {% if permissions.has_content_edit %}
-                    <button class="tab-button active" data-tab="content">内容管理</button>
+                    <button class="tab-button active" data-tab="content">
+                        <i class="tab-icon">📝</i>
+                        <span class="tab-label">内容管理</span>
+                        <span class="tab-desc">章节编辑</span>
+                    </button>
                     {% endif %}
                     {% if permissions.has_build_epub or permissions.has_build_pdf %}
-                    <button class="tab-button{% if not permissions.has_content_edit %} active{% endif %}" data-tab="build">图书生成</button>
+                    <button class="tab-button{% if not permissions.has_content_edit %} active{% endif %}" data-tab="build">
+                        <i class="tab-icon">📚</i>
+                        <span class="tab-label">图书生成</span>
+                        <span class="tab-desc">EPUB/PDF</span>
+                    </button>
                     {% endif %}
                     {% if permissions.has_system_config %}
-                    <button class="tab-button{% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf) %} active{% endif %}" data-tab="system">系统管理</button>
+                    <button class="tab-button{% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf) %} active{% endif %}" data-tab="system">
+                        <i class="tab-icon">🔧</i>
+                        <span class="tab-label">系统管理</span>
+                        <span class="tab-desc">文件管理</span>
+                    </button>
                     {% endif %}
                     {% if permissions.has_epub_conversion %}
-                    <button class="tab-button{% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf or permissions.has_system_config) %} active{% endif %}" data-tab="conversion">格式转换</button>
+                    <button class="tab-button{% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf or permissions.has_system_config) %} active{% endif %}" data-tab="conversion">
+                        <i class="tab-icon">🔄</i>
+                        <span class="tab-label">格式转换</span>
+                        <span class="tab-desc">EPUB转换</span>
+                    </button>
                     {% endif %}
                     {% if permissions.has_manual_backup %}
-                    <button class="tab-button{% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf or permissions.has_system_config or permissions.has_epub_conversion) %} active{% endif %}" data-tab="backup">备份管理</button>
+                    <button class="tab-button{% if not (permissions.has_content_edit or permissions.has_build_epub or permissions.has_build_pdf or permissions.has_system_config or permissions.has_epub_conversion) %} active{% endif %}" data-tab="backup">
+                        <i class="tab-icon">💾</i>
+                        <span class="tab-label">备份管理</span>
+                        <span class="tab-desc">数据备份</span>
+                    </button>
                     {% endif %}
                 </div>
                 
@@ -207,13 +311,14 @@
                         <h2>图书生成</h2>
                         <div class="btn-group">
                             {% if permissions.has_build_epub and permissions.has_build_pdf %}
-                            <button type="button" id="build-all-btn" class="btn-primary">生成所有格式 (EPUB & PDF)</button>
+                            <button type="button" id="build-all-btn" class="btn-primary">生成所有格式 (EPUB & 2个PDF)</button>
                             {% endif %}
                             {% if permissions.has_build_epub %}
                             <button type="button" id="build-epub-btn" class="btn-secondary">生成 EPUB 格式</button>
                             {% endif %}
                             {% if permissions.has_build_pdf %}
-                            <button type="button" id="build-pdf-btn" class="btn-secondary">生成 PDF 格式</button>
+                            <button type="button" id="build-pdf-btn" class="btn-secondary">生成 PDF 格式 (Pandoc)</button>
+                            <button type="button" id="build-pdf-wkhtmltopdf-btn" class="btn-secondary">生成 PDF 格式 (wkhtmltopdf)</button>
                             {% endif %}
                         </div>
                     </div>

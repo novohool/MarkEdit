@@ -4,7 +4,7 @@ File operation controller for MarkEdit application.
 This module contains HTTP route handlers for file operations.
 """
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, UploadFile, File
 from fastapi.responses import Response
 
 from app.common import get_file_service, require_auth_session, SessionData
@@ -56,6 +56,16 @@ async def create_directory(dir_path: str, request: Request, session: SessionData
     """创建新目录"""
     return file_service.create_directory(dir_path, request)
 
+@file_router.post("/upload-file/{file_type}/{file_path:path}")
+async def upload_file(file_type: str, file_path: str, file: UploadFile = File(...), request: Request = None, session: SessionData = Depends(require_auth_session)):
+    """上传文件到指定目录和路径"""
+    return await file_service.upload_file(file_type, file_path, file, request, overwrite=False)
+
+@file_router.post("/upload-file/{file_type}/{file_path:path}/overwrite")
+async def upload_file_overwrite(file_type: str, file_path: str, file: UploadFile = File(...), request: Request = None, session: SessionData = Depends(require_auth_session)):
+    """上传文件到指定目录和路径（允许覆盖）"""
+    return await file_service.upload_file(file_type, file_path, file, request, overwrite=True)
+
 # 静态文件服务路由
 static_router = APIRouter(tags=["static"])
 
@@ -68,3 +78,13 @@ async def serve_user_static_file(file_path: str, request: Request, session: Sess
 async def serve_user_illustrations_file(file_path: str, request: Request, session: SessionData = Depends(require_auth_session)) -> Response:
     """动态提供用户特定的illustrations目录下的文件"""
     return file_service.serve_user_illustrations_file(file_path, request)
+
+@static_router.get("/EPUB/illustrations/{file_path:path}")
+async def serve_epub_illustrations_file(file_path: str, request: Request, session: SessionData = Depends(require_auth_session)) -> Response:
+    """动态提供EPUB内部illustrations目录下的文件（用于EPUB.js预览）"""
+    return file_service.serve_epub_resource_file(f"illustrations/{file_path}", request)
+
+@static_router.get("/EPUB/{resource_path:path}")
+async def serve_epub_resource_file(resource_path: str, request: Request, session: SessionData = Depends(require_auth_session)) -> Response:
+    """动态提供EPUB内部资源文件（用于EPUB.js预览）"""
+    return file_service.serve_epub_resource_file(resource_path, request)
