@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 首先绑定事件，确保交互功能可用
     bindDrawerEvents();
     
+    // 绑定标签页切换事件
+    bindTabEvents();
+    
     // 然后进行其他初始化
     initializeAdminPanel();
     
@@ -67,3 +70,28 @@ async function initializeAdminPanel() {
 
 // Default主题特定的其他函数可以在这里添加
 // 目前大部分功能都使用公共库实现
+
+// 标签页切换功能
+function bindTabEvents() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            
+            // 移除所有按钮的活跃状态
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            // 添加当前按钮的活跃状态
+            this.classList.add('active');
+            
+            // 隐藏所有标签页内容
+            tabContents.forEach(content => content.classList.remove('active'));
+            // 显示目标标签页内容
+            const targetContent = document.getElementById(targetTab + '-tab');
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
+    });
+}

@@ -9,8 +9,9 @@ import psutil
 import logging
 import platform
 import datetime
+import subprocess
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -429,3 +430,64 @@ def get_quick_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"获取快速统计失败: {str(e)}")
         return {"error": str(e)}
+
+def safe_subprocess_run(args: List[str], **kwargs) -> subprocess.CompletedProcess:
+    """
+    安全的subprocess.run包装函数，针对Windows系统中的编码问题进行了优化
+    
+    Args:
+        args: 命令参数列表
+        **kwargs: 其他subprocess.run参数
+    
+    Returns:
+        subprocess.CompletedProcess对象
+    """
+    # 默认设置，可以被传入的kwargs覆盖
+    default_kwargs = {
+        'encoding': 'utf-8',
+        'errors': 'replace',  # 遇到编码错误时用替换字符处理
+        'stdout': subprocess.PIPE,
+        'stderr': subprocess.PIPE,
+        'text': True
+    }
+    
+    # 合并默认参数和用户传入的参数
+    final_kwargs = {**default_kwargs, **kwargs}
+    
+    try:
+        logger.debug(f"正在执行命令: {' '.join(args)}")
+        result = subprocess.run(args, **final_kwargs)
+        logger.debug(f"命令执行完成，返回码: {result.returncode}")
+        return result
+    except UnicodeDecodeError as e:
+        logger.warning(f"遇到编码错误，尝试使用系统默认编码: {str(e)}")
+        # 如果仍然有编码错误，尝试不指定编码
+        fallback_kwargs = {**final_kwargs}
+        fallback_kwargs.pop('encoding', None)
+        fallback_kwargs['text'] = False
+        
+        result = subprocess.run(args, **fallback_kwargs)
+        
+        # 手动解码输出
+        if result.stdout:
+            try:
+                result.stdout = result.stdout.decode('utf-8', errors='replace')
+            except:
+                try:
+                    result.stdout = result.stdout.decode('gbk', errors='replace')
+                except:
+                    result.stdout = str(result.stdout)
+        
+        if result.stderr:
+            try:
+                result.stderr = result.stderr.decode('utf-8', errors='replace')
+            except:
+                try:
+                    result.stderr = result.stderr.decode('gbk', errors='replace')
+                except:
+                    result.stderr = str(result.stderr)
+        
+        return result
+    except Exception as e:
+        logger.error(f"执行命令失败: {str(e)}")
+        raise

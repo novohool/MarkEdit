@@ -14,6 +14,7 @@ import shutil
 import logging
 import yaml
 import tempfile
+import platform
 from pathlib import Path
 from typing import List, Dict, Any
 import datetime
@@ -30,6 +31,117 @@ class BuildService:
         
         # 确保构建目录存在
         self.build_dir.mkdir(parents=True, exist_ok=True)
+    
+    def _detect_and_set_fonts(self) -> List[str]:
+        """检测系统字体并设置字体变量"""
+        font_variables = []
+        
+        # 检测操作系统
+        is_windows = platform.system() == "Windows"
+        
+        # 优先字体列表
+        if is_windows:
+            # Windows默认字体优先级
+            main_fonts = ["Times New Roman", "Liberation Serif", "Computer Modern Roman"]
+            sans_fonts = ["Arial", "Liberation Sans", "Computer Modern Sans"]
+            mono_fonts = ["Consolas", "Courier New", "Liberation Mono", "Computer Modern Typewriter"]
+            cjk_fonts = ["Microsoft YaHei", "SimSun", "WenQuanYi Zen Hei", "Noto Sans CJK SC"]
+        else:
+            # Linux/Unix默认字体优先级
+            main_fonts = ["Liberation Serif", "Times New Roman", "Computer Modern Roman"]
+            sans_fonts = ["Liberation Sans", "Arial", "Computer Modern Sans"]
+            mono_fonts = ["Liberation Mono", "Consolas", "Courier New", "Computer Modern Typewriter"]
+            cjk_fonts = ["WenQuanYi Zen Hei", "Microsoft YaHei", "Noto Sans CJK SC"]
+        
+        # 检查并设置主字体
+        main_font = self._find_available_font(main_fonts)
+        if main_font:
+            font_variables.extend(["--variable", f"mainfont:{main_font}"])
+            logger.info(f"使用主字体: {main_font}")
+        
+        # 检查并设置无衬线字体
+        sans_font = self._find_available_font(sans_fonts)
+        if sans_font:
+            font_variables.extend(["--variable", f"sansfont:{sans_font}"])
+            logger.info(f"使用无衬线字体: {sans_font}")
+        
+        # 检查并设置等宽字体
+        mono_font = self._find_available_font(mono_fonts)
+        if mono_font:
+            font_variables.extend(["--variable", f"monofont:{mono_font}"])
+            logger.info(f"使用等宽字体: {mono_font}")
+        
+        # 检查并设置CJK字体
+        cjk_font = self._find_available_font(cjk_fonts)
+        if cjk_font:
+            font_variables.extend(["--variable", f"CJKmainfont:{cjk_font}"])
+            logger.info(f"使用CJK字体: {cjk_font}")
+        
+        return font_variables
+    
+    def _find_available_font(self, font_list: List[str]) -> str:
+        """从字体列表中找到第一个可用的字体"""
+        # 在Windows系统下，为了避免编码问题，直接使用常见字体
+        if platform.system() == "Windows":
+            return font_list[0] if font_list else "Computer Modern Roman"
+        
+        # 非Windows系统下使用原有的检查逻辑
+        for font in font_list:
+            if self._is_font_available(font):
+                return font
+        return font_list[0] if font_list else "Computer Modern Roman"  # 默认后备字体
+    
+    def _is_font_available(self, font_name: str) -> bool:
+        """检查字体是否可用"""
+        try:
+            # 检测操作系统并使用相应的字体检查方法
+            is_windows = platform.system() == "Windows"
+            
+            if is_windows:
+                # Windows系统使用PowerShell检查字体
+                ps_command = f'Get-ChildItem "$env:SystemRoot\\Fonts" | Where-Object {{$_.Name -like "*{font_name}*"}}'
+                result = subprocess.run(
+                    ["powershell", "-Command", ps_command],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    # 如果有输出说明找到了字体文件
+                    return bool(result.stdout.strip())
+                else:
+                    # PowerShell检查失败，假设字体可用
+                    logger.warning(f"PowerShell字体检查失败 {font_name}，假设可用")
+                    return True
+            else:
+                # Linux/Unix系统使用fc-list
+                result = subprocess.run(
+                    ["fc-list", ":", "family"],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    # 检查字体名称是否在输出中
+                    font_families = result.stdout.lower()
+                    return font_name.lower() in font_families
+                else:
+                    # 如果fc-list不可用，假设字体存在
+                    logger.warning(f"无法检查字体 {font_name} 的可用性，假设可用")
+                    return True
+                
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            logger.warning(f"字体检查失败 {font_name}: {e}，假设可用")
+            return True
+        except Exception as e:
+            logger.warning(f"字体检查出现异常 {font_name}: {e}，假设可用")
+            return True
     
     def load_metadata_config(self, src_dir: Path) -> Dict[str, Any]:
         """从metadata.yml文件加载元数据配置"""
@@ -116,8 +228,15 @@ class BuildService:
         
         # 复制并修改章节文件，调整图片路径
         for file_name in chapter_files:
-            src_path = chapters_dir / file_name
-            dest_path = temp_chapters_dir / file_name
+            # 处理文件路径，如果文件名包含chapters/前缀，需要相对于src_dir处理
+            if file_name.startswith('chapters/'):
+                # 去掉chapters/前缀，因为chapters_dir已经指向chapters目录
+                relative_file_name = file_name[9:]  # 去掉'chapters/'前缀
+                src_path = chapters_dir / relative_file_name
+                dest_path = temp_chapters_dir / relative_file_name
+            else:
+                src_path = chapters_dir / file_name
+                dest_path = temp_chapters_dir / file_name
             
             # 读取原始章节文件
             with open(src_path, 'r', encoding='utf-8') as f:
@@ -140,8 +259,15 @@ class BuildService:
         
         # 复制并修改章节文件，调整图片路径
         for file_name in chapter_files:
-            src_path = chapters_dir / file_name
-            dest_path = temp_chapters_dir / file_name
+            # 处理文件路径，如果文件名包含chapters/前缀，需要相对于src_dir处理
+            if file_name.startswith('chapters/'):
+                # 去掉chapters/前缀，因为chapters_dir已经指向chapters目录
+                relative_file_name = file_name[9:]  # 去掉'chapters/'前缀
+                src_path = chapters_dir / relative_file_name
+                dest_path = temp_chapters_dir / relative_file_name
+            else:
+                src_path = chapters_dir / file_name
+                dest_path = temp_chapters_dir / file_name
             
             # 读取原始章节文件
             with open(src_path, 'r', encoding='utf-8') as f:
@@ -164,8 +290,15 @@ class BuildService:
         
         # 复制并修改章节文件，调整图片路径
         for file_name in chapter_files:
-            src_path = chapters_dir / file_name
-            dest_path = temp_chapters_dir / file_name
+            # 处理文件路径，如果文件名包含chapters/前缀，需要相对于src_dir处理
+            if file_name.startswith('chapters/'):
+                # 去掉chapters/前缀，因为chapters_dir已经指向chapters目录
+                relative_file_name = file_name[9:]  # 去掉'chapters/'前缀
+                src_path = chapters_dir / relative_file_name
+                dest_path = temp_chapters_dir / relative_file_name
+            else:
+                src_path = chapters_dir / file_name
+                dest_path = temp_chapters_dir / file_name
             
             # 读取原始章节文件
             with open(src_path, 'r', encoding='utf-8') as f:
@@ -218,8 +351,14 @@ class BuildService:
             # 构建pandoc命令参数
             input_files = [metadata_file, book_file]
             
-            # 添加章节文件
-            input_files.extend([temp_chapters_dir / file for file in chapter_files])
+            # 添加章节文件，处理包含chapters/前缀的文件名
+            for file_name in chapter_files:
+                if file_name.startswith('chapters/'):
+                    # 去掉chapters/前缀，因为temp_chapters_dir已经在临时目录下
+                    relative_file_name = file_name[9:]  # 去掉'chapters/'前缀
+                    input_files.append(temp_chapters_dir / relative_file_name)
+                else:
+                    input_files.append(temp_chapters_dir / file_name)
             
             epub_output_path = build_dir / "katakana-dictionary.epub"
             
@@ -250,6 +389,8 @@ class BuildService:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                encoding='utf-8',
+                errors='replace',  # 遇到编码错误时用替换字符处理
                 timeout=300  # 5分钟超时
             )
             
@@ -334,14 +475,25 @@ class BuildService:
             # 构建pandoc命令参数
             input_files = [metadata_file, book_file]
             
-            # 添加章节文件
-            input_files.extend([temp_chapters_dir / file for file in chapter_files])
+            # 添加章节文件，处理包含chapters/前缀的文件名
+            for file_name in chapter_files:
+                if file_name.startswith('chapters/'):
+                    # 去掉chapters/前缀，因为temp_chapters_dir已经在临时目录下
+                    relative_file_name = file_name[9:]  # 去掉'chapters/'前缀
+                    input_files.append(temp_chapters_dir / relative_file_name)
+                else:
+                    input_files.append(temp_chapters_dir / file_name)
             
             pdf_output_path = build_dir / "katakana-dictionary.pdf"
             
             logger.info("开始生成PDF文件...")
             
-            # 使用pandoc生成PDF文件
+            # 使用pandoc生成PDF文件，使用自定义LaTeX模板支持中文日文
+            latex_template = src_dir / "templates" / "latex-template.tex"
+            
+            # 检测系统字体并设置字体变量
+            font_variables = self._detect_and_set_fonts()
+            
             pandoc_args = [
                 "pandoc"
             ] + [str(f) for f in input_files] + [
@@ -350,10 +502,16 @@ class BuildService:
                 "--to", "pdf",
                 "--toc",
                 "--toc-depth=2",
-                f"--css={css_file}",
                 "--pdf-engine=xelatex",
+                f"--template={latex_template}",
+                "--variable=documentclass:article",
+                "--variable=fontsize:12pt",
+                "--variable=linestretch:1.5",
                 f"--resource-path={build_dir}"
             ]
+            
+            # 添加字体变量
+            pandoc_args.extend(font_variables)
             
             # 构建完整的pandoc命令
             pandoc_command = " ".join(pandoc_args)
@@ -366,7 +524,10 @@ class BuildService:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=600  # 10分钟超时（PDF生成可能需要更长时间）
+                encoding='utf-8',
+                errors='replace',  # 遇到编码错误时用替换字符处理
+                timeout=600,  # 10分钟超时（PDF生成可能需要更长时间）
+                creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
             )
             
             # 检查返回码
@@ -482,8 +643,14 @@ class BuildService:
             # 构建pandoc命令参数
             input_files = [metadata_file, book_file]
             
-            # 添加章节文件
-            input_files.extend([temp_chapters_dir / file for file in chapter_files])
+            # 添加章节文件，处理包含chapters/前缀的文件名
+            for file_name in chapter_files:
+                if file_name.startswith('chapters/'):
+                    # 去掉chapters/前缀，因为temp_chapters_dir已经在临时目录下
+                    relative_file_name = file_name[9:]  # 去掉'chapters/'前缀
+                    input_files.append(temp_chapters_dir / relative_file_name)
+                else:
+                    input_files.append(temp_chapters_dir / file_name)
             
             html_output_path = build_dir / "katakana-dictionary.html"
             
@@ -516,6 +683,8 @@ class BuildService:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                encoding='utf-8',
+                errors='replace',  # 遇到编码错误时用替换字符处理
                 timeout=300  # 5分钟超时
             )
             

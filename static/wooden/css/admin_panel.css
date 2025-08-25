@@ -7,6 +7,100 @@
     padding: 20px;
 }
 
+/* 标签页样式 */
+.tab-container {
+    margin-bottom: 20px;
+}
+
+.tab-nav {
+    display: flex;
+    border-bottom: 2px solid #deb887; /* 木质主题的棕色 */
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    background: #f0e6d2; /* 木质浅色背景 */
+    border: none;
+    cursor: pointer;
+    border-radius: 5px 5px 0 0;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    font-size: 14px;
+    white-space: nowrap;
+    color: #8b4513; /* 棕色文字 */
+    border: 1px solid #deb887;
+    border-bottom: none;
+}
+
+.tab-button.active {
+    background: #cd853f; /* 沙棕色活跃状态 */
+    color: white;
+    border-color: #cd853f;
+}
+
+.tab-content {
+    display: none;
+    padding: 20px;
+    border: 1px solid #deb887;
+    border-radius: 5px;
+    background: #faf7f2; /* 奶白色背景 */
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 数据表格样式 */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background: #faf7f2;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #deb887;
+}
+
+.data-table th {
+    background-color: #f0e6d2;
+    font-weight: bold;
+    color: #8b4513;
+}
+
+.data-table tr:hover {
+    background-color: #f0e6d2;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #8b4513;
+}
+
+.error {
+    background-color: #ffeaa7;
+    color: #8b4513;
+    padding: 10px;
+    border: 1px solid #deb887;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.success {
+    background-color: #d1f2a5;
+    color: #6b7d32;
+    padding: 10px;
+    border: 1px solid #a3c585;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
 .section {
     background: #f5f0e6; /* 木质主题的浅色背景 */
     border-radius: 8px;
@@ -174,6 +268,16 @@
 
 .drawer-content a:hover {
     background-color: #e6d7c3;
+}
+
+.drawer-content a.current-page {
+    background-color: #8b4513;
+    color: white;
+    font-weight: bold;
+}
+
+.drawer-content a.current-page:hover {
+    background-color: #a0522d;
 }
 
 .drawer-overlay {

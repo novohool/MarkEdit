@@ -9,7 +9,7 @@ ENV PYTHONPATH="/app"
 COPY . .
 RUN apt-get update && \
     apt-get install -y python3.12 python3.12-venv python3-pip python3-dev pandoc wkhtmltopdf build-essential zip unzip \
-    libssl-dev libffi-dev  fonts-wqy-zenhei fonts-wqy-microhei  xfonts-wqy fonts-takao-mincho fonts-takao-gothic language-pack-ja texlive-xetex && \
+    libssl-dev libffi-dev  fonts-wqy-zenhei fonts-wqy-microhei  xfonts-wqy fonts-takao-mincho fonts-takao-gothic language-pack-ja rsvg-convert texlive-xetex && \
     fc-cache -f -v && \
     python3.12 -m venv workspace  && \
     echo ". workspace/bin/activate" >> ~/.bashrc && \

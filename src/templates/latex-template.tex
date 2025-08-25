@@ -1,0 +1,93 @@
+% LaTeX模板 - 支持中文日文字体，避免hooks错误
+\documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$babel-lang$,$endif$$if(papersize)$$papersize$paper,$endif$$for(classoption)$$classoption$$sep$,$endfor$]{$if(documentclass)$$documentclass$$else$article$endif$}
+
+% 使用XeTeX引擎专用配置
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage[margin=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{longtable,booktabs}
+\usepackage{hyperref}
+
+% 设置西文字体
+$if(mainfont)$
+\setmainfont{$mainfont$}
+$else$
+\setmainfont{Times New Roman}
+$endif$
+
+$if(sansfont)$
+\setsansfont{$sansfont$}
+$else$
+\setsansfont{Arial}
+$endif$
+
+$if(monofont)$
+\setmonofont{$monofont$}
+$else$
+\setmonofont{Consolas}
+$endif$
+
+% 设置中文字体
+$if(CJKmainfont)$
+\setCJKmainfont{$CJKmainfont$}
+$else$
+\setCJKmainfont{Microsoft YaHei}
+$endif$
+
+% 设置超链接样式
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue,
+    pdfborder={0 0 0}
+}
+
+% 图片设置
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+
+% 定义pandoc使用的命令
+\providecommand{\pandocbounded}[1]{#1}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\passthrough}[1]{#1}
+
+% 标题信息
+$if(title)$
+\title{$title$}
+$endif$
+$if(author)$
+\author{$for(author)$$author$$sep$ \and $endfor$}
+$endif$
+$if(date)$
+\date{$date$}
+$endif$
+
+% 目录深度
+$if(toc-depth)$
+\setcounter{tocdepth}{$toc-depth$}
+$endif$
+
+% 行间距
+$if(linestretch)$
+\renewcommand{\baselinestretch}{$linestretch$}
+$endif$
+
+\begin{document}
+
+$if(title)$
+\maketitle
+$endif$
+
+$if(toc)$
+\tableofcontents
+\newpage
+$endif$
+
+$body$
+
+\end{document}

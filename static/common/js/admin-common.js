@@ -181,7 +181,7 @@ function renderUserList(users) {
         button.addEventListener('click', function() {
             const userId = this.getAttribute('data-id');
             const username = this.getAttribute('data-username');
-            showUserRoles(userId, username);
+            showUserRoles(userId, username, { useSectionView: true, useModal: false });
         });
     });
     
@@ -1081,9 +1081,26 @@ async function checkUserPermissions() {
 // 包括: showUserRoles, loadUserRoles, renderUserRoles
 
 function hideUserRoles() {
+    // 先尝试关闭模态框模式
     const modal = document.getElementById('user-roles-modal');
     if (modal) {
         modal.style.display = 'none';
+    }
+    
+    // 也关闭 section 视图模式（用于 admin_home.html）
+    const userRolesSection = document.getElementById('user-roles-section');
+    if (userRolesSection) {
+        userRolesSection.style.display = 'none';
+        
+        // 显示其他部分
+        const adminContainer = document.querySelector('.admin-container');
+        if (adminContainer) {
+            adminContainer.querySelectorAll('.section').forEach(section => {
+                if (section.id !== 'user-roles-section') {
+                    section.style.display = 'block';
+                }
+            });
+        }
     }
 }
 
@@ -1123,6 +1140,7 @@ async function assignRoleToUser() {
 
 // 角色权限管理函数
 function showRolePermissions(roleId, roleName) {
+    // 先尝试查找模态框模式
     const modal = document.getElementById('role-permissions-modal');
     if (modal) {
         modal.style.display = 'block';
@@ -1136,13 +1154,63 @@ function showRolePermissions(roleId, roleName) {
         
         // 加载角色权限信息
         loadRolePermissions(roleId);
+        // 加载可用权限列表
+        loadAvailablePermissions();
+    } else {
+        // 使用 section 视图模式（用于 admin_home.html）
+        const rolePermissionsSection = document.getElementById('role-permissions-section');
+        if (rolePermissionsSection) {
+            // 设置当前角色信息
+            const currentRoleNameElement = document.getElementById('current-role-name');
+            if (currentRoleNameElement) {
+                currentRoleNameElement.textContent = roleName;
+            }
+            
+            // 显示角色权限管理界面
+            rolePermissionsSection.style.display = 'block';
+            
+            // 隐藏其他部分
+            const adminContainer = document.querySelector('.admin-container');
+            if (adminContainer) {
+                adminContainer.querySelectorAll('.section').forEach(section => {
+                    if (section.id !== 'role-permissions-section') {
+                        section.style.display = 'none';
+                    }
+                });
+            }
+            
+            // 存储当前角色ID供后续使用
+            rolePermissionsSection.dataset.roleId = roleId;
+            
+            // 加载角色权限信息
+            loadRolePermissions(roleId);
+            // 加载可用权限列表
+            loadAvailablePermissions();
+        }
     }
 }
 
 function hideRolePermissions() {
+    // 先尝试关闭模态框模式
     const modal = document.getElementById('role-permissions-modal');
     if (modal) {
         modal.style.display = 'none';
+    }
+    
+    // 也关闭 section 视图模式（用于 admin_home.html）
+    const rolePermissionsSection = document.getElementById('role-permissions-section');
+    if (rolePermissionsSection) {
+        rolePermissionsSection.style.display = 'none';
+        
+        // 显示其他部分
+        const adminContainer = document.querySelector('.admin-container');
+        if (adminContainer) {
+            adminContainer.querySelectorAll('.section').forEach(section => {
+                if (section.id !== 'role-permissions-section') {
+                    section.style.display = 'block';
+                }
+            });
+        }
     }
 }
 
@@ -1159,6 +1227,32 @@ async function loadRolePermissions(roleId) {
     } catch (error) {
         console.error('加载角色权限失败:', error);
         showMessage('加载角色权限失败: ' + error.message, 'error');
+    }
+}
+
+// 加载可用权限列表到选择框
+async function loadAvailablePermissions() {
+    try {
+        const response = await fetch('/api/admin/permissions');
+        const result = await response.json();
+        
+        if (response.ok) {
+            const permissionSelect = document.getElementById('available-permissions-select');
+            if (permissionSelect) {
+                permissionSelect.innerHTML = '<option value="">请选择权限</option>';
+                result.permissions.forEach(permission => {
+                    const option = document.createElement('option');
+                    option.value = permission.id;
+                    option.textContent = `${permission.name} - ${permission.description || ''}`;
+                    permissionSelect.appendChild(option);
+                });
+            }
+        } else {
+            throw new Error(result.detail || '获取权限列表失败');
+        }
+    } catch (error) {
+        console.error('加载可用权限列表失败:', error);
+        showMessage('加载可用权限列表失败: ' + error.message, 'error');
     }
 }
 
@@ -1179,9 +1273,23 @@ function renderRolePermissions(permissions) {
 }
 
 async function assignPermissionToRole() {
+    // 先尝试从模态框模式获取角色ID
+    let roleId = null;
     const modal = document.getElementById('role-permissions-modal');
-    const roleId = modal ? modal.dataset.roleId : null;
-    const permissionSelect = document.getElementById('role-permission-select');
+    if (modal && modal.dataset.roleId) {
+        roleId = modal.dataset.roleId;
+    }
+    
+    // 如果模态框模式没有角色ID，尝试从 section 视图模式获取
+    if (!roleId) {
+        const rolePermissionsSection = document.getElementById('role-permissions-section');
+        if (rolePermissionsSection && rolePermissionsSection.dataset.roleId) {
+            roleId = rolePermissionsSection.dataset.roleId;
+        }
+    }
+    
+    // 获取选中的权限ID
+    const permissionSelect = document.getElementById('available-permissions-select');
     const permissionId = permissionSelect ? permissionSelect.value : null;
     
     if (!roleId || !permissionId) {

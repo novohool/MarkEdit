@@ -3,13 +3,16 @@
 // 此文件仅包含 Wooden 主题特有的逻辑（如有）
 
 // 如果需要 Wooden 主题特有的功能，请在此处添加
-// 管理员面板页面 - Default 主题
+// 管理员面板页面 - Wooden 主题
 // 使用公共函数库，避免代码重复
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
     // 首先绑定事件，确保交互功能可用
     bindDrawerEvents();
+    
+    // 绑定标签页切换事件
+    bindTabEvents();
     
     // 然后进行其他初始化
     initializeAdminPanel();
@@ -63,10 +66,31 @@ async function initializeAdminPanel() {
     }
 }
 
-// 绑定管理员面板特有的事件（已移至 admin-common.js）
-// function bindAdminPanelEvents() { ... }
+// Wooden主题特定的其他函数可以在这里添加
+// 目前大部分功能都使用公共库实现
 
-// 保存章节顺序已移至公共库
-
-// 重置章节顺序已移至公共库
+// 标签页切换功能
+function bindTabEvents() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            
+            // 移除所有按钮的活跃状态
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            // 添加当前按钮的活跃状态
+            this.classList.add('active');
+            
+            // 隐藏所有标签页内容
+            tabContents.forEach(content => content.classList.remove('active'));
+            // 显示目标标签页内容
+            const targetContent = document.getElementById(targetTab + '-tab');
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
+    });
+}
 
