@@ -1,0 +1,272 @@
+/* 木质主题的admin_panel.css文件 */
+/* 基于default主题的admin_panel.css，但采用木质主题的色彩和样式 */
+
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.section {
+    background: #f5f0e6; /* 木质主题的浅色背景 */
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(139, 69, 19, 0.1); /* 棕色阴影 */
+    border: 1px solid #d2b48c; /* 棕褐色边框 */
+}
+
+.section h2 {
+    margin-top: 0;
+    color: #8b4513; /* 棕色标题 */
+    border-bottom: 2px solid #cd853f; /* 沙棕色下边框 */
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #8b4513; /* 棕色标签 */
+}
+
+.form-group input, 
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #deb887; /* 浅棕色边框 */
+    border-radius: 4px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #faf7f2; /* 奶白色背景 */
+}
+
+.form-group textarea {
+    min-height: 100px;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.chapter-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.chapter-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #f0e6d2; /* 木质浅色背景 */
+    border-radius: 4px;
+    border: 1px solid #deb887;
+}
+
+.chapter-item.draggable {
+    cursor: move;
+}
+
+.chapter-item.draggable:hover {
+    background: #e6d7c3; /* 悬停时的深一点的木质色 */
+}
+
+.chapter-item .drag-handle {
+    margin-right: 10px;
+    cursor: move;
+    color: #a0522d; /* 棕褐色手柄 */
+}
+
+.chapter-item input {
+    flex: 1;
+    margin-right: 10px;
+    padding: 5px;
+    background-color: #faf7f2;
+    border: 1px solid #deb887;
+}
+
+.chapter-item .remove-chapter-btn {
+    margin-left: auto;
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+}
+
+.hidden {
+    display: none;
+}
+
+/* 抽屉式菜单样式 */
+.drawer {
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 300px;
+    height: 100%;
+    background-color: #f5f0e6; /* 木质背景 */
+    box-shadow: -2px 0 5px rgba(139, 69, 19, 0.2);
+    z-index: 1001;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    border-left: 2px solid #d2b48c;
+}
+
+.drawer.open {
+    right: 0;
+}
+
+.drawer-header {
+    padding: 1rem;
+    background-color: #8b4513; /* 深棕色头部 */
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.drawer-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: white;
+    border-bottom: none;
+}
+
+.drawer-content {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.drawer-content ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.drawer-content li {
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #deb887;
+}
+
+.drawer-content li:last-child {
+    border-bottom: none;
+}
+
+.drawer-content a {
+    text-decoration: none;
+    color: #8b4513;
+    font-size: 1rem;
+    display: block;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.drawer-content a:hover {
+    background-color: #e6d7c3;
+}
+
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(139, 69, 19, 0.5); /* 棕色遮罩 */
+    z-index: 1000;
+    display: none;
+}
+
+.drawer-overlay.open {
+    display: block;
+}
+
+/* 备份文件列表样式 */
+.backup-file-list {
+    border: 1px solid #deb887;
+    border-radius: 4px;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #faf7f2;
+}
+
+.backup-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px;
+    border-bottom: 1px solid #deb887;
+}
+
+.backup-file-item:last-child {
+    border-bottom: none;
+}
+
+.file-info {
+    flex: 1;
+}
+
+.file-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #8b4513;
+}
+
+.file-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 0.9em;
+    color: #a0522d;
+}
+
+.file-size, .file-date {
+    white-space: nowrap;
+}
+
+.backup-file-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-download {
+    background-color: #228b22; /* 森林绿 */
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-download:hover {
+    background-color: #1e7b1e;
+}
+
+.btn-delete {
+    background-color: #cd5c5c; /* 印第安红 */
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-delete:hover:not(:disabled) {
+    background-color: #b22222;
+}
+
+.btn-delete:disabled {
+    background-color: #d2b48c;
+    cursor: not-allowed;
+}

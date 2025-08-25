@@ -1,5 +1,6 @@
 node_modules
 .kilocode
+__pycache__
 */__pycache__
 build
 backups

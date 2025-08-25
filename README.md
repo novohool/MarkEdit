@@ -121,6 +121,16 @@ MarkEdit/
 
 要进行开发，可以直接修改`app/main.py`中的FastAPI应用，或者修改`static/js/main.js`中的前端JavaScript代码。
 
+## 管理员密码重置
+
+如果忘记了管理员密码，可以使用以下工具重置默认管理员账户(markedit)的密码：
+
+```
+python app/reset_admin_password.py
+```
+
+运行此工具将生成一个新的强密码并更新数据库中的管理员账户。工具会显示新生成的明文密码，请妥善保管并立即使用新密码登录系统。
+
 ## 许可证
 
 MIT

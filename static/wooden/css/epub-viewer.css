@@ -1,0 +1,68 @@
+/* 木质主题的epub-viewer.css文件 */
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0e6d2; /* 木质主题背景色 */
+}
+
+#viewer {
+    margin: 8px auto;
+    max-width: 1200px;
+    box-shadow: 0 0 8px rgba(139, 69, 19, 0.2); /* 棕色阴影 */
+    background-color: #faf7f2; /* 奶白色背景 */
+    border: 1px solid #d2b48c; /* 棕褐色边框 */
+}
+
+#toc {
+    display: block;
+    margin: 20px auto;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #deb887; /* 浅棕色边框 */
+    border-radius: 4px;
+    max-width: 800px;
+    background-color: #f5f0e6; /* 木质浅色背景 */
+    color: #8b4513; /* 棕色文字 */
+}
+
+.arrow {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 36px;
+    color: #8b4513; /* 棕色箭头 */
+    text-decoration: none;
+    padding: 10px;
+    background-color: rgba(245, 240, 230, 0.9); /* 木质半透明背景 */
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(139, 69, 19, 0.3); /* 棕色阴影 */
+    z-index: 1000;
+    border: 2px solid #d2b48c; /* 棕褐色边框 */
+}
+
+#prev {
+    left: 20px;
+}
+
+#next {
+    right: 20px;
+}
+
+.arrow:hover {
+    background-color: rgba(222, 184, 135, 0.9); /* 悬停时的浅棕色 */
+    color: #654321; /* 深棕色 */
+}
+
+.spreads {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.single {
+    display: block;
+    margin: 0 auto;
+}

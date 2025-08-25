@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MarkEdit Web Editor</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/default/css/style.css" id="theme-link">
     <!-- 引入Marked.js库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- 引入CodeMirror代码编辑器库 -->
@@ -29,13 +29,21 @@
         <header>
             <h1>MarkEdit Web Editor</h1>
             <div class="header-buttons">
+                <select id="theme-selector" class="btn-secondary">
+                    <option value="default">默认主题</option>
+                    <option value="wooden">木质主题</option>
+                </select>
+                <button id="myaccount-btn" class="btn-secondary">用户面板</button>
+{% if has_admin_access %}
                 <button id="admin-menu-btn" class="btn-secondary">管理</button>
+{% endif %}
                 <button id="build-all-btn" class="btn-primary">生成所有格式</button>
-                <button id="build-epub-btn" class="btn-secondary">生成 EPUB</button>
-                <button id="build-pdf-btn" class="btn-secondary">生成 PDF</button>
+<button id="build-epub-btn" class="btn-secondary">生成 EPUB</button>
+<button id="build-pdf-btn" class="btn-secondary">生成 PDF</button>
             </div>
         </header>
         
+{% if has_admin_access %}
         <!-- 抽屉式菜单 -->
         <div id="admin-drawer" class="drawer">
             <div class="drawer-header">
@@ -44,12 +52,75 @@
             </div>
             <div class="drawer-content">
                 <ul>
-                    <li><a href="/admin" target="_blank">管理面板</a></li>
+                    <li><a href="/dashboard" target="_blank">管理面板</a></li>
+                    <li><a href="#" id="drawer-myaccount-link">用户面板</a></li>
+                    <li><a href="/logout">登出</a></li>
                 </ul>
             </div>
         </div>
+{% endif %}
         
         <div id="drawer-overlay" class="drawer-overlay"></div>
+        
+        <!-- 用户面板下拉菜单 -->
+        <div id="user-panel-drawer" class="drawer user-panel-drawer">
+            <div class="drawer-header">
+                <h2>用户面板</h2>
+                <button id="close-user-panel-btn" class="btn-secondary">关闭</button>
+            </div>
+            <div class="drawer-content">
+                <!-- 用户信息 -->
+                <div class="section">
+                    <h3>用户信息</h3>
+                    <div class="user-info">
+                        <div class="user-info-item">
+                            <div class="user-info-label">用户名:</div>
+                            <div class="user-info-value" id="user-panel-username">-</div>
+                        </div>
+                        <div class="user-info-item">
+                            <div class="user-info-label">注册时间:</div>
+                            <div class="user-info-value" id="user-panel-created-at">-</div>
+                        </div>
+                        <div class="user-info-item">
+                            <div class="user-info-label">最后登录:</div>
+                            <div class="user-info-value" id="user-panel-login-time">-</div>
+                        </div>
+                        <div class="user-info-item">
+                            <div class="user-info-label">当前主题:</div>
+                            <div class="user-info-value" id="user-panel-current-theme">-</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 主题设置 -->
+                <div class="section">
+                    <h3>主题设置</h3>
+                    <div class="form-group">
+                        <label for="user-panel-theme-selector">选择主题:</label>
+                        <select id="user-panel-theme-selector">
+                            <option value="default">默认主题</option>
+                            <option value="wooden">木质主题</option>
+                        </select>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" id="user-panel-save-theme-btn" class="btn-primary">保存主题设置</button>
+                    </div>
+                </div>
+                
+                <!-- LLM配置 -->
+                <div class="section">
+                    <h3>自定义LLM配置</h3>
+                    <div class="form-group">
+                        <label for="user-panel-llm-config">LLM配置 (JSON格式):</label>
+                        <textarea id="user-panel-llm-config" placeholder='{"model": "gpt-4", "api_key": "your-api-key"}'></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" id="user-panel-save-llm-config-btn" class="btn-primary">保存LLM配置</button>
+                        <button type="button" id="user-panel-reset-llm-config-btn" class="btn-secondary">重置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div class="main-content">
             <div class="sidebar">
@@ -80,6 +151,10 @@
         </div>
     </div>
     
-    <script src="/static/js/main.js"></script>
+    <!-- 引入公共JavaScript函数库 -->
+    <script src="/static/common/js/common.js"></script>
+    <script src="/static/common/js/main-shared.js"></script>
+    <script src="/static/{{ theme }}/js/main.js" id="theme-script"></script>
+    <script src="/static/{{ theme }}/js/index.js"></script>
 </body>
 </html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的账户</title>
+    <link rel="stylesheet" href="/static/{{ theme }}/css/style.css" id="theme-link">
+    <link rel="stylesheet" href="/static/{{ theme }}/css/admin.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>我的账户</h1>
+            <div class="header-buttons">
+                <select id="theme-selector" class="btn-secondary">
+                    <option value="default">默认主题</option>
+                    <option value="wooden">木质主题</option>
+                </select>
+                <button id="back-btn" class="btn-secondary" onclick="window.history.back()">返回</button>
+            </div>
+        </header>
+        
+        <div class="admin-container">
+            <!-- 用户信息 -->
+            <div class="section">
+                <h2>用户信息</h2>
+                <div class="user-info">
+                    <div class="user-info-item">
+                        <div class="user-info-label">用户名:</div>
+                        <div class="user-info-value" id="username">-</div>
+                    </div>
+                    <div class="user-info-item">
+                        <div class="user-info-label">注册时间:</div>
+                        <div class="user-info-value" id="created-at">-</div>
+                    </div>
+                    <div class="user-info-item">
+                        <div class="user-info-label">最后登录:</div>
+                        <div class="user-info-value" id="login-time">-</div>
+                    </div>
+                    <div class="user-info-item">
+                        <div class="user-info-label">当前主题:</div>
+                        <div class="user-info-value" id="current-theme">-</div>
+                    </div>
+                    <div class="user-info-item">
+                        <div class="user-info-label">用户角色:</div>
+                        <div class="user-info-value" id="user-role">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 主题设置 -->
+            <div class="section">
+                <h2>主题设置</h2>
+                <div class="form-group">
+                    <label for="user-theme-selector">选择主题:</label>
+                    <select id="user-theme-selector">
+                        <option value="default">默认主题</option>
+                        <option value="wooden">木质主题</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button type="button" id="save-theme-btn" class="btn-primary">保存主题设置</button>
+                </div>
+            </div>
+            
+            <!-- LLM配置 -->
+            <div class="section">
+                <h2>自定义LLM配置</h2>
+                <div class="form-group">
+                    <label for="llm-config">LLM配置 (JSON格式):</label>
+                    <textarea id="llm-config" placeholder='{"model": "gpt-4", "api_key": "your-api-key"}'></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="button" id="save-llm-config-btn" class="btn-primary">保存LLM配置</button>
+                    <button type="button" id="reset-llm-config-btn" class="btn-secondary">重置</button>
+                </div>
+            </div>
+            
+            <!-- 操作日志 -->
+            <div class="section">
+                <h2>最近操作</h2>
+                <div id="recent-activities">
+                    <p>暂无操作记录</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 引入公共JavaScript函数库 -->
+    <script src="/static/common/js/common.js"></script>
+    <script src="/static/{{ theme }}/js/admin.js"></script>
+    <script>
+        // 页面加载完成后，获取用户信息
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserInfo();
+            setupThemeSelector();
+            setupFormHandlers();
+        });
+        
+        function loadUserInfo() {
+            fetch('/api/user/info')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('username').textContent = data.username || '-';
+                    document.getElementById('created-at').textContent = data.created_at ? new Date(data.created_at).toLocaleString() : '-';
+                    document.getElementById('login-time').textContent = data.login_time ? new Date(data.login_time).toLocaleString() : '-';
+                    document.getElementById('current-theme').textContent = data.theme || 'default';
+                    document.getElementById('user-role').textContent = data.role || 'user';
+                    
+                    // 设置主题选择器的当前值
+                    document.getElementById('user-theme-selector').value = data.theme || 'default';
+                    
+                    // 设置LLM配置
+                    const llmConfig = document.getElementById('llm-config');
+                    try {
+                        const config = JSON.parse(data.llm_config || '{}');
+                        llmConfig.value = JSON.stringify(config, null, 2);
+                    } catch (e) {
+                        llmConfig.value = data.llm_config || '{}';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取用户信息失败:', error);
+                });
+        }
+        
+        function setupThemeSelector() {
+            const themeSelector = document.getElementById('user-theme-selector');
+            themeSelector.addEventListener('change', function() {
+                // 立即切换主题预览
+                const selectedTheme = this.value;
+                document.getElementById('theme-link').href = `/static/${selectedTheme}/css/style.css`;
+            });
+        }
+        
+        function setupFormHandlers() {
+            // 保存主题设置
+            document.getElementById('save-theme-btn').addEventListener('click', function() {
+                const selectedTheme = document.getElementById('user-theme-selector').value;
+                fetch('/api/user/theme', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({theme: selectedTheme})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert('主题设置保存成功！');
+                        document.getElementById('current-theme').textContent = selectedTheme;
+                    }
+                })
+                .catch(error => {
+                    console.error('保存主题设置失败:', error);
+                    alert('保存主题设置失败！');
+                });
+            });
+            
+            // 保存LLM配置
+            document.getElementById('save-llm-config-btn').addEventListener('click', function() {
+                const llmConfig = document.getElementById('llm-config').value;
+                
+                // 验证JSON格式
+                try {
+                    JSON.parse(llmConfig);
+                } catch (e) {
+                    alert('请输入有效的JSON格式配置！');
+                    return;
+                }
+                
+                fetch('/api/user/llm-config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({llm_config: llmConfig})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert('LLM配置保存成功！');
+                    }
+                })
+                .catch(error => {
+                    console.error('保存LLM配置失败:', error);
+                    alert('保存LLM配置失败！');
+                });
+            });
+            
+            // 重置LLM配置
+            document.getElementById('reset-llm-config-btn').addEventListener('click', function() {
+                if (confirm('确定要重置LLM配置吗？')) {
+                    document.getElementById('llm-config').value = '{}';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

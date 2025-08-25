@@ -12,7 +12,7 @@ SQL
 # 忽略 README.md 文件
 README.md
 helm
-*/__pycache__
+__pycache__
 node_modules
 .kilocode
 */__pycache__

@@ -749,3 +749,167 @@ code[class*="language-"] {
 .context-menu-item.disabled:hover {
     background-color: transparent;
 }
+
+/* 用户面板样式 */
+.myaccount-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+}
+
+.myaccount-container .section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+}
+
+.myaccount-container .section h2 {
+    margin-top: 0;
+    color: #343a40;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.user-info-item {
+    display: flex;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.user-info-label {
+    font-weight: bold;
+    width: 120px;
+    color: #495057;
+}
+
+.user-info-value {
+    flex: 1;
+    color: #212529;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #495057;
+}
+
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 16px;
+}
+
+.form-group textarea {
+    min-height: 200px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    resize: vertical;
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.myaccount-container .drawer-content a {
+    color: #007bff;
+}
+
+.myaccount-container .drawer-content a:hover {
+    color: #0056b3;
+}
+
+/* 用户面板下拉菜单样式 */
+.user-panel-drawer .section {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+}
+
+.user-panel-drawer .section h3 {
+    margin-top: 0;
+    color: #343a40;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.user-panel-drawer .user-info-item {
+    display: flex;
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.user-panel-drawer .user-info-label {
+    font-weight: bold;
+    width: 100px;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.user-panel-drawer .user-info-value {
+    flex: 1;
+    color: #212529;
+    font-size: 0.9rem;
+}
+
+.user-panel-drawer .form-group {
+    margin-bottom: 15px;
+}
+
+.user-panel-drawer .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.user-panel-drawer .form-group select,
+.user-panel-drawer .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+}
+
+.user-panel-drawer .form-group textarea {
+    min-height: 100px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    resize: vertical;
+}
+
+.user-panel-drawer .btn-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.user-panel-drawer .btn-group .btn-primary,
+.user-panel-drawer .btn-group .btn-secondary {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+}

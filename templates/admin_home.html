@@ -1,0 +1,324 @@
+<![CDATA[<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员首页</title>
+    <link rel="stylesheet" href="/static/{{ theme }}/css/style.css">
+    <link rel="stylesheet" href="/static/{{ theme }}/css/admin.css">
+    <!-- 引入公共JavaScript函数库 -->
+    <script src="/static/common/js/common.js"></script>
+    <script src="/static/common/js/admin-common.js"></script>
+    <script src="/static/{{ theme }}/js/admin.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>管理员首页</h1>
+            <div class="header-buttons">
+                <button id="admin-menu-btn" class="btn-secondary">菜单</button>
+            </div>
+        </header>
+        
+        <!-- 抽屉式菜单 -->
+        <div id="admin-drawer" class="drawer">
+            <div class="drawer-header">
+                <h2>导航菜单</h2>
+                <button id="close-drawer-btn" class="btn-secondary">关闭</button>
+            </div>
+            <div class="drawer-content">
+                <ul>
+                    <li><a href="/">返回首页</a></li>
+                    <li><a href="/dashboard">管理面板</a></li>
+                    <li><a href="/redoc" target="_blank">API 文档</a></li>
+                    <li><a href="/logout">登出</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="drawer-overlay" class="drawer-overlay"></div>
+        
+        <div class="admin-container">
+            <!-- 用户管理 -->
+            <div class="section">
+                <h2>用户管理</h2>
+                <div class="btn-group">
+                    <button type="button" id="add-user-btn" class="btn-primary">添加用户</button>
+                </div>
+                
+                <!-- 添加/编辑用户表单 -->
+                <div id="user-form" class="user-form">
+                    <h3 id="form-title">添加新用户</h3>
+                    <form id="user-form-content">
+                        <input type="hidden" id="user-id">
+                        <div class="form-group">
+                            <label for="username">用户名:</label>
+                            <input type="text" id="username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">密码:</label>
+                            <input type="password" id="password" name="password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="theme">主题:</label>
+                            <select id="theme" name="theme">
+                                <option value="default">默认</option>
+                                <option value="wooden">木质</option>
+                            </select>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn-primary">保存</button>
+                            <button type="button" id="cancel-user-form" class="btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 用户列表 -->
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>创建时间</th>
+                            <th>最后登录时间</th>
+                            <th>主题</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-list">
+                        <!-- 用户将通过JavaScript动态添加 -->
+                    </tbody>
+                </table>
+                
+                <!-- 用户角色管理 -->
+                <div id="user-roles-section" class="section" style="display: none;">
+                    <h2>用户角色管理</h2>
+                    <h3>用户: <span id="current-user-name"></span></h3>
+                    <div class="btn-group">
+                        <select id="available-roles-select">
+                            <!-- 可分配的角色将通过JavaScript动态添加 -->
+                        </select>
+                        <button type="button" id="assign-role-btn" class="btn-primary">分配角色</button>
+                        <button type="button" id="close-user-roles-btn" class="btn-secondary">关闭</button>
+                    </div>
+                    
+                    <!-- 用户角色列表 -->
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>角色名称</th>
+                                <th>描述</th>
+                                <th>分配时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-roles-list">
+                            <!-- 用户角色将通过JavaScript动态添加 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 角色管理 -->
+            <div class="section">
+                <h2>角色管理</h2>
+                <div class="btn-group">
+                    <button type="button" id="add-role-btn" class="btn-primary">添加角色</button>
+                </div>
+                
+                <!-- 添加/编辑角色表单 -->
+                <div id="role-form" class="user-form">
+                    <h3 id="role-form-title">添加新角色</h3>
+                    <form id="role-form-content">
+                        <input type="hidden" id="role-id">
+                        <div class="form-group">
+                            <label for="role-name">角色名称:</label>
+                            <input type="text" id="role-name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="role-description">描述:</label>
+                            <textarea id="role-description" name="description"></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn-primary">保存</button>
+                            <button type="button" id="cancel-role-form" class="btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 角色列表 -->
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>角色名称</th>
+                            <th>描述</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="role-list">
+                        <!-- 角色将通过JavaScript动态添加 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 角色权限管理 -->
+            <div id="role-permissions-section" class="section" style="display: none;">
+                <h2>角色权限管理</h2>
+                <h3>角色: <span id="current-role-name"></span></h3>
+                <div class="btn-group">
+                    <select id="available-permissions-select">
+                        <!-- 可分配的权限将通过JavaScript动态添加 -->
+                    </select>
+                    <button type="button" id="assign-permission-btn" class="btn-primary">分配权限</button>
+                    <button type="button" id="close-role-permissions-btn" class="btn-secondary">关闭</button>
+                </div>
+                
+                <!-- 角色权限列表 -->
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                        <th>ID</th>
+                        <th>权限名称</th>
+                        <th>描述</th>
+                        <th>分配时间</th>
+                        <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="role-permissions-list">
+                        <!-- 角色权限将通过JavaScript动态添加 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 权限管理 -->
+            <div class="section">
+                <h2>权限管理</h2>
+                <div class="btn-group">
+                    <button type="button" id="add-permission-btn" class="btn-primary">添加权限</button>
+                </div>
+                
+                <!-- 添加/编辑权限表单 -->
+                <div id="permission-form" class="user-form">
+                    <h3 id="permission-form-title">添加新权限</h3>
+                    <form id="permission-form-content">
+                        <input type="hidden" id="permission-id">
+                        <div class="form-group">
+                            <label for="permission-name">权限名称:</label>
+                            <input type="text" id="permission-name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="permission-description">描述:</label>
+                            <textarea id="permission-description" name="description"></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn-primary">保存</button>
+                            <button type="button" id="cancel-permission-form" class="btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 权限列表 -->
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>权限名称</th>
+                            <th>描述</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="permission-list">
+                        <!-- 权限将通过JavaScript动态添加 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 构建脚本管理 -->
+            <div class="section">
+                <h2>章节顺序配置</h2>
+                <div class="form-group">
+                    <label>章节顺序</label>
+                    <ul id="chapters" class="chapter-list">
+                        <!-- 章节将通过JavaScript动态添加 -->
+                    </ul>
+                </div>
+                <div class="btn-group">
+                    <button type="button" id="save-chapters-btn" class="btn-primary">保存章节顺序</button>
+                    <button type="button" id="reset-chapters-btn" class="btn-secondary">重置</button>
+                </div>
+            </div>
+            
+            <!-- 图书生成 -->
+            <div class="section">
+                <h2>图书生成</h2>
+                <div class="btn-group">
+                    <button type="button" id="build-all-btn" class="btn-primary">生成所有格式 (EPUB & PDF)</button>
+                    <button type="button" id="build-epub-btn" class="btn-secondary">生成 EPUB 格式</button>
+                    <button type="button" id="build-pdf-btn" class="btn-secondary">生成 PDF 格式</button>
+                </div>
+            </div>
+            
+            <!-- Src目录管理 -->
+            <div class="section">
+                <h2>Src目录管理</h2>
+                <div class="form-group">
+                    <label for="src-upload">上传Src目录Zip包:</label>
+                    <input type="file" id="src-upload" accept=".zip" />
+                    <button type="button" id="upload-src-btn" class="btn-primary">上传</button>
+                </div>
+                <div class="btn-group">
+                    <button type="button" id="download-src-btn" class="btn-secondary">下载Src目录</button>
+                    <button type="button" id="reset-src-btn" class="btn-danger">重置Src目录</button>
+                </div>
+            </div>
+            
+            <!-- 备份文件管理 -->
+            <div class="section">
+                <h2>备份文件管理</h2>
+                <div class="btn-group">
+                    <button type="button" id="backup-src-btn" class="btn-primary">手动备份Src目录</button>
+                </div>
+                <div id="backup-files-container">
+                    <p>正在加载备份文件列表...</p>
+                </div>
+            </div>
+            
+            <!-- EPUB转Markdown -->
+            <div class="section">
+                <h2>EPUB转Markdown</h2>
+                <div class="form-group">
+                    <label for="epub-upload">上传EPUB文件:</label>
+                    <input type="file" id="epub-upload" accept=".epub" />
+                    <button type="button" id="convert-epub-btn" class="btn-primary">转换为Markdown</button>
+                </div>
+                <div id="conversion-result" class="hidden">
+                    <p id="conversion-message"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- EPUB转换结果弹窗 -->
+    <div id="conversion-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>EPUB转换完成</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>EPUB文件已成功转换为Markdown格式。</p>
+                <p>请选择您要执行的操作：</p>
+            </div>
+            <div class="modal-footer">
+                <button id="replace-src-btn" class="btn-primary">强制替换src</button>
+                <button id="download-btn" class="btn-secondary">下载</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
