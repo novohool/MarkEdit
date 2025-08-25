@@ -51,12 +51,46 @@ async def read_root(request: Request):
     })
 
 @main_router.get("/dashboard", response_class=HTMLResponse)
-async def read_admin(request: Request):
-    """仪表板页面"""
+async def read_dashboard(request: Request):
+    """仪表板页面 - 根据用户权限显示不同内容"""
+    from app.common import get_user_permissions, get_session_service, check_user_permission
+    
     theme = await get_user_theme_simple(request)
+    
+    # 获取用户会话和权限信息
+    user_permissions = set()
+    username = None
+    try:
+        session_service = get_session_service()
+        session = session_service.get_session(request)
+        if session.username:
+            username = session.username
+            user_permissions = set(await get_user_permissions(username))
+    except Exception:
+        # 如果获取权限失败，默认为空权限
+        pass
+    
+    # 检查各种功能权限
+    permissions = {
+        'has_admin_access': 'admin_access' in user_permissions or 'super_admin' in user_permissions,
+        'has_super_admin': 'super_admin' in user_permissions,
+        'has_content_edit': 'content.edit' in user_permissions,
+        'has_epub_conversion': 'epub_conversion' in user_permissions,
+        'has_manual_backup': 'manual_backup' in user_permissions,
+        'has_build_epub': 'build.epub' in user_permissions,
+        'has_build_pdf': 'build.pdf' in user_permissions,
+        'has_system_config': 'system.config' in user_permissions,
+        'has_user_management': 'user.list' in user_permissions,
+        'has_role_management': 'role.list' in user_permissions,
+        'has_permission_management': 'permission.list' in user_permissions
+    }
+    
     return templates.TemplateResponse("admin.html", {
         "request": request,
-        "theme": theme
+        "theme": theme,
+        "username": username,
+        "permissions": permissions,
+        "user_permissions": list(user_permissions)
     })
 
 @main_router.get("/admin/login", response_class=HTMLResponse)
