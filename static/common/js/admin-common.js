@@ -311,6 +311,49 @@ function bindAdminEventListeners() {
             const userId = e.target.getAttribute('data-id');
             resetPassword(userId);
         }
+        
+        // 角色编辑按钮
+        if (e.target.classList.contains('btn-edit-role')) {
+            const roleId = e.target.getAttribute('data-id');
+            const roleName = e.target.getAttribute('data-name');
+            const roleDescription = e.target.getAttribute('data-description');
+            showRoleForm({
+                id: roleId,
+                name: roleName,
+                description: roleDescription
+            });
+        }
+        
+        // 角色删除按钮
+        if (e.target.classList.contains('btn-delete-role')) {
+            const roleId = e.target.getAttribute('data-id');
+            deleteRole(roleId);
+        }
+        
+        // 管理权限按钮
+        if (e.target.classList.contains('btn-manage-permissions')) {
+            const roleId = e.target.getAttribute('data-id');
+            const roleName = e.target.getAttribute('data-name');
+            showRolePermissions(roleId, roleName);
+        }
+        
+        // 权限编辑按钮
+        if (e.target.classList.contains('btn-edit-permission')) {
+            const permissionId = e.target.getAttribute('data-id');
+            const permissionName = e.target.getAttribute('data-name');
+            const permissionDescription = e.target.getAttribute('data-description');
+            showPermissionForm({
+                id: permissionId,
+                name: permissionName,
+                description: permissionDescription
+            });
+        }
+        
+        // 权限删除按钮
+        if (e.target.classList.contains('btn-delete-permission')) {
+            const permissionId = e.target.getAttribute('data-id');
+            deletePermission(permissionId);
+        }
     });
 
     // 绑定用户角色管理相关按钮
@@ -507,6 +550,13 @@ function renderBackupList(backups) {
     if (!backupList) return;
     
     backupList.innerHTML = '';
+    
+    if (!backups || backups.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="4">暂无备份文件</td>';
+        backupList.appendChild(row);
+        return;
+    }
     
     backups.forEach(backup => {
         const row = document.createElement('tr');
@@ -721,9 +771,14 @@ function renderRoleList(roles) {
                 <button class="btn-action btn-manage-permissions" data-id="${role.id}" data-name="${role.name}">管理权限</button>
                 <button class="btn-action btn-delete-role" data-id="${role.id}">删除</button>
             </td>
-        `;
+        `;        
         roleList.appendChild(row);
     });
+    
+    // 重新设置权限控制（如果需要）
+    if (typeof setupPermissionBasedUI === 'function') {
+        setupPermissionBasedUI();
+    }
 }
 
 // 显示角色表单
@@ -816,6 +871,32 @@ async function saveRole() {
     } catch (error) {
         console.error('保存角色失败:', error);
         showMessage('保存角色失败: ' + error.message, 'error');
+    }
+}
+
+// 删除角色
+async function deleteRole(roleId) {
+    if (!confirm('确定要删除此角色吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/roles/${roleId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('角色删除成功', 'success');
+            // 重新加载角色列表
+            loadRoles();
+        } else {
+            throw new Error(result.detail || '删除角色失败');
+        }
+    } catch (error) {
+        console.error('删除角色失败:', error);
+        showMessage('删除角色失败: ' + error.message, 'error');
     }
 }
 
@@ -949,6 +1030,32 @@ async function savePermission() {
     } catch (error) {
         console.error('保存权限失败:', error);
         showMessage('保存权限失败: ' + error.message, 'error');
+    }
+}
+
+// 删除权限
+async function deletePermission(permissionId) {
+    if (!confirm('确定要删除此权限吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/permissions/${permissionId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('权限删除成功', 'success');
+            // 重新加载权限列表
+            loadPermissions();
+        } else {
+            throw new Error(result.detail || '删除权限失败');
+        }
+    } catch (error) {
+        console.error('删除权限失败:', error);
+        showMessage('删除权限失败: ' + error.message, 'error');
     }
 }
 
@@ -1167,19 +1274,40 @@ function bindAdminPanelEvents() {
     
     // 全局事件委托
     document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('download-backup-btn')) {
+        if (e.target.classList.contains('download-backup-btn') || e.target.classList.contains('btn-download')) {
             const filename = e.target.getAttribute('data-filename');
             downloadBackupFile(filename);
         }
         
-        if (e.target.classList.contains('delete-backup-btn')) {
+        if (e.target.classList.contains('delete-backup-btn') || e.target.classList.contains('btn-delete-backup')) {
             const filename = e.target.getAttribute('data-filename');
             deleteBackupFile(filename);
+        }
+        
+        if (e.target.classList.contains('btn-restore')) {
+            const filename = e.target.getAttribute('data-filename');
+            restoreBackupFile(filename);
         }
         
         if (e.target.classList.contains('remove-chapter-btn')) {
             const chapterItem = e.target.closest('.chapter-item');
             if (chapterItem) {
+                chapterItem.remove();
+            }
+        }
+        
+        // 章节编辑按钮
+        if (e.target.classList.contains('btn-edit-chapter')) {
+            const chapterItem = e.target.closest('.chapter-item');
+            if (chapterItem) {
+                editChapter(chapterItem);
+            }
+        }
+        
+        // 章节删除按钮
+        if (e.target.classList.contains('btn-delete-chapter')) {
+            const chapterItem = e.target.closest('.chapter-item');
+            if (chapterItem && confirm('确定要删除这个章节吗？')) {
                 chapterItem.remove();
             }
         }
@@ -1261,7 +1389,7 @@ async function createManualBackup() {
     try {
         showMessage('正在创建备份...', 'info');
         
-        const response = await fetch('/api/admin/backup/create', {
+        const response = await fetch('/api/admin/backup', {
             method: 'POST'
         });
         
@@ -1288,7 +1416,7 @@ async function downloadBackupFile(filename) {
         // 创建一个隐藏的iframe来触发下载
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
-        iframe.src = `/api/admin/backup/download/${encodeURIComponent(filename)}`;
+        iframe.src = `/api/admin/backup/${encodeURIComponent(filename)}`;
         document.body.appendChild(iframe);
         
         // 一段时间后移除iframe
@@ -1310,7 +1438,7 @@ async function deleteBackupFile(filename) {
     try {
         showMessage('正在删除备份文件...', 'info');
         
-        const response = await fetch(`/api/admin/backup/delete/${encodeURIComponent(filename)}`, {
+        const response = await fetch(`/api/admin/backup/${encodeURIComponent(filename)}`, {
             method: 'DELETE'
         });
         
@@ -1327,4 +1455,259 @@ async function deleteBackupFile(filename) {
         console.error('删除备份文件失败:', error);
         showMessage('删除备份文件失败: ' + error.message, 'error');
     }
+}
+
+// 权限检查函数
+async function checkUserPermissions() {
+    try {
+        const response = await fetch('/api/admin/check-permissions');
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('权限检查完成', 'success');
+            
+            // 显示权限信息
+            const permissionsContainer = document.getElementById('permissions-container');
+            if (permissionsContainer) {
+                let html = `
+                    <h4>用户信息</h4>
+                    <p><strong>用户名:</strong> ${result.username}</p>
+                    <p><strong>用户类型:</strong> ${result.user_type}</p>
+                    <p><strong>用户角色:</strong> ${result.roles ? result.roles.join(', ') : '无'}</p>
+                    
+                    <h4>权限列表</h4>
+                    <div class="permissions-grid">
+                `;
+                
+                for (const [permission, hasPermission] of Object.entries(result.permissions)) {
+                    const statusClass = hasPermission ? 'permission-granted' : 'permission-denied';
+                    const statusText = hasPermission ? '✓ 允许' : '✗ 拒绝';
+                    html += `
+                        <div class="permission-item ${statusClass}">
+                            <span class="permission-name">${permission}</span>
+                            <span class="permission-status">${statusText}</span>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+                permissionsContainer.innerHTML = html;
+            }
+        } else {
+            throw new Error(result.detail || '权限检查失败');
+        }
+    } catch (error) {
+        console.error('权限检查失败:', error);
+        showMessage('权限检查失败: ' + error.message, 'error');
+    }
+}
+
+// 下载Src目录
+async function downloadSrc() {
+    try {
+        console.log('开始下载Src目录');
+        showMessage('正在准备下载Src目录...', 'info');
+        
+        // 创建一个隐藏的iframe来触发下载
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = '/api/admin/download-src';
+        document.body.appendChild(iframe);
+        
+        console.log('已创建iframe并添加到页面');
+        
+        // 一段时间后移除iframe
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+            console.log('已移除iframe');
+        }, 1000);
+    } catch (error) {
+        console.error('下载Src目录失败:', error);
+        showMessage('下载Src目录失败: ' + error.message, 'error');
+    }
+}
+
+// 图书构建函数
+async function buildBook(buildType) {
+    try {
+        showMessage(`正在构建${buildType === 'build' ? '所有格式' : buildType.toUpperCase()}...`, 'info');
+        
+        const response = await fetch(`/api/admin/build/${buildType}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            if (result.status === 'success') {
+                showMessage(`${buildType === 'build' ? '所有格式' : buildType.toUpperCase()}构建成功`, 'success');
+            } else if (result.status === 'partial') {
+                showMessage(result.message || '部分格式构建成功', 'warning');
+            } else {
+                showMessage(result.message || '构建完成', 'info');
+            }
+        } else {
+            throw new Error(result.detail || '构建失败');
+        }
+    } catch (error) {
+        console.error(`${buildType}构建失败:`, error);
+        showMessage(`${buildType}构建失败: ` + error.message, 'error');
+    }
+}
+
+// 上传Src目录
+async function uploadSrc() {
+    const fileInput = document.getElementById('src-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showMessage('请选择一个文件', 'warning');
+        return;
+    }
+    
+    if (!file.name.endsWith('.zip')) {
+        showMessage('只允许上传.zip文件', 'error');
+        return;
+    }
+    
+    // 确认上传
+    if (!confirm('上传新的Src目录将会替换当前的Src目录，确定要继续吗？')) {
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        showMessage('正在上传Src目录...', 'info');
+        
+        const response = await fetch('/api/admin/upload-src', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('Src目录上传成功', 'success');
+            // 清空文件选择
+            fileInput.value = '';
+            
+            // 显示详细的上传结果信息
+            if (result.statistics) {
+                const stats = result.statistics;
+                const detailMessage = `上传完成！复制了 ${stats.files_copied} 个文件，创建了 ${stats.directories_created} 个目录`;
+                setTimeout(() => {
+                    showMessage(detailMessage, 'success');
+                }, 1000);
+            }
+        } else {
+            throw new Error(result.detail || '上传失败');
+        }
+    } catch (error) {
+        console.error('上传Src目录失败:', error);
+        showMessage('上传Src目录失败: ' + error.message, 'error');
+    }
+}
+
+// 重置Src目录
+async function resetSrc() {
+    // 确认重置
+    if (!confirm('确定要重置Src目录到默认状态吗？\n\n这将会：\n1. 自动备份当前的Src目录\n2. 删除当前的Src目录内容\n3. 从公共src目录复制默认文件')) {
+        console.log('用户取消了重置操作');
+        return;
+    }
+    
+    try {
+        console.log('开始重置Src目录');
+        showMessage('正在重置Src目录...', 'info');
+        
+        const response = await fetch('/api/admin/reset-src', {
+            method: 'POST'
+        });
+        
+        console.log('收到重置响应:', response);
+        
+        if (response.ok) {
+            const result = await response.json();
+            showMessage('Src目录重置成功', 'success');
+            console.log('Src目录重置成功:', result);
+            
+            // 显示详细的重置结果信息
+            if (result.statistics) {
+                const stats = result.statistics;
+                const detailMessage = `重置完成！复制了 ${stats.files_copied} 个文件，创建了 ${stats.directories_created} 个目录`;
+                setTimeout(() => {
+                    showMessage(detailMessage, 'success');
+                }, 1000);
+            }
+        } else {
+            const result = await response.json();
+            console.error('重置失败:', result);
+            throw new Error(result.detail || '重置失败');
+        }
+    } catch (error) {
+        console.error('重置Src目录失败:', error);
+        showMessage('重置Src目录失败: ' + error.message, 'error');
+    }
+}
+
+// 章节编辑功能
+function editChapter(chapterItem) {
+    const titleElement = chapterItem.querySelector('.chapter-title');
+    const fileElement = chapterItem.querySelector('.chapter-file');
+    
+    const currentTitle = titleElement.textContent;
+    const currentFile = fileElement.textContent;
+    
+    // 创建编辑对话框
+    const dialog = document.createElement('div');
+    dialog.className = 'chapter-edit-dialog';
+    dialog.innerHTML = `
+        <div class="dialog-overlay"></div>
+        <div class="dialog-content">
+            <h3>编辑章节</h3>
+            <form id="chapter-edit-form">
+                <div class="form-group">
+                    <label for="chapter-title-input">章节标题:</label>
+                    <input type="text" id="chapter-title-input" value="${currentTitle}" required>
+                </div>
+                <div class="form-group">
+                    <label for="chapter-file-input">文件名:</label>
+                    <input type="text" id="chapter-file-input" value="${currentFile}" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">保存</button>
+                    <button type="button" class="btn-secondary" onclick="this.closest('.chapter-edit-dialog').remove()">取消</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    // 添加到页面
+    document.body.appendChild(dialog);
+    
+    // 绑定事件
+    const form = dialog.querySelector('#chapter-edit-form');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const newTitle = document.getElementById('chapter-title-input').value.trim();
+        const newFile = document.getElementById('chapter-file-input').value.trim();
+        
+        if (newTitle && newFile) {
+            titleElement.textContent = newTitle;
+            fileElement.textContent = newFile;
+            dialog.remove();
+            showMessage('章节信息已更新，请点击保存按钮保存更改', 'info');
+        } else {
+            showMessage('章节标题和文件名不能为空', 'error');
+        }
+    });
+    
+    // 点击遮罩层关闭对话框
+    const overlay = dialog.querySelector('.dialog-overlay');
+    overlay.addEventListener('click', () => {
+        dialog.remove();
+    });
 }

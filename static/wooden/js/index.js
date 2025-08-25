@@ -38,6 +38,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // 添加dashboard按钮事件监听器
+    const dashboardBtn = document.getElementById('dashboard-btn');
+    if (dashboardBtn) {
+        dashboardBtn.addEventListener('click', function() {
+            // 跳转到dashboard页面
+            window.location.href = '/dashboard';
+        });
+    }
+    
     // 绑定抽屉菜单事件 - 已在main.js中通过bindEventListeners调用，避免重复绑定
     // bindDrawerEvents();
     

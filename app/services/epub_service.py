@@ -532,3 +532,233 @@ class EpubService:
                 "warnings": [],
                 "structure_info": {}
             }
+    
+    async def convert_epub_to_markdown(self, epub_file_path: str, output_dir: str = None) -> Dict[str, Any]:
+        """
+        将EPUB文件转换为Markdown格式
+        
+        Args:
+            epub_file_path: EPUB文件路径
+            output_dir: 输出目录，如果为None则使用临时目录
+            
+        Returns:
+            转换结果字典
+        """
+        try:
+            import tempfile
+            import shutil
+            from app.common import get_user_directory
+            
+            epub_path = Path(epub_file_path)
+            
+            if not epub_path.exists():
+                raise FileNotFoundError(f"EPUB文件不存在: {epub_file_path}")
+            
+            # 创建临时目录解压EPUB
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                extract_path = temp_path / "extracted"
+                
+                # 解压EPUB文件
+                logger.info(f"开始解压EPUB文件: {epub_path}")
+                with zipfile.ZipFile(epub_path, 'r') as zipf:
+                    zipf.extractall(extract_path)
+                
+                # 查找并解析content.opf文件
+                content_opf_files = list(extract_path.rglob("content.opf"))
+                if not content_opf_files:
+                    opf_files = list(extract_path.rglob("*.opf"))
+                    if not opf_files:
+                        raise ValueError("在EPUB文件中未找到.opf文件")
+                    content_opf_path = opf_files[0]
+                else:
+                    content_opf_path = content_opf_files[0]
+                
+                logger.info(f"找到OPF文件: {content_opf_path}")
+                opf_data = self.parse_content_opf(content_opf_path)
+                
+                # 解析NCX文件获取章节信息
+                chapter_config_data = None
+                ncx_href = opf_data.get('ncx_href')
+                if ncx_href:
+                    ncx_path = content_opf_path.parent / ncx_href
+                    if ncx_path.exists():
+                        logger.info(f"找到NCX文件: {ncx_path}")
+                        ncx_data = self.parse_ncx_file(ncx_path)
+                        chapter_config_data = self._convert_nav_map_to_chapter_config(ncx_data['nav_map'])
+                
+                # 确定输出目录
+                if output_dir:
+                    final_output_dir = Path(output_dir)
+                else:
+                    final_output_dir = temp_path / "converted"
+                
+                final_output_dir.mkdir(parents=True, exist_ok=True)
+                
+                # 创建markdown文件的输出目录
+                chapters_dir = final_output_dir / "chapters"
+                chapters_dir.mkdir(exist_ok=True)
+                
+                # 创建css目录并复制CSS文件
+                css_dir = final_output_dir / "css"
+                css_dir.mkdir(exist_ok=True)
+                
+                # 创建图片目录
+                images_dir = final_output_dir / "images"
+                images_dir.mkdir(exist_ok=True)
+                
+                # 处理manifest中的文件
+                manifest = opf_data.get('manifest', {})
+                spine = opf_data.get('spine', [])
+                
+                # 获取spine中的XHTML文件顺序
+                xhtml_files = []
+                for spine_item in spine:
+                    idref = spine_item.get('idref')
+                    if idref in manifest:
+                        item = manifest[idref]
+                        href = item.get('href')
+                        media_type = item.get('media_type')
+                        if media_type and 'html' in media_type and href:
+                            xhtml_file_path = content_opf_path.parent / href
+                            if xhtml_file_path.exists():
+                                xhtml_files.append({
+                                    'id': idref,
+                                    'path': xhtml_file_path,
+                                    'href': href,
+                                    'title': f'Chapter {len(xhtml_files) + 1}'
+                                })
+                
+                # 转换XHTML文件为Markdown
+                converted_files = []
+                for i, xhtml_file in enumerate(xhtml_files):
+                    try:
+                        # 使用pandoc转换XHTML到Markdown
+                        input_path = xhtml_file['path']
+                        output_filename = f"{i+1:02d}-{xhtml_file['id']}.md"
+                        output_path = chapters_dir / output_filename
+                        
+                        # 调用pandoc进行转换
+                        import subprocess
+                        pandoc_cmd = [
+                            'pandoc',
+                            str(input_path),
+                            '-f', 'html',
+                            '-t', 'markdown',
+                            '-o', str(output_path),
+                            '--wrap=none'
+                        ]
+                        
+                        result = subprocess.run(pandoc_cmd, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            converted_files.append({
+                                'original': xhtml_file['href'],
+                                'converted': output_filename,
+                                'title': xhtml_file['title']
+                            })
+                            logger.info(f"成功转换: {xhtml_file['href']} -> {output_filename}")
+                        else:
+                            logger.warning(f"转换失败: {xhtml_file['href']}, 错误: {result.stderr}")
+                            
+                    except Exception as e:
+                        logger.warning(f"转换文件失败 {xhtml_file['href']}: {str(e)}")
+                
+                # 复制CSS文件
+                css_files = []
+                for item_id, item in manifest.items():
+                    if item.get('media_type') == 'text/css':
+                        css_source = content_opf_path.parent / item['href']
+                        if css_source.exists():
+                            css_target = css_dir / Path(item['href']).name
+                            shutil.copy2(css_source, css_target)
+                            css_files.append(Path(item['href']).name)
+                            logger.info(f"复制CSS文件: {item['href']}")
+                
+                # 复制图片文件
+                image_files = []
+                for item_id, item in manifest.items():
+                    media_type = item.get('media_type', '')
+                    if 'image' in media_type:
+                        img_source = content_opf_path.parent / item['href']
+                        if img_source.exists():
+                            img_target = images_dir / Path(item['href']).name
+                            shutil.copy2(img_source, img_target)
+                            image_files.append(Path(item['href']).name)
+                            logger.info(f"复制图片文件: {item['href']}")
+                
+                # 生成元数据文件
+                metadata = opf_data.get('metadata', {})
+                metadata_content = f"""---
+title: "{metadata.get('title', 'Converted EPUB')}"
+author: "{metadata.get('creator', 'Unknown')}"
+language: "{metadata.get('language', 'en')}"
+---
+
+# {metadata.get('title', 'Converted EPUB')}
+
+> 作者: {metadata.get('creator', 'Unknown')}
+> 语言: {metadata.get('language', 'en')}
+> 转换日期: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+本文档由EPUB文件转换而来。
+"""
+                
+                # 写入metadata.yml文件
+                with open(final_output_dir / "metadata.yml", 'w', encoding='utf-8') as f:
+                    f.write(metadata_content)
+                
+                # 生成chapter-config.json文件
+                if chapter_config_data:
+                    # 更新章节文件名为实际转换的文件名
+                    for i, chapter in enumerate(chapter_config_data.get('chapters', [])):
+                        if i < len(converted_files):
+                            chapter['file'] = converted_files[i]['converted']
+                    
+                    with open(final_output_dir / "chapter-config.json", 'w', encoding='utf-8') as f:
+                        json.dump(chapter_config_data, f, ensure_ascii=False, indent=2)
+                
+                # 如果是临时目录，需要创建ZIP文件
+                if not output_dir:
+                    zip_path = temp_path / "converted.zip"
+                    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        # 将转换后的文件打包在src目录下
+                        for file_path in final_output_dir.rglob('*'):
+                            if file_path.is_file():
+                                # 计算相对路径，并在前面加上src/
+                                arc_name = "src" / file_path.relative_to(final_output_dir)
+                                zipf.write(file_path, arc_name)
+                    
+                    # 将ZIP文件移动到用户目录
+                    from app.common import get_user_directory
+                    # 这里需要获取当前用户，但为了简化，我们将ZIP文件保存在临时目录
+                    # 实际使用时会在controller中处理用户目录
+                    final_zip_path = zip_path
+                else:
+                    final_zip_path = None
+                
+                result = {
+                    "status": "success",
+                    "message": "EPUB转换为Markdown成功",
+                    "output_dir": str(final_output_dir),
+                    "converted_files": converted_files,
+                    "css_files": css_files,
+                    "image_files": image_files,
+                    "total_chapters": len(converted_files),
+                    "metadata": metadata
+                }
+                
+                if final_zip_path:
+                    result["zip_file"] = str(final_zip_path)
+                    result["zip_size"] = final_zip_path.stat().st_size
+                
+                if chapter_config_data:
+                    result["chapter_config"] = chapter_config_data
+                
+                return result
+                
+        except Exception as e:
+            logger.error(f"EPUB转换为Markdown失败: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"EPUB转换为Markdown失败: {str(e)}"
+            }

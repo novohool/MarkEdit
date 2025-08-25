@@ -260,3 +260,270 @@
     background-color: #bdc3c7;
     cursor: not-allowed;
 }
+
+/* 章节编辑对话框样式 */
+.chapter-edit-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chapter-edit-dialog .dialog-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.chapter-edit-dialog .dialog-content {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.chapter-edit-dialog h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.chapter-edit-dialog .form-group {
+    margin-bottom: 20px;
+}
+
+.chapter-edit-dialog .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.chapter-edit-dialog .form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+.chapter-edit-dialog .form-group input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.chapter-edit-dialog .form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.chapter-edit-dialog .btn-primary,
+.chapter-edit-dialog .btn-secondary {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+.chapter-edit-dialog .btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.chapter-edit-dialog .btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.chapter-edit-dialog .btn-secondary {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.chapter-edit-dialog .btn-secondary:hover {
+    background-color: #7f8c8d;
+}
+
+/* 章节项目样式优化 */
+.chapter-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.chapter-item:hover {
+    background: #e9ecef;
+    border-color: #bdc3c7;
+}
+
+.chapter-title {
+    font-weight: bold;
+    color: #2c3e50;
+    flex: 2;
+    margin-right: 15px;
+}
+
+.chapter-file {
+    color: #7f8c8d;
+    font-family: 'Courier New', monospace;
+    flex: 1;
+    margin-right: 15px;
+}
+
+.chapter-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-action {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+}
+
+.btn-edit-chapter {
+    background-color: #f39c12;
+    color: white;
+}
+
+.btn-edit-chapter:hover {
+    background-color: #e67e22;
+}
+
+.btn-delete-chapter {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-delete-chapter:hover {
+    background-color: #c0392b;
+}
+
+/* 备份文件表格样式 */
+.backup-files-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.backup-files-table th,
+.backup-files-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.backup-files-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.backup-files-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.backup-files-table .btn-action {
+    margin-right: 5px;
+}
+
+.btn-download {
+    background-color: #27ae60;
+    color: white;
+}
+
+.btn-download:hover {
+    background-color: #219653;
+}
+
+.btn-restore {
+    background-color: #f39c12;
+    color: white;
+}
+
+.btn-restore:hover {
+    background-color: #e67e22;
+}
+
+.btn-delete-backup {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-delete-backup:hover {
+    background-color: #c0392b;
+}
+
+/* 权限显示样式 */
+.permissions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.permission-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+}
+
+.permission-item.permission-granted {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.permission-item.permission-denied {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.permission-name {
+    font-weight: bold;
+    flex: 1;
+}
+
+.permission-status {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#permissions-container h4 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #2c3e50;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 5px;
+}

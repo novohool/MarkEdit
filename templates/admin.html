@@ -131,20 +131,21 @@
             <div class="section">
                 <h2>备份文件管理</h2>
                 <div id="backup-files-container">
-                    <p>正在加载备份文件列表...</p>
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- 权限管理 - 需要管理员权限 -->
-            {% if permissions.has_admin_access %}
-            <div class="section" id="permission-management-section">
-                <h2>权限管理</h2>
-                <div class="btn-group">
-                    <button type="button" id="check-permissions-btn" class="btn-primary">检查权限</button>
-                </div>
-                <div id="permissions-container">
-                    <p>正在加载权限信息...</p>
+                    <table class="backup-files-table">
+                        <thead>
+                            <tr>
+                                <th>文件名</th>
+                                <th>创建时间</th>
+                                <th>文件大小</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="backup-list">
+                            <tr>
+                                <td colspan="4">正在加载备份文件列表...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
             {% endif %}

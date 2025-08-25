@@ -192,6 +192,158 @@ async def download_backup(filename: str, request: Request):
         logger.error(f"下载备份失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"下载备份失败: {str(e)}")
 
+# Src目录管理相关路由
+@admin_router.post("/upload-src")
+@require_permission("system.config")
+async def upload_src_directory(file: UploadFile = File(...), request: Request = None):
+    """上传并替换用户的Src目录"""
+    try:
+        import tempfile
+        import zipfile
+        import shutil
+        from app.common import get_user_src_directory, get_user_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 验证文件类型
+        if not file.filename.endswith('.zip'):
+            raise HTTPException(status_code=400, detail="只允许上传.zip文件")
+        
+        # 获取用户特定的目录
+        user_src_dir = get_user_src_directory(session.username)
+        user_dir = get_user_directory(session.username)
+        
+        # 创建临时目录
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            zip_path = temp_path / "upload.zip"
+            extract_path = temp_path / "extracted"
+            
+            # 保存上传的文件
+            content = await file.read()
+            with open(zip_path, "wb") as f:
+                f.write(content)
+            
+            # 验证ZIP文件
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    # 检查ZIP文件完整性
+                    zip_ref.testzip()
+                    # 解压文件
+                    zip_ref.extractall(extract_path)
+            except zipfile.BadZipFile:
+                raise HTTPException(status_code=400, detail="无效的ZIP文件")
+            
+            # 先备份当前的Src目录
+            if user_src_dir.exists():
+                admin_service = get_admin_service_instance()
+                backup_result = await admin_service.create_backup(session.username)
+                logger.info(f"上传前已备份当前Src目录: {backup_result}")
+            
+            # 删除当前的Src目录内容
+            if user_src_dir.exists():
+                shutil.rmtree(user_src_dir)
+            
+            # 创建新的Src目录
+            user_src_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 复制解压的内容到Src目录
+            files_copied = 0
+            directories_created = 0
+            
+            # 查找解压后的src目录或直接使用解压的根目录
+            source_dir = extract_path
+            src_subdir = extract_path / "src"
+            if src_subdir.exists() and src_subdir.is_dir():
+                source_dir = src_subdir
+            
+            # 复制文件
+            for item in source_dir.rglob('*'):
+                if item.is_file():
+                    rel_path = item.relative_to(source_dir)
+                    dest_path = user_src_dir / rel_path
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(item, dest_path)
+                    files_copied += 1
+                elif item.is_dir():
+                    rel_path = item.relative_to(source_dir)
+                    dest_path = user_src_dir / rel_path
+                    dest_path.mkdir(parents=True, exist_ok=True)
+                    directories_created += 1
+        
+        logger.info(f"用户 {session.username} 成功上传了新的Src目录")
+        return {
+            "status": "success",
+            "message": "Src目录上传成功",
+            "statistics": {
+                "files_copied": files_copied,
+                "directories_created": directories_created
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"上传Src目录失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"上传失败: {str(e)}")
+
+@admin_router.get("/download-src")
+@require_permission("system.config")
+async def download_src_directory(request: Request):
+    """下载用户的Src目录为ZIP文件"""
+    try:
+        import zipfile
+        import tempfile
+        from app.common import get_user_src_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取用户特定的Src目录
+        user_src_dir = get_user_src_directory(session.username)
+        
+        if not user_src_dir.exists():
+            raise HTTPException(status_code=404, detail="Src目录不存在")
+        
+        # 创建临时ZIP文件
+        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
+            zip_path = temp_file.name
+        
+        try:
+            # 创建ZIP文件
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for file_path in user_src_dir.rglob('*'):
+                    if file_path.is_file():
+                        arc_name = f"src/{file_path.relative_to(user_src_dir)}"
+                        zipf.write(file_path, arc_name)
+            
+            # 生成下载文件名
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            download_filename = f"{session.username}_src_{timestamp}.zip"
+            
+            return FileResponse(
+                path=zip_path,
+                filename=download_filename,
+                media_type="application/zip"
+            )
+            
+        except Exception as e:
+            # 清理临时文件
+            Path(zip_path).unlink(missing_ok=True)
+            raise e
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"下载Src目录失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")
+
 # 用户Src目录重置相关路由
 @admin_router.post("/reset-src")
 @require_permission("manual_backup")
@@ -531,6 +683,91 @@ async def validate_epub_structure(file: UploadFile = File(...), request: Request
     except Exception as e:
         logger.error(f"验证EPUB结构失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"验证EPUB结构失败: {str(e)}")
+
+@admin_router.post("/epub/convert")
+@require_permission("epub_conversion")
+async def convert_epub_to_markdown(file: UploadFile = File(...), request: Request = None):
+    """将上传的EPUB文件转换为Markdown格式"""
+    try:
+        import tempfile
+        from app.common import get_user_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 保存上传的文件到临时位置
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.epub') as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # 获取用户特定的目录
+            user_dir = get_user_directory(session.username)
+            converted_dir = user_dir / "epub_converted"
+            converted_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 执行EPUB转换
+            epub_service = get_epub_service_instance()
+            result = await epub_service.convert_epub_to_markdown(temp_file_path, str(converted_dir))
+            
+            if result.get("status") == "success":
+                # 将转换结果打包为ZIP文件
+                import zipfile
+                zip_path = converted_dir / "converted.zip"
+                
+                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for file_path in converted_dir.rglob('*'):
+                        if file_path.is_file() and file_path != zip_path:
+                            # 计算相对路径，并在前面加上src/
+                            arc_name = "src" / file_path.relative_to(converted_dir)
+                            zipf.write(file_path, arc_name)
+                
+                result["download_available"] = True
+                result["zip_file"] = str(zip_path)
+                result["zip_size"] = zip_path.stat().st_size
+            
+            return result
+            
+        finally:
+            # 清理临时文件
+            Path(temp_file_path).unlink(missing_ok=True)
+            
+    except Exception as e:
+        logger.error(f"EPUB转换失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"EPUB转换失败: {str(e)}")
+
+@admin_router.get("/epub/download-converted")
+@require_permission("epub_conversion")
+async def download_converted_files(request: Request):
+    """下载转换后的文件"""
+    try:
+        from app.common import get_user_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取用户特定的转换目录
+        user_dir = get_user_directory(session.username)
+        converted_dir = user_dir / "epub_converted"
+        zip_path = converted_dir / "converted.zip"
+        
+        if not zip_path.exists():
+            raise HTTPException(status_code=404, detail="转换文件不存在，请先进行转换")
+        
+        return FileResponse(
+            path=zip_path,
+            filename="epub_converted.zip",
+            media_type="application/zip"
+        )
+        
+    except Exception as e:
+        logger.error(f"下载转换文件失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"下载转换文件失败: {str(e)}")
 
 # 管理员登录相关路由
 @admin_router.post("/login")

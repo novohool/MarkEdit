@@ -1206,8 +1206,7 @@ async function saveChapterOrder() {
         const chapterItems = document.querySelectorAll('#chapters .chapter-item');
         const chapters = Array.from(chapterItems).map(item => {
             const title = item.querySelector('.chapter-title').textContent;
-            const fileInput = item.querySelector('input[type="hidden"]');
-            const file = fileInput ? fileInput.value : '';
+            const file = item.querySelector('.chapter-file').textContent;
             return { title, file };
         });
         
