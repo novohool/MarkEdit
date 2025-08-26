@@ -74,7 +74,7 @@ header h1 {
 
 .header-buttons .btn-primary,
 .header-buttons .btn-secondary {
-    padding: 12px 24px;
+    padding: 8px 16px;
     font-size: 14px;
     display: flex;
     align-items: center;
@@ -762,7 +762,7 @@ header h1 {
     background: linear-gradient(135deg, #8d6e63 0%, #6d4c41 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 8px 16px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
@@ -807,7 +807,7 @@ header h1 {
     background: linear-gradient(135deg, #a1887f 0%, #8d6e63 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 8px 16px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
@@ -852,7 +852,7 @@ header h1 {
     background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 8px 16px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;

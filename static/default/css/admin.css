@@ -364,7 +364,7 @@ body::before {
     background: linear-gradient(135deg, #107c10 0%, #0d5d0d 100%);
     color: white;
     border: none;
-    padding: 10px 18px;
+    padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
@@ -402,7 +402,7 @@ body::before {
     background: linear-gradient(135deg, #d13438 0%, #a4262c 100%);
     color: white;
     border: none;
-    padding: 10px 18px;
+    padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;

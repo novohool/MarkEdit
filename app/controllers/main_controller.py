@@ -96,10 +96,10 @@ async def read_dashboard(request: Request):
 @main_router.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     """管理员登录页面"""
-    theme = await get_user_theme_simple(request)
+    # 超管登录页面固定使用default主题，避免在未登录状态下尝试获取用户主题
     return templates.TemplateResponse("admin_login.html", {
         "request": request,
-        "theme": theme
+        "theme": "default"
     })
 
 @main_router.get("/admin", response_class=HTMLResponse)
@@ -136,10 +136,9 @@ async def admin_home_page(request: Request):
         })
         
     except Exception as e:
-        theme = await get_user_theme_simple(request)
         return templates.TemplateResponse("admin_login.html", {
             "request": request,
-            "theme": theme,
+            "theme": "default",
             "error": "访问失败，请重新登录"
         })
 
@@ -177,10 +176,9 @@ async def role_permission_management_page(request: Request):
         })
         
     except Exception as e:
-        theme = await get_user_theme_simple(request)
         return templates.TemplateResponse("admin_login.html", {
             "request": request,
-            "theme": theme,
+            "theme": "default",
             "error": "访问失败，请重新登录"
         })
 

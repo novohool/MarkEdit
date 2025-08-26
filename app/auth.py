@@ -24,12 +24,11 @@ logger = logging.getLogger(__name__)
 
 # ==========================================
 # 向后兼容性接口
-# 这些函数重新导向到公共模块
+# 所有认证相关函数已移至公共模块
 # ==========================================
 
-def require_auth(request: Request, session: SessionData = Depends(get_session)) -> SessionData:
-    """依赖项：检查用户是否已登录，未登录则重定向到登录页（向后兼容）"""
-    return get_session_service().require_auth(request, session)
+# require_auth 函数已通过 from app.common import require_auth_session 提供
+# 请使用 require_auth_session 或直接从 app.common 导入
 
 # ==========================================
 # FastAPI 路由设置
