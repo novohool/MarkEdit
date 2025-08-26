@@ -299,6 +299,17 @@ async function loadFileTree() {
         `;
         fileTreeElement.appendChild(toolbar);
         
+        // 添加上传EPUB按钮到独立位置
+        const uploadSection = document.createElement('div');
+        uploadSection.className = 'upload-section';
+        uploadSection.innerHTML = `
+            <button id="src-upload-btn" class="btn-secondary" title="上传EPUB文件（自动转换为Markdown）">
+                <i class="btn-icon">📚</i>
+                <span class="btn-text">上传EPUB</span>
+            </button>
+        `;
+        fileTreeElement.appendChild(uploadSection);
+        
         // 添加刷新按钮事件
         const refreshBtn = document.getElementById('refresh-btn');
         if (refreshBtn) {
@@ -323,10 +334,6 @@ async function loadFileTree() {
         srcContainer.innerHTML = `
             <div class="area-header">
                 <h3>Src</h3>
-                <button id="src-upload-btn" class="btn-secondary area-upload-btn" title="上传EPUB文件（自动转换为Markdown）">
-                    <i class="btn-icon">📚</i>
-                    <span class="btn-text">上传EPUB</span>
-                </button>
             </div>
         `;
         fileTreeElement.appendChild(srcContainer);
