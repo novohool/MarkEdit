@@ -205,34 +205,30 @@ class BuildService:
         return svg_content
     
     def optimize_svgs(self, build_illustrations_dir: Path):
-        """优化SVG文件以提高epub兼容性，可选使用rsvg-convert"""
+        """优化SVG文件以提高epub兼容性"""
         for file in build_illustrations_dir.iterdir():
             if file.suffix == '.svg':
-                # 尝试使用rsvg-convert转换SVG为PNG（EPUB更好的兼容性）
-                if self._convert_svg_to_png_with_rsvg(file):
-                    logger.info(f"已使用rsvg-convert转换SVG为PNG: {file.name}")
-                else:
-                    # 如果rsvg-convert不可用，使用原有的SVG优化方案
-                    logger.info(f"rsvg-convert不可用，使用SVG优化方案: {file.name}")
-                    # 读取SVG内容
-                    with open(file, 'r', encoding='utf-8') as f:
-                        svg_content = f.read()
-                    
-                    # 优化SVG内容
-                    optimized_svg_content = self.optimize_svg_for_epub(svg_content)
-                    
-                    # 写入优化后的SVG内容
-                    with open(file, 'w', encoding='utf-8') as f:
-                        f.write(optimized_svg_content)
-                    
-                    logger.info(f"已优化SVG文件: {file.name}")
+                # 使用SVG优化方案
+                logger.info(f"使用SVG优化方案: {file.name}")
+                # 读取SVG内容
+                with open(file, 'r', encoding='utf-8') as f:
+                    svg_content = f.read()
+                
+                # 优化SVG内容
+                optimized_svg_content = self.optimize_svg_for_epub(svg_content)
+                
+                # 写入优化后的SVG内容
+                with open(file, 'w', encoding='utf-8') as f:
+                    f.write(optimized_svg_content)
+                
+                logger.info(f"已优化SVG文件: {file.name}")
     
     def optimize_svgs_for_pdf(self, build_illustrations_dir: Path):
         """优化SVG文件以用于PDF生成，修复字体问题但保持SVG格式"""
         for file in build_illustrations_dir.iterdir():
             if file.suffix == '.svg':
                 # 修复SVG字体问题，但保持SVG格式
-                # rsvg-convert将通过LaTeX模板中的DeclareGraphicsRule来处理SVG文件
+                # XeTeX可以直接处理优化后的SVG文件
                 logger.info(f"为PDF优化SVG文件（保持SVG格式）: {file.name}")
                 # 读取SVG内容
                 with open(file, 'r', encoding='utf-8') as f:
@@ -248,55 +244,7 @@ class BuildService:
                 logger.info(f"已为PDF优化SVG文件: {file.name}")
     
 
-    def _convert_svg_to_png_with_rsvg(self, svg_file: Path) -> bool:
-        """使用rsvg-convert将SVG转换为PNG，适用于EPUB"""
-        try:
-            # 生成对应的PNG文件名
-            png_file = svg_file.with_suffix('.png')
-            
-            # 构建rske g-convert命令
-            rsvg_cmd = [
-                'rsvg-convert',
-                '--format=png',
-                '--dpi-x=150',  # 设置高分辨率
-                '--dpi-y=150',
-                '--output', str(png_file),
-                str(svg_file)
-            ]
-            
-            logger.debug(f"rsvg-convert PNG命令: {' '.join(rsvg_cmd)}")
-            
-            # 执行rsvg-convert命令
-            result = subprocess.run(
-                rsvg_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                timeout=60,  # 1分钟超时
-                creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
-            )
-            
-            if result.returncode == 0 and png_file.exists():
-                # 转换成功，删除原SVG文件
-                svg_file.unlink()
-                logger.info(f"成功将SVG转换为PNG: {svg_file.name} -> {png_file.name}")
-                return True
-            else:
-                if result.stderr:
-                    logger.warning(f"rsvg-convert PNG转换失败: {result.stderr}")
-                return False
-                
-        except FileNotFoundError:
-            logger.warning("rsvg-convert命令未找到，跳过SVG转换")
-            return False
-        except subprocess.TimeoutExpired:
-            logger.warning(f"rsvg-convert PNG转换超时: {svg_file.name}")
-            return False
-        except Exception as e:
-            logger.warning(f"rsvg-convert PNG转换出现异常: {e}")
-            return False
+
     
     def fix_svg_fonts_for_pdf(self, svg_content: str) -> str:
         """修复SVG文件中的字体设置以支持PDF中的中文显示"""
