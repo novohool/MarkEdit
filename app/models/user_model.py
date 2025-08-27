@@ -27,4 +27,6 @@ user_table = Table(
     Column("created_at", DateTime, default=datetime.datetime.utcnow),
     Column("theme", String, default="default"),
     Column("llm_config", String, default="{}"),  # 存储用户自定义LLM配置的JSON字符串
+    Column("max_upload_size_mb", Integer, default=15),  # 最大上传文件大小（MB），默认15MB
+    Column("max_build_books", Integer, default=10),  # build目录最大书籍数量，默认10本
 )
