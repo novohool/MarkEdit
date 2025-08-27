@@ -158,11 +158,11 @@ class FileService:
             # 对于EPUB文件的特殊处理
             if file_extension == '.epub':
                 if file_type == "src":
-                    # src目录的EPUB文件需要转换为Markdown
-                    return await self._handle_epub_to_markdown(file, full_path, file_path, request, overwrite)
+                    # src目录的EPUB文件需要转换为Markdown，传递已读取的内容
+                    return await self._handle_epub_to_markdown(file, full_path, file_path, request, overwrite, content)
                 elif file_type == "build":
-                    # build目录的EPUB文件直接保存用于阅读
-                    return await self._handle_epub_for_reading(file, full_path, file_path, request, overwrite)
+                    # build目录的EPUB文件直接保存用于阅读，传递已读取的内容
+                    return await self._handle_epub_for_reading(file, full_path, file_path, request, overwrite, content)
             
             # 其他文件的正常处理
             # 保存文件
@@ -260,22 +260,55 @@ class FileService:
         
         return create_static_file_response(full_path)
     
-    async def _handle_epub_to_markdown(self, file: "UploadFile", full_path: Path, file_path: str, request: Request, overwrite: bool) -> Dict[str, Any]:
+    async def _handle_epub_to_markdown(self, file: "UploadFile", full_path: Path, file_path: str, request: Request, overwrite: bool, content: bytes = None) -> Dict[str, Any]:
         """处理src目录上传的EPUB文件，转换为Markdown格式"""
         import tempfile
+        import zipfile
         from app.common import get_epub_service
         
         # 检查文件是否已存在
         if full_path.exists() and not overwrite:
             raise HTTPException(status_code=400, detail="EPUB文件已存在，使用覆盖选项来替换")
         
-        # 读取上传的文件内容
-        content = await file.read()
+        # 获取文件内容（如果没有传入则读取）
+        if content is None:
+            content = await file.read()
+        
+        # 验证文件大小
+        if len(content) == 0:
+            raise HTTPException(status_code=400, detail="上传的EPUB文件为空")
         
         # 先保存原EPUB文件到临时位置
         with tempfile.NamedTemporaryFile(delete=False, suffix='.epub') as temp_file:
             temp_file.write(content)
             temp_file_path = temp_file.name
+        
+        # 验证EPUB文件的完整性（简单ZIP验证）
+        try:
+            with zipfile.ZipFile(temp_file_path, 'r') as test_zip:
+                # 尝试读取文件列表以验证ZIP结构
+                file_list = test_zip.namelist()
+                if not file_list:
+                    raise HTTPException(status_code=400, detail="EPUB文件似乎为空或损坏")
+                
+                # 检查EPUB必需的基本文件
+                has_mimetype = 'mimetype' in file_list
+                has_meta_inf = any('META-INF/' in f for f in file_list)
+                
+                if not has_mimetype or not has_meta_inf:
+                    raise HTTPException(status_code=400, detail="文件不是有效的EPUB格式，缺少必需的结构")
+                    
+        except zipfile.BadZipFile:
+            # 清理临时文件
+            Path(temp_file_path).unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail="上传的文件不是有效的EPUB文件（ZIP格式错误）")
+        except Exception as e:
+            # 清理临时文件
+            Path(temp_file_path).unlink(missing_ok=True)
+            if "EPUB文件" in str(e) or "ZIP格式" in str(e):
+                raise
+            else:
+                raise HTTPException(status_code=400, detail=f"EPUB文件验证失败: {str(e)}")
         
         try:
             # 获取EPUB服务实例
@@ -284,10 +317,16 @@ class FileService:
             # 获取用户src目录作为输出目录
             user_src_dir = self.get_user_src_dir(request)
             
+            # 记录转换前的日志
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"开始转换EPUB文件: {file.filename}, 大小: {len(content)} 字节")
+            
             # 执行EPUB转换
             result = await epub_service.convert_epub_to_markdown(temp_file_path, str(user_src_dir))
             
             if result.get("status") == "success":
+                logger.info(f"EPUB转换成功: {file.filename}")
                 # 转换成功，返回成功信息
                 return {
                     "message": "EPUB文件已成功转换为Markdown格式",
@@ -295,22 +334,37 @@ class FileService:
                     "path": file_path,
                     "conversion_status": "success",
                     "converted_files": result.get("converted_files", []),
-                    "chapters_count": result.get("chapters_count", 0),
-                    "images_count": result.get("images_count", 0),
+                    "chapters_count": result.get("total_chapters", len(result.get("converted_files", []))),
+                    "images_count": result.get("illustrations_count", len(result.get("image_files", []))),
                     "file_type": "epub_converted",
                     "target_directory": "src",
-                    "note": "原EPUB文件已转换为Markdown文件结构，可在src目录中查看和编辑"
+                    "note": "原EPUB文件已转换为Markdown文件结构，可在src目录中查看和编辑",
+                    "metadata": result.get("metadata", {})
                 }
             else:
+                error_msg = result.get('message', '未知错误')
+                logger.error(f"EPUB转换失败: {file.filename}, 错误: {error_msg}")
                 # 转换失败，返回错误信息
-                raise HTTPException(status_code=500, detail=f"EPUB转换失败: {result.get('message', '未知错误')}")
+                raise HTTPException(status_code=500, detail=f"EPUB转换失败: {error_msg}")
+        
+        except HTTPException:
+            # HTTP异常直接向上抛出
+            raise
+        except Exception as e:
+            logger.error(f"EPUB转换过程中发生错误: {file.filename}, 错误: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"EPUB转换过程失败: {str(e)}")
         
         finally:
             # 清理临时文件
             Path(temp_file_path).unlink(missing_ok=True)
     
-    async def _handle_epub_for_reading(self, file: "UploadFile", full_path: Path, file_path: str, request: Request, overwrite: bool) -> Dict[str, Any]:
+    async def _handle_epub_for_reading(self, file: "UploadFile", full_path: Path, file_path: str, request: Request, overwrite: bool, content: bytes = None) -> Dict[str, Any]:
         """处理build目录上传的EPUB文件，直接保存用于阅读"""
+        import zipfile
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
         # 检查文件是否已存在
         if full_path.exists() and not overwrite:
             raise HTTPException(status_code=400, detail="EPUB文件已存在，使用覆盖选项来替换")
@@ -318,22 +372,53 @@ class FileService:
         # 确保目录存在
         full_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # 读取上传的文件内容
-        content = await file.read()
+        # 获取文件内容（如果没有传入则读取）
+        if content is None:
+            content = await file.read()
+        
+        # 验证文件大小
+        if len(content) == 0:
+            raise HTTPException(status_code=400, detail="上传的EPUB文件为空")
         
         # 保存文件
         with open(full_path, 'wb') as f:
             f.write(content)
         
+        # 验证EPUB文件的完整性（简单ZIP验证）
+        try:
+            with zipfile.ZipFile(full_path, 'r') as test_zip:
+                # 尝试读取文件列表以验证ZIP结构
+                file_list = test_zip.namelist()
+                if not file_list:
+                    # 删除无效文件
+                    full_path.unlink()
+                    raise HTTPException(status_code=400, detail="EPUB文件似乎为空或损坏")
+                
+                # 检查EPUB必需的基本文件
+                has_mimetype = 'mimetype' in file_list
+                has_meta_inf = any('META-INF/' in f for f in file_list)
+                
+                if not has_mimetype or not has_meta_inf:
+                    logger.warning(f"EPUB文件 {file.filename} 缺少部分标准结构，但仍尝试保存")
+                    
+        except zipfile.BadZipFile:
+            # 删除无效文件
+            full_path.unlink()
+            raise HTTPException(status_code=400, detail="上传的文件不是有效的EPUB文件（ZIP格式错误）")
+        except Exception as e:
+            logger.warning(f"EPUB文件验证警告: {str(e)}，但继续保存")
+        
         # 获取文件信息
         file_size = full_path.stat().st_size
+        
+        logger.info(f"EPUB文件上传成功: {file.filename}, 大小: {file_size} 字节")
         
         return {
             "message": "EPUB文件上传成功，可用于阅读",
             "filename": file.filename,
             "path": file_path,
             "size": file_size,
-            "overwritten": full_path.exists() and overwrite,
+            "overwritten": overwrite and full_path.exists(),
             "file_type": "previewable_binary",
             "target_directory": "build",
             "supports_preview": True,

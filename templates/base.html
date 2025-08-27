@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MarkEdit{% endblock %}</title>
+    
+    <!-- 基础CSS -->
+    <link rel="stylesheet" href="/static/{{ theme or 'default' }}/css/style.css" id="theme-link">
+    <!-- TailwindCSS风格组件样式 -->
+    <link rel="stylesheet" href="/static/{{ theme or 'default' }}/css/integrated-components.css" id="components-style">
+    <!-- JavaScript工具库样式 -->
+    <link rel="stylesheet" href="/static/common/css/js-utils.css">
+    {% block additional_css %}{% endblock %}
+    
+    <!-- 基础JavaScript库 -->
+    {% block head_scripts %}
+    <!-- 引入公共JavaScript工具库 -->
+    <script src="/static/common/js/base-utils.js"></script>
+    <script src="/static/common/js/ui-manager.js"></script>
+    {% endblock %}
+    
+    <!-- 页面特定的head内容 -->
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <!-- Header组件 -->
+        {% include 'components/header.html' %}
+        
+        <!-- 主要内容区域 -->
+        {% block main_content %}
+        <div class="main-content">
+            {% block content %}{% endblock %}
+        </div>
+        {% endblock %}
+    </div>
+    
+    <!-- 全局模态框和抽屉菜单组件 -->
+    {% include 'components/global-modals.html' %}
+    
+    <!-- 基础JavaScript -->
+    {% block body_scripts %}
+    <script src="/static/common/js/common.js"></script>
+    {% endblock %}
+    
+    <!-- 页面特定的JavaScript -->
+    {% block page_scripts %}{% endblock %}
+    
+    <!-- 页面初始化脚本 -->
+    {% block init_scripts %}{% endblock %}
+</body>
+</html>

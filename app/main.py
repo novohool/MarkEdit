@@ -36,7 +36,11 @@ logger = logging.getLogger(__name__)
 # 设置特定模块的日志级别
 logging.getLogger('app.services.oauth_service').setLevel(logging.DEBUG)
 logging.getLogger('app.auth').setLevel(logging.DEBUG)
+logging.getLogger('app.services.epub_service').setLevel(logging.DEBUG)
+logging.getLogger('app.services.file_service').setLevel(logging.DEBUG)
+logging.getLogger('app.controllers.file_controller').setLevel(logging.DEBUG)
 logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('uvicorn').setLevel(logging.INFO)
 
 # 获取项目根目录
 BASE_DIR = Path(__file__).resolve().parent.parent

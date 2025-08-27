@@ -1162,6 +1162,18 @@ async def get_permission_groups(request: Request):
         logger.error(f"获取权限分组失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@admin_router.get("/assignable-permissions")
+@require_permission("permission.list")
+async def get_assignable_permissions(request: Request):
+    """获取可分配的权限列表（用于前端勾选）"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_assignable_permissions()
+        return {"groups": result}
+    except Exception as e:
+        logger.error(f"获取可分配权限列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @admin_router.get("/role-hierarchy")
 @require_permission("role.list")
 async def get_role_hierarchy(request: Request):

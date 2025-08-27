@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}我的账户 - MarkEdit{% endblock %}
+
+{% block additional_css %}
+<link rel="stylesheet" href="/static/{{ theme }}/css/admin.css">
+{% endblock %}
+
+<!-- 配置Header组件 -->
+{% set header_title = "我的账户" %}
+{% set show_theme_selector = true %}
+{% set show_admin_menu = false %}
+{% set show_user_panel = false %}
+{% set show_dashboard = false %}
+
+<!-- 自定义Header按钮 -->
+{% block custom_header_buttons %}
+<button id="back-btn" class="btn-secondary" onclick="window.history.back()">返回</button>
+<button id="logout-btn" class="btn-secondary" onclick="handleLogout()">登出</button>
+{% endblock %}
+
+<!-- 主要内容区域 -->
+{% block main_content %}
+<div class="admin-container">
+    
+    <!-- 使用可复用的用户信息组件 -->
+    {% include 'components/user-info-section.html' with context %}
+    
+    <!-- 使用可复用的主题设置组件 -->
+    {% set theme_selector_id = 'user-theme-selector' %}
+    {% set save_theme_btn_id = 'save-theme-btn' %}
+    {% include 'components/theme-settings-section.html' with context %}
+    
+    <!-- 使用可复用的LLM配置组件 -->
+    {% set llm_config_id = 'llm-config' %}
+    {% set save_llm_btn_id = 'save-llm-config-btn' %}
+    {% set reset_llm_btn_id = 'reset-llm-config-btn' %}
+    {% include 'components/llm-config-section.html' with context %}
+    
+    <!-- 操作日志 -->
+    <div class="section">
+        <h2>最近操作</h2>
+        <div id="recent-activities">
+            <p>暂无操作记录</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- 页面特定的JavaScript -->
+{% block page_scripts %}
+<script src="/static/{{ theme }}/js/admin.js"></script>
+{% endblock %}
+
+<!-- 页面初始化脚本 -->
+{% block init_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // 使用统一工具库初始化页面
+        loadUserInfo();
+        setupThemeSelector();
+        setupFormHandlers();
+        
+        console.log('MyAccount page initialized successfully');
+    } catch (error) {
+        console.error('MyAccount page initialization failed:', error);
+        MessageManager.error('页面初始化失败：' + error.message);
+    }
+});
+
+// 使用统一的API管理器加载用户信息
+function loadUserInfo() {
+    APIManager.get('/api/user/info')
+        .then(data => {
+            // 使用DOMUtils统一更新元素
+            DOMUtils.setTextById('username', data.username || '-');
+            DOMUtils.setTextById('created-at', data.created_at ? FormatUtils.formatDateTime(data.created_at) : '-');
+            DOMUtils.setTextById('login-time', data.login_time ? FormatUtils.formatDateTime(data.login_time) : '-');
+            DOMUtils.setTextById('current-theme', data.theme || 'default');
+            DOMUtils.setTextById('user-role', data.role || 'user');
+            
+            // 设置主题选择器的当前值
+            DOMUtils.setValueById('user-theme-selector', data.theme || 'default');
+            
+            // 设置LLM配置
+            const llmConfigElement = DOMUtils.getById('llm-config');
+            if (llmConfigElement) {
+                try {
+                    const config = JSON.parse(data.llm_config || '{}');
+                    llmConfigElement.value = JSON.stringify(config, null, 2);
+                } catch (e) {
+                    llmConfigElement.value = data.llm_config || '{}';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('获取用户信息失败:', error);
+            MessageManager.error('获取用户信息失败：' + error.message);
+        });
+}
+
+// 使用统一的事件绑定设置主题选择器
+function setupThemeSelector() {
+    DOMUtils.bindChange('user-theme-selector', function() {
+        // 立即切换主题预览
+        const selectedTheme = this.value;
+        DOMUtils.getById('theme-link').href = `/static/${selectedTheme}/css/style.css`;
+    });
+    
+    // 绑定全局主题选择器（如果存在）
+    const globalThemeSelector = DOMUtils.getById('theme-selector');
+    if (globalThemeSelector) {
+        DOMUtils.bindChange('theme-selector', function() {
+            const selectedTheme = this.value;
+            DOMUtils.getById('theme-link').href = `/static/${selectedTheme}/css/style.css`;
+            // 同步更新用户主题选择器
+            DOMUtils.setValueById('user-theme-selector', selectedTheme);
+        });
+    }
+}
+
+// 使用统一的表单处理函数
+function setupFormHandlers() {
+    // 保存主题设置
+    DOMUtils.bindClick('save-theme-btn', function() {
+        const selectedTheme = DOMUtils.getValueById('user-theme-selector');
+        
+        APIManager.post('/api/user/theme', {theme: selectedTheme})
+            .then(data => {
+                MessageManager.success('主题设置保存成功！');
+                DOMUtils.setTextById('current-theme', selectedTheme);
+                
+                // 同步更新全局主题选择器
+                const globalThemeSelector = DOMUtils.getById('theme-selector');
+                if (globalThemeSelector) {
+                    globalThemeSelector.value = selectedTheme;
+                }
+            })
+            .catch(error => {
+                console.error('保存主题设置失败:', error);
+                MessageManager.error('保存主题设置失败：' + error.message);
+            });
+    });
+    
+    // 保存LLM配置
+    DOMUtils.bindClick('save-llm-config-btn', function() {
+        const llmConfig = DOMUtils.getValueById('llm-config');
+        
+        // 使用JSONUtils验证JSON格式
+        if (!JSONUtils.validate(llmConfig)) {
+            MessageManager.warning('请输入有效的JSON格式配置！');
+            return;
+        }
+        
+        APIManager.post('/api/user/llm-config', {llm_config: llmConfig})
+            .then(data => {
+                MessageManager.success('LLM配置保存成功！');
+            })
+            .catch(error => {
+                console.error('保存LLM配置失败:', error);
+                MessageManager.error('保存LLM配置失败：' + error.message);
+            });
+    });
+    
+    // 重置LLM配置
+    DOMUtils.bindClick('reset-llm-config-btn', function() {
+        ModalManager.confirm(
+            '确认重置',
+            '确定要重置LLM配置吗？',
+            function() {
+                DOMUtils.setValueById('llm-config', '{}');
+                MessageManager.info('LLM配置已重置');
+            }
+        );
+    });
+}
+
+// 统一的登出处理函数
+function handleLogout() {
+    ModalManager.confirm(
+        '确认登出',
+        '确定要登出吗？',
+        function() {
+            window.location.href = '/logout';
+        }
+    );
+}
+</script>
+{% endblock %}

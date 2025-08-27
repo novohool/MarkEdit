@@ -88,6 +88,16 @@ class ThemeLoader {
         if (typeof bindEventListeners === 'function') {
             bindEventListeners();
         }
+        
+        // 初始化可调整分隔符
+        if (typeof initializeResizer === 'function') {
+            initializeResizer();
+        }
+        
+        // 初始化侧边栏状态
+        if (typeof initializeSidebarState === 'function') {
+            initializeSidebarState();
+        }
     }
 
     /**
@@ -246,6 +256,20 @@ class ThemeLoader {
         if (linkElement) {
             linkElement.href = `/static/${this.currentTheme}/css/style.css`;
         }
+        
+        // 更新页面特定的CSS文件
+        const adminPanelLink = document.querySelector('link[href*="admin_panel.css"]');
+        if (adminPanelLink) {
+            adminPanelLink.href = `/static/${this.currentTheme}/css/admin_panel.css`;
+        }
+        
+        const integratedComponentsLink = document.querySelector('link[href*="integrated-components.css"]');
+        if (integratedComponentsLink) {
+            integratedComponentsLink.href = `/static/${this.currentTheme}/css/integrated-components.css`;
+        }
+        
+        // 确保主题相关的CSS变量生效
+        document.documentElement.setAttribute('data-theme', this.currentTheme);
     }
 
     /**

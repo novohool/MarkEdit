@@ -143,11 +143,60 @@ class BuildService:
             logger.warning(f"字体检查出现异常 {font_name}: {e}，假设可用")
             return True
     
+    def _generate_filename_from_title(self, title: str, extension: str) -> str:
+        """从标题生成安全的文件名"""
+        import re
+        
+        # 先去掉两端空格
+        safe_title = title.strip()
+        
+        # 替换不安全的字符
+        # 保留中文、日文、英文字母、数字、连字符和下划线
+        safe_title = re.sub(r'[<>:"/\\|?*]', '-', safe_title)
+        
+        # 将多个连续的空格或特殊字符替换为单个连字符
+        safe_title = re.sub(r'[\s\-]+', '-', safe_title)
+        
+        # 删除开头和结尾的连字符
+        safe_title = safe_title.strip('-')
+        
+        # 如果标题为空或太短，使用默认名称
+        if not safe_title or len(safe_title) < 2:
+            safe_title = 'untitled'
+        
+        # 限制文件名长度（不包括扩展名）
+        if len(safe_title) > 100:
+            safe_title = safe_title[:100]
+        
+        return f"{safe_title}.{extension}"
+    
     def load_metadata_config(self, src_dir: Path) -> Dict[str, Any]:
-        """从metadata.yml文件加载元数据配置"""
+        """从 metadata.yml 文件加载元数据配置
+        支持处理包含 YAML frontmatter 的文件格式
+        """
         metadata_path = src_dir / "metadata.yml"
         with open(metadata_path, 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f)
+            content = f.read()
+        
+        # 检查是否以 YAML frontmatter 格式开始（以 --- 开始）
+        if content.strip().startswith('---'):
+            # 解析 YAML frontmatter 格式
+            parts = content.split('---', 2)
+            if len(parts) >= 3:
+                # 取第二部分（第一部分是空的，第二部分是 YAML，第三部分是其余内容）
+                yaml_content = parts[1].strip()
+                try:
+                    return yaml.safe_load(yaml_content)
+                except yaml.YAMLError as e:
+                    logger.warning(f"解析 YAML frontmatter 失败: {e}, 尝试作为普通 YAML 文件处理")
+                    # 如果 frontmatter 解析失败，尝试直接解析整个文件
+                    return yaml.safe_load(content)
+            else:
+                logger.warning(f"YAML frontmatter 格式不正确，尝试作为普通 YAML 文件处理")
+                return yaml.safe_load(content)
+        else:
+            # 普通的 YAML 文件
+            return yaml.safe_load(content)
     
     def load_chapter_config(self, src_dir: Path) -> Dict[str, Any]:
         """从统一配置文件加载章节顺序"""
@@ -222,6 +271,94 @@ class BuildService:
                     f.write(optimized_svg_content)
                 
                 logger.info(f"已优化SVG文件: {file.name}")
+    
+    def convert_svg_to_png(self, svg_file_path: Path, output_dir: Path = None, width: int = 1000, height: int = 800) -> Path:
+        """使用Inkscape将SVG文件转换为PNG格式
+        
+        Args:
+            svg_file_path: SVG文件路径
+            output_dir: 输出目录，如果为None则使用SVG文件所在目录
+            width: PNG图片宽度，默认1000像素
+            height: PNG图片高度，默认800像素
+            
+        Returns:
+            转换后的PNG文件路径
+        """
+        if output_dir is None:
+            output_dir = svg_file_path.parent
+            
+        # 生成PNG文件名
+        png_filename = svg_file_path.stem + '.png'
+        png_file_path = output_dir / png_filename
+        
+        try:
+            # 构建Inkscape命令
+            inkscape_command = [
+                "inkscape",
+                "--export-type=png",
+                f"--export-width={width}",
+                f"--export-height={height}",
+                f"--export-filename={str(png_file_path)}",
+                str(svg_file_path)
+            ]
+            
+            logger.info(f"正在将SVG转换为PNG: {svg_file_path.name} -> {png_filename}")
+            logger.debug(f"执行命令: {' '.join(inkscape_command)}")
+            
+            # 执行Inkscape命令
+            result = subprocess.run(
+                inkscape_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=60,  # 1分钟超时
+                creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+            )
+            
+            if result.returncode == 0:
+                logger.info(f"SVG转PNG成功: {png_filename}")
+                return png_file_path
+            else:
+                error_msg = f"SVG转PNG失败: {result.stderr}"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+                
+        except FileNotFoundError:
+            error_msg = "Inkscape工具未找到，请确保已安装Inkscape"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        except subprocess.TimeoutExpired:
+            error_msg = f"SVG转PNG超时: {svg_file_path.name}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        except Exception as e:
+            error_msg = f"SVG转PNG时发生错误: {str(e)}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+    
+    def convert_svgs_to_png_for_pdf(self, build_illustrations_dir: Path):
+        """将illustrations目录中的所有SVG文件转换为PNG格式以用于PDF生成"""
+        svg_files = [file for file in build_illustrations_dir.iterdir() if file.suffix.lower() == '.svg']
+        
+        if not svg_files:
+            logger.info("illustrations目录中没有找到SVG文件")
+            return
+            
+        logger.info(f"开始转换{len(svg_files)}个SVG文件为PNG格式...")
+        
+        for svg_file in svg_files:
+            try:
+                # 转换SVG为PNG
+                png_file_path = self.convert_svg_to_png(svg_file, build_illustrations_dir)
+                logger.info(f"已转换: {svg_file.name} -> {png_file_path.name}")
+            except Exception as e:
+                logger.warning(f"转换SVG文件失败 {svg_file.name}: {str(e)}")
+                # 转换失败时继续处理其他文件
+                continue
+                
+        logger.info("SVG到PNG转换完成")
     
     def optimize_svgs_for_pdf(self, build_illustrations_dir: Path):
         """优化SVG文件以用于PDF生成，修复字体问题但保持SVG格式"""
@@ -339,7 +476,7 @@ class BuildService:
             logger.info(f"已处理章节文件: {file_name}")
     
     def process_chapters_for_pdf(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str]):
-        """复制并修改章节文件，调整图片路径以适应PDF"""
+        """复制并修改章节文件，调整图片路径以适应PDF，并将SVG引用转换为PNG"""
         if not temp_chapters_dir.exists():
             temp_chapters_dir.mkdir(parents=True, exist_ok=True)
         
@@ -363,11 +500,46 @@ class BuildService:
             content = content.replace('../illustrations/', './illustrations/')
             content = content.replace('/user-illustrations/', './illustrations/')
             
+            # 将Markdown中的SVG图片引用转换为PNG引用
+            content = self.convert_svg_references_to_png(content)
+            
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             
             logger.info(f"已处理章节文件: {file_name}")
+    
+    def convert_svg_references_to_png(self, markdown_content: str) -> str:
+        """将Markdown内容中的SVG图片引用转换为PNG引用
+        
+        支持的格式:
+        - ![alt text](path/to/image.svg)
+        - ![alt text](path/to/image.svg "title")
+        """
+        import re
+        
+        # 匹配Markdown图片语法中的SVG文件
+        # 模式: ![alt text](path.svg) 或 ![alt text](path.svg "title")
+        svg_pattern = r'(!\[[^\]]*\])\(([^\)]*\.svg)([^\)]*)\)'
+        
+        def replace_svg_with_png(match):
+            alt_text = match.group(1)  # ![alt text]
+            svg_path = match.group(2)  # path.svg
+            additional_params = match.group(3)  # 可能包含的标题或其他参数
+            
+            # 将.svg扩展名替换为.png
+            png_path = svg_path.replace('.svg', '.png')
+            
+            # 构建新的Markdown图片引用
+            new_reference = f"{alt_text}({png_path}{additional_params})"
+            
+            logger.debug(f"SVG引用转换: {svg_path} -> {png_path}")
+            return new_reference
+        
+        # 执行替换
+        converted_content = re.sub(svg_pattern, replace_svg_with_png, markdown_content)
+        
+        return converted_content
     
     def process_chapters_for_html(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str]):
         """复制并修改章节文件，调整图片路径以适应HTML"""
@@ -426,6 +598,13 @@ class BuildService:
             # 优化SVG文件以提高EPUB兼容性
             self.optimize_svgs(build_illustrations_dir)
             
+            # 从metadata.yml加载元数据配置
+            metadata_config = self.load_metadata_config(src_dir)
+            title = metadata_config.get('title', 'untitled')
+            
+            # 生成EPUB文件名，将标题转换为合适的文件名
+            epub_name = self._generate_filename_from_title(title, 'epub')
+            
             # 从统一配置文件加载章节顺序
             chapter_config = self.load_chapter_config(src_dir)
             chapter_files = [chapter["file"] for chapter in chapter_config.get("chapters", [])]
@@ -446,7 +625,7 @@ class BuildService:
                 else:
                     input_files.append(temp_chapters_dir / file_name)
             
-            epub_output_path = build_dir / "katakana-dictionary.epub"
+            epub_output_path = build_dir / epub_name
             
             logger.info("开始生成EPUB文件...")
             
@@ -550,10 +729,22 @@ class BuildService:
             build_illustrations_dir = build_dir / "illustrations"
             self.copy_illustrations(illustrations_dir, build_illustrations_dir)
             
-            # 为PDF优化SVG文件，修复中文字体问题
-            # 注意：rsvg-convert将通过LaTeX模板中的DeclareGraphicsRule来协助Pandoc处理SVG文件
-            # 这里只是修复SVG文件的字体问题，保持SVG格式不变
-            self.optimize_svgs_for_pdf(build_illustrations_dir)
+            # 将SVG文件转换为PNG格式（用于XeTeX PDF生成）
+            # 这是新增的功能：在使用XeTeX生成PDF时，先将SVG转换为PNG
+            try:
+                self.convert_svgs_to_png_for_pdf(build_illustrations_dir)
+                logger.info("SVG文件已转换为PNG格式，用于PDF生成")
+            except Exception as e:
+                logger.warning(f"SVG转PNG时发生错误，将继续使用原有的SVG优化方案: {str(e)}")
+                # 如果SVG转PNG失败，回退到原有的SVG优化方案
+                self.optimize_svgs_for_pdf(build_illustrations_dir)
+            
+            # 从metadata.yml加载元数据配置
+            metadata_config = self.load_metadata_config(src_dir)
+            title = metadata_config.get('title', 'untitled')
+            
+            # 生成PDF文件名
+            pdf_name = self._generate_filename_from_title(title, 'pdf')
             
             # 从统一配置文件加载章节顺序
             chapter_config = self.load_chapter_config(src_dir)
@@ -575,7 +766,7 @@ class BuildService:
                 else:
                     input_files.append(temp_chapters_dir / file_name)
             
-            pdf_output_path = build_dir / "katakana-dictionary-pandoc.pdf"
+            pdf_output_path = build_dir / pdf_name
             
             logger.info("开始生成PDF文件...")
             
@@ -728,6 +919,13 @@ class BuildService:
             chapter_config = self.load_chapter_config(src_dir)
             chapter_files = [chapter["file"] for chapter in chapter_config.get("chapters", [])]
             
+            # 从metadata.yml加载元数据配置生成文件名
+            metadata_config = self.load_metadata_config(src_dir)
+            title = metadata_config.get('title', 'untitled')
+            
+            # 生成HTML文件名
+            html_name = self._generate_filename_from_title(title, 'html')
+            
             # 为HTML创建临时章节目录
             temp_chapters_dir = build_dir / "temp-chapters-html"
             self.process_chapters_for_html(chapters_dir, temp_chapters_dir, chapter_files)
@@ -744,7 +942,7 @@ class BuildService:
                 else:
                     input_files.append(temp_chapters_dir / file_name)
             
-            html_output_path = build_dir / "katakana-dictionary.html"
+            html_output_path = build_dir / html_name
             
             logger.info("开始生成HTML文件...")
             
@@ -881,9 +1079,17 @@ class BuildService:
             if html_result["status"] != "success":
                 return html_result
             
+            # 从metadata.yml加载元数据配置生成文件名
+            metadata_config = self.load_metadata_config(src_dir)
+            title = metadata_config.get('title', 'untitled')
+            
+            # 生成文件名
+            html_name = self._generate_filename_from_title(title, 'html')
+            pdf_name = self._generate_filename_from_title(title + '-wkhtmltopdf', 'pdf')
+            
             # HTML文件路径
-            html_output_path = build_dir / "katakana-dictionary.html"
-            pdf_output_path = build_dir / "katakana-dictionary-wkhtmltopdf.pdf"
+            html_output_path = build_dir / html_name
+            pdf_output_path = build_dir / pdf_name
             
             if not html_output_path.exists():
                 error_msg = "HTML文件不存在，无法转换为PDF"

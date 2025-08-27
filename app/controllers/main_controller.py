@@ -34,20 +34,31 @@ async def read_root(request: Request):
     
     # 获取用户权限信息
     has_admin_access = False
+    user_permissions = set()
+    username = None
     try:
         session_service = get_session_service()
         session = session_service.get_session(request)
         if session.username:
-            user_permissions = await get_user_permissions(session.username)
+            username = session.username
+            user_permissions = set(await get_user_permissions(username))
             has_admin_access = "admin_access" in user_permissions or "super_admin" in user_permissions
     except Exception:
         # 如果获取权限失败，默认为普通用户
         has_admin_access = False
     
+    # 创建permissions对象供header组件使用
+    permissions = {
+        'has_admin_access': has_admin_access,
+        'has_super_admin': 'super_admin' in user_permissions
+    }
+    
     return templates.TemplateResponse("index.html", {
         "request": request,
         "theme": theme,
-        "has_admin_access": has_admin_access
+        "has_admin_access": has_admin_access,
+        "permissions": permissions,
+        "username": username
     })
 
 @main_router.get("/dashboard", response_class=HTMLResponse)

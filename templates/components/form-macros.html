@@ -1,0 +1,148 @@
+<!-- 
+通用表单字段组件宏
+用法示例：
+{% from 'components/form-macros.html' import form_field, form_group, button_group %}
+{{ form_field('text', 'username', '用户名', required=true) }}
+{{ form_field('select', 'theme', '主题', options=[('default', '默认'), ('wooden', '木质')]) }}
+-->
+
+<!-- 通用表单字段宏 -->
+{% macro form_field(field_type, field_id, label, value='', placeholder='', required=false, options=[], attributes='', help_text='') %}
+<div class="form-group">
+    <label for="{{ field_id }}"{% if required %} class="required"{% endif %}>
+        {{ label }}{% if required %} <span class="required-mark">*</span>{% endif %}
+    </label>
+    
+    {% if field_type == 'text' or field_type == 'password' or field_type == 'email' or field_type == 'number' %}
+        <input type="{{ field_type }}" 
+               id="{{ field_id }}" 
+               name="{{ field_id }}"
+               value="{{ value }}" 
+               {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+               {% if required %}required{% endif %}
+               {{ attributes | safe }}>
+               
+    {% elif field_type == 'textarea' %}
+        <textarea id="{{ field_id }}" 
+                  name="{{ field_id }}"
+                  {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                  {% if required %}required{% endif %}
+                  {{ attributes | safe }}>{{ value }}</textarea>
+                  
+    {% elif field_type == 'select' %}
+        <select id="{{ field_id }}" 
+                name="{{ field_id }}"
+                {% if required %}required{% endif %}
+                {{ attributes | safe }}>
+            {% if not required %}
+                <option value="">请选择...</option>
+            {% endif %}
+            {% for option_value, option_label in options %}
+                <option value="{{ option_value }}"{% if value == option_value %} selected{% endif %}>
+                    {{ option_label }}
+                </option>
+            {% endfor %}
+        </select>
+        
+    {% elif field_type == 'checkbox' %}
+        <label class="checkbox-label">
+            <input type="checkbox" 
+                   id="{{ field_id }}" 
+                   name="{{ field_id }}"
+                   value="1"
+                   {% if value %}checked{% endif %}
+                   {{ attributes | safe }}>
+            <span class="checkbox-text">{{ label }}</span>
+        </label>
+        
+    {% elif field_type == 'radio' %}
+        {% for option_value, option_label in options %}
+        <label class="radio-label">
+            <input type="radio" 
+                   id="{{ field_id }}_{{ option_value }}" 
+                   name="{{ field_id }}"
+                   value="{{ option_value }}"
+                   {% if value == option_value %}checked{% endif %}
+                   {{ attributes | safe }}>
+            <span class="radio-text">{{ option_label }}</span>
+        </label>
+        {% endfor %}
+        
+    {% elif field_type == 'file' %}
+        <input type="file" 
+               id="{{ field_id }}" 
+               name="{{ field_id }}"
+               {% if required %}required{% endif %}
+               {{ attributes | safe }}>
+    {% endif %}
+    
+    {% if help_text %}
+    <div class="form-help-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<!-- 表单组宏 -->
+{% macro form_group(fields, form_id='', form_class='', form_attributes='') %}
+<form {% if form_id %}id="{{ form_id }}"{% endif %} 
+      class="{{ form_class }}" 
+      {{ form_attributes | safe }}>
+    {% for field in fields %}
+        {{ form_field(
+            field.type, 
+            field.id, 
+            field.label, 
+            value=field.value or '', 
+            placeholder=field.placeholder or '', 
+            required=field.required or false,
+            options=field.options or [],
+            attributes=field.attributes or '',
+            help_text=field.help_text or ''
+        ) }}
+    {% endfor %}
+</form>
+{% endmacro %}
+
+<!-- 按钮组宏 -->
+{% macro button_group(buttons, group_class='btn-group', group_attributes='') %}
+<div class="{{ group_class }}" {{ group_attributes | safe }}>
+    {% for button in buttons %}
+        <button type="{{ button.type or 'button' }}" 
+                {% if button.id %}id="{{ button.id }}"{% endif %}
+                class="{{ button.class or 'btn-primary' }}"
+                {% if button.onclick %}onclick="{{ button.onclick }}"{% endif %}
+                {% if button.disabled %}disabled{% endif %}
+                {{ button.attributes | safe }}>
+            {% if button.icon %}<i class="btn-icon">{{ button.icon }}</i>{% endif %}
+            <span class="btn-text">{{ button.text }}</span>
+        </button>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+<!-- 数据表格宏 -->
+{% macro data_table(columns, table_id='', table_class='data-table', row_actions=[], empty_message='暂无数据') %}
+<div class="table-container">
+    <table {% if table_id %}id="{{ table_id }}"{% endif %} class="{{ table_class }}">
+        <thead>
+            <tr>
+                {% for column in columns %}
+                <th {% if column.width %}style="width: {{ column.width }}"{% endif %}>
+                    {{ column.title }}
+                </th>
+                {% endfor %}
+                {% if row_actions %}
+                <th class="actions-column">操作</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody id="{{ table_id }}_tbody" class="table-tbody">
+            <tr class="empty-row">
+                <td colspan="{{ columns|length + (1 if row_actions else 0) }}" class="empty-message">
+                    {{ empty_message }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endmacro %}

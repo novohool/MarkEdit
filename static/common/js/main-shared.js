@@ -10,7 +10,7 @@ async function loadFile(filePath, area) {
         
         // 获取文件扩展名
         const extension = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
-        const previewableExtensions = ['.epub', '.html', '.pdf', '.svg'];
+        const previewableExtensions = ['.epub', '.html', '.pdf', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.ico'];
         const isPreviewable = previewableExtensions.includes(extension);
         
         // 对于可预览的二进制文件，直接在iframe中显示
@@ -71,6 +71,18 @@ async function loadPreviewableFile(filePath, area, extension) {
         currentFileType = 'preview';
     } else if (extension === '.svg') {
         // SVG文件可以作为图片显示
+        const response = await fetch(`/api/file/${area}/${encodedFilePath}`);
+        const data = await response.json();
+        
+        if (data.type === 'image') {
+            // 显示在图片查看器中
+            const imageViewer = document.getElementById('image-viewer');
+            imageViewer.innerHTML = `<img src="data:${data.mime};base64,${data.content}" alt="${filePath}">`;
+            imageViewer.style.display = 'flex';
+            currentFileType = 'image';
+        }
+    } else if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.ico'].includes(extension)) {
+        // 其他图片文件处理
         const response = await fetch(`/api/file/${area}/${encodedFilePath}`);
         const data = await response.json();
         
@@ -294,6 +306,8 @@ async function previewBuildFile(filePath) {
             await previewPdfFile(previewContainer, filePath, fileUrl);
         } else if (extension === '.epub') {
             await previewEpubFile(previewContainer, filePath, fileUrl);
+        } else if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.ico'].includes(extension)) {
+            await previewImageFile(filePath, encodedFilePath);
         }
     } catch (error) {
         console.error('预览文件失败:', error);
@@ -358,6 +372,21 @@ async function previewEpubFile(previewContainer, filePath, fileUrl) {
     updateCurrentFileInfo(filePath, 'build', 'preview');
 }
 
+// 预览图片文件
+async function previewImageFile(filePath, encodedFilePath) {
+    const response = await fetch(`/api/file/build/${encodedFilePath}`);
+    const data = await response.json();
+    
+    if (data.type === 'image') {
+        const imageViewer = document.getElementById('image-viewer');
+        imageViewer.innerHTML = `<img src="data:${data.mime};base64,${data.content}" alt="${filePath}">`;
+        imageViewer.style.display = 'flex';
+        hideAllViews();
+        imageViewer.style.display = 'flex';
+        updateCurrentFileInfo(filePath, 'build', 'image');
+    }
+}
+
 // 更新当前文件信息的辅助函数
 function updateCurrentFileInfo(filePath, area, fileType) {
     currentFilePath = filePath;
@@ -378,6 +407,9 @@ function bindEventListeners() {
     // 绑定用户面板事件
     bindUserPanelEvents();
     
+    // 绑定侧边栏切换按钮事件
+    bindSidebarToggleButton();
+    
     // 绑定文件操作按钮事件
     bindFileOperationButtons();
     
@@ -386,6 +418,9 @@ function bindEventListeners() {
     
     // 绑定主题切换事件
     bindThemeSelector();
+    
+    // 绑定图书转换器事件
+    bindBookConverter();
 }
 
 // 绑定保存按钮
@@ -393,6 +428,22 @@ function bindSaveButton() {
     const saveBtn = document.getElementById('save-btn');
     if (saveBtn) {
         saveBtn.addEventListener('click', saveFile);
+    }
+}
+
+// 绑定侧边栏切换按钮
+function bindSidebarToggleButton() {
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+    if (toggleSidebarBtn && !toggleSidebarBtn.dataset.mainSharedListenerAdded) {
+        toggleSidebarBtn.addEventListener('click', function() {
+            if (typeof toggleSidebar === 'function') {
+                toggleSidebar();
+            } else {
+                console.warn('切换侧边栏功能未找到');
+            }
+        });
+        toggleSidebarBtn.dataset.mainSharedListenerAdded = 'true';
+        console.log('侧边栏切换按钮事件监听器已绑定');
     }
 }
 
@@ -457,6 +508,32 @@ function bindUserPanelEvents() {
         userPanelResetLlmConfigBtn.addEventListener('click', resetUserLlmConfig);
         userPanelResetLlmConfigBtn.dataset.mainSharedListenerAdded = 'true';
     }
+    
+    // 为logout-btn和back-btn类添加事件委托支持（支持user-actions-section组件）
+    if (!document.body.dataset.userActionsBtnListenerAdded) {
+        document.body.addEventListener('click', function(e) {
+            // 处理登出按钮
+            if (e.target.classList.contains('logout-btn')) {
+                const handler = e.target.getAttribute('data-logout-handler') || 'handleUserPanelLogout';
+                
+                // 尝试调用指定的处理函数
+                if (typeof window[handler] === 'function') {
+                    window[handler]();
+                } else {
+                    // 回退到默认处理方式
+                    if (confirm('确定要登出吗？')) {
+                        window.location.href = '/logout';
+                    }
+                }
+            }
+            
+            // 处理返回按钮
+            if (e.target.classList.contains('back-btn') && e.target.getAttribute('data-action') === 'back') {
+                window.history.back();
+            }
+        });
+        document.body.dataset.userActionsBtnListenerAdded = 'true';
+    }
 }
 
 // 绑定文件操作按钮事件
@@ -507,9 +584,16 @@ function bindBuildButtons() {
 
 // 绑定主题切换事件
 function bindThemeSelector() {
+    console.log('bindThemeSelector 被调用');
     const themeSelector = document.getElementById('theme-selector');
-    if (themeSelector) {
-        themeSelector.addEventListener('change', switchTheme);
+    if (themeSelector && !themeSelector.dataset.mainSharedListenerAdded) {
+        themeSelector.addEventListener('change', function(e) {
+            if (typeof switchTheme === 'function') {
+                switchTheme(e);
+            }
+        });
+        themeSelector.dataset.mainSharedListenerAdded = 'true';
+        console.log('主题选择器事件监听器已绑定');
     }
 }
 
@@ -718,4 +802,21 @@ function highlightCodeInEditor() {
     
     // 注意：由于textarea不能直接显示HTML格式，我们不会将高亮结果应用到编辑器中
     // 但在预览模式下代码会正确高亮
+}
+
+// 绑定图书转换器事件
+function bindBookConverter() {
+    console.log('bindBookConverter 被调用');
+    const bookConverterSelect = document.getElementById('book-converter-select');
+    if (bookConverterSelect && !bookConverterSelect.dataset.listenerAdded) {
+        bookConverterSelect.addEventListener('change', function(e) {
+            if (typeof handleBookConverterChange === 'function') {
+                handleBookConverterChange(e);
+            } else {
+                console.warn('图书转换器处理函数未找到');
+            }
+        });
+        bookConverterSelect.dataset.listenerAdded = 'true';
+        console.log('图书转换器事件监听器已绑定');
+    }
 }

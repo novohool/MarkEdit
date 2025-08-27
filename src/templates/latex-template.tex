@@ -52,11 +52,16 @@ $endif$
 \makeatother
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
 
-% 支持多种图片格式
-\DeclareGraphicsExtensions{.pdf,.png,.jpg,.jpeg}
-% XeTeX可以直接处理PDF、PNG、JPG等格式
+% 支持多种图片格式，优先PNG格式（SVG已转换为PNG）
+\DeclareGraphicsExtensions{.png,.pdf,.jpg,.jpeg}
+% XeTeX优先处理PNG格式（由SVG转换而来），然后是PDF、JPG等格式
+% PNG文件处理（主要用于SVG转换后的PNG文件）
+\DeclareGraphicsRule{.png}{png}{.png}{}
 % 直接PDF文件处理
 \DeclareGraphicsRule{.pdf}{pdf}{.pdf}{}
+% JPEG文件处理
+\DeclareGraphicsRule{.jpg}{jpg}{.jpg}{}
+\DeclareGraphicsRule{.jpeg}{jpeg}{.jpeg}{}
 
 % 定义pandoc使用的命令
 \providecommand{\pandocbounded}[1]{#1}

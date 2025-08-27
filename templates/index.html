@@ -1,209 +1,98 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MarkEdit</title>
-    <link rel="stylesheet" href="/static/default/css/style.css" id="theme-link">
-    <!-- 引入Marked.js库 -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- 引入CodeMirror代码编辑器库 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/javascript/javascript.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/css/css.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/xml/xml.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/yaml/yaml.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/markdown/markdown.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/clike/clike.min.js"></script>
-    <!-- 引入Prism.js代码高亮库（预览模式下使用） -->
-    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-    <!-- 引入EPUB.js库 -->
-    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.88/dist/epub.min.js"></script>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>MarkEdit</h1>
-            <div class="header-buttons">
-                <!-- 主题选择器 -->
-                <select id="theme-selector" class="btn-secondary header-select">
-                    <option value="default">默认主题</option>
-                    <option value="wooden">木质主题</option>
-                </select>
-                
-                <!-- 用户和管理功能 -->
-                <div class="button-group user-group">
-                    <button id="myaccount-btn" class="btn-secondary" title="用户面板">
-                        <i class="btn-icon">👤</i>
-                        <span class="btn-text">用户面板</span>
-                    </button>
-                    <button id="dashboard-btn" class="btn-secondary" title="仪表板">
-                        <i class="btn-icon">📊</i>
-                        <span class="btn-text">仪表板</span>
-                    </button>
-{% if has_admin_access %}
-                    <button id="admin-menu-btn" class="btn-secondary" title="管理">
-                        <i class="btn-icon">⚙️</i>
-                        <span class="btn-text">管理</span>
-                    </button>
-{% endif %}
-                </div>
-                
-                <!-- 构建功能 -->
-                <div class="button-group build-group">
-                    <button id="build-all-btn" class="btn-primary" title="生成所有格式">
-                        <i class="btn-icon">📚</i>
-                        <span class="btn-text">生成所有格式</span>
-                    </button>
-                    <button id="build-epub-btn" class="btn-secondary" title="生成 EPUB">
-                        <i class="btn-icon">📖</i>
-                        <span class="btn-text-short">EPUB</span>
-                    </button>
-                    <button id="build-pdf-btn" class="btn-secondary" title="生成 PDF">
-                        <i class="btn-icon">📄</i>
-                        <span class="btn-text-short">PDF</span>
-                    </button>
-                </div>
-            </div>
-        </header>
-        
-{% if has_admin_access %}
-        <!-- 抽屉式管理菜单 -->
-        <div id="admin-drawer" class="drawer">
-            <div class="drawer-header">
-                <h2><i class="icon-menu">☰</i> 管理菜单</h2>
-                <button id="close-drawer-btn" class="btn-secondary">✕</button>
-            </div>
-            <div class="drawer-content">
-                <div class="menu-section">
-                    <h4 class="menu-section-title">管理功能</h4>
-                    <ul class="menu-list">
-                        <li><a href="/dashboard" class="menu-item"><i class="icon">📊</i>工作面板</a></li>
-                        <li><a href="/admin" class="menu-item"><i class="icon">⚙️</i>系统管理</a></li>
-                        <li><a href="/admin/role-permission" class="menu-item"><i class="icon">🔐</i>角色权限管理</a></li>
-                    </ul>
-                </div>
-                <div class="menu-section">
-                    <h4 class="menu-section-title">个人设置</h4>
-                    <ul class="menu-list">
-                        <li><a href="#" id="drawer-myaccount-link" class="menu-item"><i class="icon">👤</i>个人设置</a></li>
-                        <li><a href="/logout" class="menu-item logout-item"><i class="icon">🚪</i>登出</a></li>
-                    </ul>
-                </div>
+{% extends 'base.html' %}
+
+{% block title %}MarkEdit{% endblock %}
+
+{% block head_scripts %}
+{{ super() }}
+<!-- 引入Marked.js库 -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- 引入CodeMirror代码编辑器库 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.css">
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/css/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/yaml/yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/markdown/markdown.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/clike/clike.min.js"></script>
+<!-- 引入Prism.js代码高亮库（预览模式下使用） -->
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<!-- 引入EPUB.js库 -->
+<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.88/dist/epub.min.js"></script>
+{% endblock %}
+
+<!-- 配置Header组件 -->
+{% set header_title = "MarkEdit" %}
+{% set show_theme_selector = true %}
+{% set show_admin_menu = true %}
+{% set show_user_panel = true %}
+{% set show_dashboard = true %}
+{% set show_book_converter = true %}
+
+<!-- 自定义Header按钮 -->
+{% block custom_header_buttons %}
+<!-- 侧边栏切换按钮 -->
+<button id="toggle-sidebar-btn" class="btn-secondary" title="切换侧边栏">
+    <i class="btn-icon">🖼️</i>
+    <span class="btn-text-short">侧边栏</span>
+</button>
+
+<!-- 构建功能按钮组 -->
+<div class="button-group build-group">
+    <button id="build-all-btn" class="btn-primary" title="生成所有格式">
+        <i class="btn-icon">📚</i>
+        <span class="btn-text">生成所有格式</span>
+    </button>
+    <button id="build-epub-btn" class="btn-secondary" title="生成 EPUB">
+        <i class="btn-icon">📖</i>
+        <span class="btn-text-short">EPUB</span>
+    </button>
+    <button id="build-pdf-btn" class="btn-secondary" title="生成 PDF">
+        <i class="btn-icon">📄</i>
+        <span class="btn-text-short">PDF</span>
+    </button>
+</div>
+{% endblock %}
+<!-- 主要内容区域 -->
+{% block main_content %}
+<div class="main-content">
+    <div class="sidebar">
+        <h2>文件浏览器</h2>
+        <div id="file-tree"></div>
+    </div>
+    
+    <div class="resizer" id="sidebar-resizer"></div>
+    
+    <div class="editor-area">
+        <div class="editor-header">
+            <span id="current-file">未选择文件</span>
+            <div class="editor-buttons">
+                <button id="preview-btn" class="btn-secondary" style="display: none;">预览</button>
+                <button id="llm-btn" class="btn-secondary" style="display: none;">LLM处理</button>
+                <button id="save-btn" class="btn-primary">保存 (Ctrl+S)</button>
+                <button id="delete-btn" class="btn-danger" disabled>删除</button>
             </div>
         </div>
-{% endif %}
-        
-        <div id="drawer-overlay" class="drawer-overlay"></div>
-        
-        <!-- 用户面板下拉菜单 -->
-        <div id="user-panel-drawer" class="drawer user-panel-drawer">
-            <div class="drawer-header">
-                <h2>用户面板</h2>
-                <button id="close-user-panel-btn" class="btn-secondary">关闭</button>
-            </div>
-            <div class="drawer-content">
-                <!-- 用户信息 -->
-                <div class="section">
-                    <h3>用户信息</h3>
-                    <div class="user-info">
-                        <div class="user-info-item">
-                            <div class="user-info-label">用户名:</div>
-                            <div class="user-info-value" id="user-panel-username">-</div>
-                        </div>
-                        <div class="user-info-item">
-                            <div class="user-info-label">注册时间:</div>
-                            <div class="user-info-value" id="user-panel-created-at">-</div>
-                        </div>
-                        <div class="user-info-item">
-                            <div class="user-info-label">最后登录:</div>
-                            <div class="user-info-value" id="user-panel-login-time">-</div>
-                        </div>
-                        <div class="user-info-item">
-                            <div class="user-info-label">当前主题:</div>
-                            <div class="user-info-value" id="user-panel-current-theme">-</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 主题设置 -->
-                <div class="section">
-                    <h3>主题设置</h3>
-                    <div class="form-group">
-                        <label for="user-panel-theme-selector">选择主题:</label>
-                        <select id="user-panel-theme-selector">
-                            <option value="default">默认主题</option>
-                            <option value="wooden">木质主题</option>
-                        </select>
-                    </div>
-                    <div class="btn-group">
-                        <button type="button" id="user-panel-save-theme-btn" class="btn-primary">保存主题设置</button>
-                    </div>
-                </div>
-                
-                <!-- LLM配置 -->
-                <div class="section">
-                    <h3>自定义LLM配置</h3>
-                    <div class="form-group">
-                        <label for="user-panel-llm-config">LLM配置 (JSON格式):</label>
-                        <textarea id="user-panel-llm-config" placeholder='{"model": "gpt-4", "api_key": "your-api-key"}'></textarea>
-                    </div>
-                    <div class="btn-group">
-                        <button type="button" id="user-panel-save-llm-config-btn" class="btn-primary">保存LLM配置</button>
-                        <button type="button" id="user-panel-reset-llm-config-btn" class="btn-secondary">重置</button>
-                    </div>
-                </div>
-                
-                <!-- 用户操作 -->
-                <div class="section">
-                    <h3>用户操作</h3>
-                    <div class="btn-group">
-                        <button type="button" id="user-panel-logout-btn" class="btn-secondary" onclick="handleUserPanelLogout()">登出</button>
-                        <a href="/myaccount" class="btn-secondary" target="_blank">账户详情</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="main-content">
-            <div class="sidebar">
-                <h2>文件浏览器</h2>
-                <div id="file-tree"></div>
-            </div>
-            
-            <div class="editor-area">
-                <div class="editor-header">
-                    <span id="current-file">未选择文件</span>
-                    <div class="editor-buttons">
-                        <button id="preview-btn" class="btn-secondary" style="display: none;">预览</button>
-                        <button id="llm-btn" class="btn-secondary" style="display: none;">LLM处理</button>
-                        <button id="save-btn" class="btn-primary">保存 (Ctrl+S)</button>
-                        <button id="delete-btn" class="btn-danger" disabled>删除</button>
-                    </div>
-                </div>
-                <div class="editor-container">
-                    <textarea id="editor" style="display:none;"></textarea>
-                    <div id="codemirror-editor" style="display:none;"></div>
-                    <div id="preview-container" style="display:none; padding: 1rem; background-color: #fff; height: 100%; overflow-y: auto;"></div>
-                    <div id="image-viewer" style="display:none;"></div>
-                    <div id="binary-viewer" style="display:none;">
-                        <p>这是一个二进制文件，无法在编辑器中显示。</p>
-                    </div>
-                </div>
+        <div class="editor-container">
+            <textarea id="editor" style="display:none;"></textarea>
+            <div id="codemirror-editor" style="display:none;"></div>
+            <div id="preview-container" style="display:none; padding: 1rem; background-color: #fff; height: 100%; overflow-y: auto;"></div>
+            <div id="image-viewer" style="display:none;"></div>
+            <div id="binary-viewer" style="display:none;">
+                <p>这是一个二进制文件，无法在编辑器中显示。</p>
             </div>
         </div>
     </div>
-    
-    <!-- 引入公共JavaScript函数库 -->
-    <script src="/static/common/js/common.js"></script>
-    <script src="/static/common/js/main-shared.js"></script>
-    <!-- 引入主题加载器 -->
-    <script src="/static/common/js/theme-loader.js"></script>
-    <script src="/static/{{ theme }}/js/main.js" id="theme-script"></script>
-    <script src="/static/{{ theme }}/js/index.js"></script>
-</body>
-</html>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<!-- 引入主题相关的JavaScript -->
+<script src="/static/common/js/theme-loader.js"></script>
+<script src="/static/common/js/main-shared.js"></script>
+<script src="/static/{{ theme }}/js/main.js" id="theme-script"></script>
+<script src="/static/{{ theme }}/js/index.js"></script>
+{% endblock %}

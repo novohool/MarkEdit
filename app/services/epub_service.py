@@ -401,7 +401,7 @@ class EpubService:
         # 替换base64图片链接 - 使用直接字符串替换而不是正则
         for base64_url, filename in base64_to_file.items():
             if base64_url in markdown_content:
-                markdown_content = markdown_content.replace(base64_url, f"illustrations/{filename}")
+                markdown_content = markdown_content.replace(base64_url, f"/user-illustrations/{filename}")
                 replacement_count += 1
                 logger.debug(f"替换base64图片: {filename}")
         
@@ -414,13 +414,13 @@ class EpubService:
             # 在图片部分中替换base64链接
             for base64_url, filename in base64_to_file.items():
                 if base64_url in image_part:
-                    image_part = image_part.replace(base64_url, f"illustrations/{filename}")
+                    image_part = image_part.replace(base64_url, f"/user-illustrations/{filename}")
                     modified = True
             
             # 替换普通图片链接
             for original_path, new_filename in image_file_mappings.items():
                 if original_path in image_part:
-                    image_part = image_part.replace(original_path, f"illustrations/{new_filename}")
+                    image_part = image_part.replace(original_path, f"/user-illustrations/{new_filename}")
                     modified = True
             
             return f":::{style_content}\n{image_part}\n:::"
@@ -434,8 +434,8 @@ class EpubService:
             alt_text = match.group(1)
             image_path = match.group(2)
             
-            # 如果已经是illustrations/格式，则不处理
-            if image_path.startswith('illustrations/'):
+            # 如果已经是/user-illustrations/格式，则不处理
+            if image_path.startswith('/user-illustrations/'):
                 return match.group(0)
             
             # 如果是base64数据，应该已经在上面处理过了，但以防万一
@@ -445,7 +445,7 @@ class EpubService:
                     # 尝试匹配部分base64字符串
                     if base64_url == image_path or image_path in base64_url:
                         logger.debug(f"在图片链接中发现未处理的base64: {filename}")
-                        return f"![{alt_text}](illustrations/{filename})"
+                        return f"![{alt_text}](/user-illustrations/{filename})"
                 # 如果没有找到匹配，尝试用正则匹配
                 for base64_url, filename in base64_to_file.items():
                     if 'base64,' in image_path and 'base64,' in base64_url:
@@ -455,7 +455,7 @@ class EpubService:
                             url_b64_part = base64_url.split('base64,')[1][:50]
                             if img_b64_part == url_b64_part:
                                 logger.debug(f"通过部分匹配找到base64图片: {filename}")
-                                return f"![{alt_text}](illustrations/{filename})"
+                                return f"![{alt_text}](/user-illustrations/{filename})"
                         except:
                             pass
                 return match.group(0)
@@ -464,19 +464,19 @@ class EpubService:
             if image_path in image_file_mappings:
                 new_filename = image_file_mappings[image_path]
                 logger.debug(f"替换图片链接: {image_path} -> {new_filename}")
-                return f"![{alt_text}](illustrations/{new_filename})"
+                return f"![{alt_text}](/user-illustrations/{new_filename})"
             
             # 尝试匹配相对路径或文件名
             image_name = Path(image_path).name
             for original_path, new_filename in image_file_mappings.items():
                 if Path(original_path).name == image_name:
                     logger.debug(f"按文件名匹配替换: {image_path} -> {new_filename}")
-                    return f"![{alt_text}](illustrations/{new_filename})"
+                    return f"![{alt_text}](/user-illustrations/{new_filename})"
             
-            # 如果没有找到映射，使用原文件名但改为illustrations路径
+            # 如果没有找到映射，使用原文件名但改为/user-illustrations/路径
             filename = Path(image_path).name
             logger.debug(f"未找到映射，使用原文件名: {image_path} -> {filename}")
-            return f"![{alt_text}](illustrations/{filename})"
+            return f"![{alt_text}](/user-illustrations/{filename})"
         
         # 替换图片链接
         markdown_content = re.sub(r'!\[([^\]]*)\]\(([^\)]+)\)', replace_image_link, markdown_content)
@@ -843,6 +843,23 @@ class EpubService:
             if not epub_path.exists():
                 raise FileNotFoundError(f"EPUB文件不存在: {epub_file_path}")
             
+            # 记录文件信息
+            file_size = epub_path.stat().st_size
+            logger.info(f"EPUB转换开始: 文件={epub_path.name}, 大小={file_size}字节")
+            
+            # 首先验证文件是否为有效的ZIP文件
+            try:
+                with zipfile.ZipFile(epub_path, 'r') as test_zip:
+                    file_count = len(test_zip.namelist())
+                    logger.info(f"EPUB文件验证成功: 包含{file_count}个文件")
+            except zipfile.BadZipFile as e:
+                error_msg = f"无法读取EPUB文件，不是有效的ZIP格式: {str(e)}"
+                logger.error(error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg
+                }
+            
             # 创建临时目录解压EPUB
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
@@ -850,8 +867,33 @@ class EpubService:
                 
                 # 解压EPUB文件
                 logger.info(f"开始解压EPUB文件: {epub_path}")
-                with zipfile.ZipFile(epub_path, 'r') as zipf:
-                    zipf.extractall(extract_path)
+                try:
+                    # 首先验证ZIP文件
+                    with zipfile.ZipFile(epub_path, 'r') as zipf:
+                        # 验证ZIP文件完整性
+                        bad_file = zipf.testzip()
+                        if bad_file:
+                            raise ValueError(f"EPUB文件中包含损坏的文件: {bad_file}")
+                        
+                        # 检查文件列表
+                        file_list = zipf.namelist()
+                        if not file_list:
+                            raise ValueError("EPUB文件为空")
+                        
+                        logger.info(f"EPUB文件包含 {len(file_list)} 个文件")
+                        
+                        # 解压所有文件
+                        zipf.extractall(extract_path)
+                        logger.info(f"EPUB文件解压完成，解压到: {extract_path}")
+                        
+                except zipfile.BadZipFile as e:
+                    error_msg = f"EPUB文件格式错误，不是有效的ZIP文件: {str(e)}"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
+                except Exception as e:
+                    error_msg = f"解压EPUB文件时发生错误: {str(e)}"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
                 
                 # 查找并解析content.opf文件
                 content_opf_files = list(extract_path.rglob("content.opf"))
@@ -1000,7 +1042,11 @@ class EpubService:
                         
                         # 使用pandoc转换XHTML到Markdown
                         input_path = xhtml_file['path']
-                        output_filename = f"{i+1:02d}-{xhtml_file['id']}.md"
+                        # 移除.xhtml后缀，直接使用.md后缀
+                        base_name = xhtml_file['id']
+                        if base_name.endswith('.xhtml'):
+                            base_name = base_name[:-6]  # 移除.xhtml后缀
+                        output_filename = f"{i+1:02d}-{base_name}.md"
                         output_path = chapters_dir / output_filename
                         
                         logger.debug(f"开始使用Pandoc转换: {input_path} -> {output_path}")
@@ -1018,33 +1064,56 @@ class EpubService:
                         
                         logger.debug(f"Pandoc命令: {' '.join(pandoc_cmd)}")
                         
-                        result = subprocess.run(pandoc_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
-                        if result.returncode == 0:
-                            logger.debug(f"Pandoc转换成功: {output_filename}")
+                        try:
+                            result = subprocess.run(pandoc_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60)
+                            logger.debug(f"Pandoc执行结果: 返回码={result.returncode}, stdout长度={len(result.stdout)}, stderr长度={len(result.stderr)}")
                             
-                            # 读取转换后的Markdown文件
-                            with open(output_path, 'r', encoding='utf-8') as f:
-                                markdown_content = f.read()
-                            
-                            logger.debug(f"转换后Markdown大小: {len(markdown_content)} 字符")
-                            logger.debug(f"开始转换图片链接，base64数量: {len(base64_to_file)}, 文件映射数量: {len(image_file_mappings)}")
-                            
-                            # 转换图片链接
-                            markdown_content = self._convert_image_links_in_markdown(markdown_content, base64_to_file, image_file_mappings)
-                            
-                            # 写回转换后的内容
-                            with open(output_path, 'w', encoding='utf-8') as f:
-                                f.write(markdown_content)
-                            
-                            converted_files.append({
-                                'original': xhtml_file['href'],
-                                'converted': output_filename,
-                                'title': title,
-                                'id': xhtml_file['id']
-                            })
-                            logger.info(f"成功转换: {xhtml_file['href']} -> {output_filename} (标题: {title})")
-                        else:
-                            logger.warning(f"转换失败: {xhtml_file['href']}, 错误: {result.stderr}")
+                            if result.returncode == 0:
+                                logger.debug(f"Pandoc转换成功: {output_filename}")
+                                
+                                # 读取转换后的Markdown文件
+                                with open(output_path, 'r', encoding='utf-8') as f:
+                                    markdown_content = f.read()
+                                
+                                logger.debug(f"转换后Markdown大小: {len(markdown_content)} 字符")
+                                logger.debug(f"开始转换图片链接，base64数量: {len(base64_to_file)}, 文件映射数量: {len(image_file_mappings)}")
+                                
+                                # 转换图片链接
+                                markdown_content = self._convert_image_links_in_markdown(markdown_content, base64_to_file, image_file_mappings)
+                                
+                                # 写回转换后的内容
+                                with open(output_path, 'w', encoding='utf-8') as f:
+                                    f.write(markdown_content)
+                                
+                                converted_files.append({
+                                    'original': xhtml_file['href'],
+                                    'converted': output_filename,
+                                    'title': title,
+                                    'id': xhtml_file['id']
+                                })
+                                logger.info(f"成功转换: {xhtml_file['href']} -> {output_filename} (标题: {title})")
+                            else:
+                                logger.error(f"Pandoc转换失败: {xhtml_file['href']}, 返回码: {result.returncode}")
+                                logger.error(f"Pandoc stderr: {result.stderr}")
+                                logger.error(f"Pandoc stdout: {result.stdout}")
+                                # 即使Pandoc失败，也继续转换其他文件
+                                
+                        except subprocess.TimeoutExpired:
+                            logger.error(f"Pandoc转换超时: {xhtml_file['href']}")
+                        except FileNotFoundError as fnf_e:
+                            logger.error(f"Pandoc命令未找到: {str(fnf_e)}")
+                            logger.error("请确保系统已安装Pandoc。安装方法：")
+                            logger.error("- Windows: 下载并安装 https://pandoc.org/installing.html#windows")
+                            logger.error("- 或使用 winget install pandoc")
+                            logger.error("- 安装后重启应用程序")
+                            raise ImportError(f"Pandoc未安装或不在系统PATH中。详细错误: {str(fnf_e)}。请从 https://pandoc.org/installing.html 安装Pandoc")
+                        except PermissionError as pe:
+                            logger.error(f"Pandoc执行权限错误: {str(pe)}")
+                            raise PermissionError(f"无法执行Pandoc命令，权限不足: {str(pe)}")
+                        except Exception as pandoc_error:
+                            logger.error(f"Pandoc执行异常: {xhtml_file['href']}, 错误: {str(pandoc_error)}")
+                            logger.error(f"Pandoc异常详情: {type(pandoc_error).__name__}")
+                            # 继续处理其他文件
                             
                     except Exception as e:
                         logger.warning(f"转换文件失败 {xhtml_file['href']}: {str(e)}")
@@ -1172,9 +1241,105 @@ language: "{metadata.get('language', 'en')}"
                 
                 return result
                 
-        except Exception as e:
-            logger.error(f"EPUB转换为Markdown失败: {str(e)}")
+        except zipfile.BadZipFile as e:
+            error_msg = f"无法读取EPUB文件，不是有效的ZIP格式: {str(e)}"
+            logger.error(error_msg)
             return {
                 "status": "error",
-                "message": f"EPUB转换为Markdown失败: {str(e)}"
+                "message": error_msg,
+                "error_type": "invalid_zip_format",
+                "file_path": str(epub_path),
+                "suggestions": [
+                    "检查文件是否完整下载",
+                    "确认文件是有效的EPUB格式",
+                    "尝试使用EPUB编辑器检查和修复文件"
+                ]
+            }
+        except FileNotFoundError as e:
+            error_msg = f"EPUB文件不存在: {str(e)}"
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "message": error_msg,
+                "error_type": "file_not_found",
+                "file_path": str(epub_path)
+            }
+        except ValueError as e:
+            error_msg = str(e)
+            logger.error(f"EPUB结构错误: {error_msg}")
+            return {
+                "status": "error",
+                "message": error_msg,
+                "error_type": "epub_structure_error",
+                "file_path": str(epub_path),
+                "suggestions": [
+                    "检查EPUB文件的内部结构",
+                    "确认文件包含必需的content.opf文件",
+                    "使用EPUB验证工具检查文件完整性"
+                ]
+            }
+        except PermissionError as e:
+            error_msg = f"文件权限错误: {str(e)}"
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "message": error_msg,
+                "error_type": "permission_error",
+                "file_path": str(epub_path)
+            }
+        except ImportError as e:
+            error_msg = str(e)
+            logger.error(f"EPUB转换依赖库缺失: {error_msg}")
+            # 检查具体缺失的依赖
+            if "pandoc" in error_msg.lower():
+                logger.error("Pandoc未安装。安装指南:")
+                logger.error("1. 访问 https://pandoc.org/installing.html")
+                logger.error("2. 下载适合您操作系统的版本")
+                logger.error("3. 安装后重启应用程序")
+                error_msg = f"Pandoc未安装或不在系统PATH中。{error_msg}。请从 https://pandoc.org/installing.html 安装Pandoc后重试。"
+            return {
+                "status": "error",
+                "message": error_msg,
+                "error_type": "missing_dependency",
+                "suggestions": [
+                    "检查是否安装了所有必需的Python库",
+                    "运行 pip install -r requirements.txt",
+                    "检查Pandoc是否正确安装",
+                    "从 https://pandoc.org/installing.html 安装Pandoc"
+                ]
+            }
+        except Exception as e:
+            import traceback
+            error_traceback = traceback.format_exc()
+            error_msg = f"转换过程中发生未知错误: {str(e)}"
+            logger.error(f"EPUB转换未知错误详情:")
+            logger.error(f"  - 文件路径: {str(epub_path)}")
+            logger.error(f"  - 错误类型: {type(e).__name__}")
+            logger.error(f"  - 错误信息: {str(e)}")
+            logger.error(f"  - 完整堆栈跟踪:\n{error_traceback}")
+            
+            # 根据错误类型提供更具体的建议
+            suggestions = [
+                "查看日志文件获取更详细的错误信息",
+                "检查系统资源和磁盘空间",
+                "尝试使用更小的EPUB文件测试",
+                "联系管理员获取技术支持"
+            ]
+            
+            if "memory" in str(e).lower():
+                suggestions.insert(0, "内存不足，请关闭其他应用程序后重试")
+            elif "disk" in str(e).lower() or "space" in str(e).lower():
+                suggestions.insert(0, "磁盘空间不足，请清理磁盘空间后重试")
+            elif "timeout" in str(e).lower():
+                suggestions.insert(0, "操作超时，请检查网络连接或系统负载")
+            
+            return {
+                "status": "error",
+                "message": error_msg,
+                "error_type": "unknown_error",
+                "error_class": type(e).__name__,
+                "file_path": str(epub_path),
+                "detailed_error": str(e),
+                "traceback": error_traceback,
+                "suggestions": suggestions
             }

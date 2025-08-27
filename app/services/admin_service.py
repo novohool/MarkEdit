@@ -52,6 +52,23 @@ class AdminService:
             "build-epub.js": self.base_dir / "src" / "build-epub.js"
         }
         
+        # 定义默认数据（不可修改/删除）
+        self.default_permissions = {
+            "super_admin", "admin_access", "user.list", "user.create", "user.edit", "user.delete",
+            "role.list", "role.create", "role.edit", "role.delete",
+            "permission.list", "permission.create", "permission.edit", "permission.delete",
+            "content.edit", "file.manage", "build.epub", "build.pdf", "build.html",
+            "epub_conversion", "manual_backup", "system.config", "theme_access"
+        }
+        
+        self.default_roles = {
+            "super_admin", "admin", "editor", "user"
+        }
+        
+        self.default_users = {
+            "markedit"  # 默认超管用户
+        }
+        
         # 注意：is_text_file函数已移至app.utils.file_utils中统一管理
     
     async def read_admin_file(self, file_name: str) -> Dict[str, Any]:
@@ -372,7 +389,8 @@ class AdminService:
                     "login_time": row["login_time"].isoformat() if row["login_time"] else None,
                     "created_at": row["created_at"].isoformat() if row["created_at"] else None,
                     "theme": row["theme"] or "default",
-                    "roles": row["roles"].split(',') if row["roles"] else []
+                    "roles": row["roles"].split(',') if row["roles"] else [],
+                    "is_default": row["username"] in self.default_users  # 标识默认用户
                 }
                 users.append(user_data)
             
@@ -479,6 +497,15 @@ class AdminService:
             if not existing_user:
                 raise ValueError("用户不存在")
             
+            original_username = existing_user["username"]
+            
+            # 检查是否为默认用户（限制修改）
+            if original_username in self.default_users:
+                # 默认用户只允许修改密码和主题，不允许修改用户名
+                if username is not None and username != original_username:
+                    raise ValueError(f"默认用户 '{original_username}' 的用户名不可修改")
+                username = None  # 强制不修改用户名
+            
             update_data = {}
             
             # 更新用户名（检查是否重复）
@@ -550,6 +577,10 @@ class AdminService:
                 raise ValueError("用户不存在")
             
             username = user_info["username"]
+            
+            # 检查是否为默认用户（不可删除）
+            if username in self.default_users:
+                raise ValueError(f"默认用户 '{username}' 不可删除")
             
             # 删除用户角色关联
             query = user_role_table.delete().where(user_role_table.c.user_id == user_id)
@@ -748,11 +779,13 @@ class AdminService:
             
             role_list = []
             for role in roles:
-                role_list.append({
+                role_dict = {
                     "id": role["id"],
                     "name": role["name"],
-                    "description": role["description"]
-                })
+                    "description": role["description"],
+                    "is_default": role["name"] in self.default_roles  # 标识默认角色
+                }
+                role_list.append(role_dict)
             
             return role_list
             
@@ -803,6 +836,15 @@ class AdminService:
             if not role_info:
                 raise ValueError("角色不存在")
             
+            original_name = role_info["name"]
+            
+            # 检查是否为默认角色（限制修改）
+            if original_name in self.default_roles:
+                # 默认角色只允许修改描述，不允许修改名称
+                if name is not None and name != original_name:
+                    raise ValueError(f"默认角色 '{original_name}' 的名称不可修改")
+                name = None  # 强制不修改角色名称
+            
             # 构建更新数据
             update_data = {}
             if name is not None:
@@ -846,6 +888,12 @@ class AdminService:
             if not role_info:
                 raise ValueError("角色不存在")
             
+            role_name = role_info["name"]
+            
+            # 检查是否为默认角色（不可删除）
+            if role_name in self.default_roles:
+                raise ValueError(f"默认角色 '{role_name}' 不可删除")
+            
             # 检查是否有用户关联此角色
             user_role_query = user_role_table.select().where(user_role_table.c.role_id == role_id)
             user_roles = await database.fetch_all(user_role_query)
@@ -886,11 +934,13 @@ class AdminService:
             
             permission_list = []
             for permission in permissions:
-                permission_list.append({
+                permission_dict = {
                     "id": permission["id"],
                     "name": permission["name"],
-                    "description": permission["description"]
-                })
+                    "description": permission["description"],
+                    "is_default": permission["name"] in self.default_permissions  # 标识默认权限
+                }
+                permission_list.append(permission_dict)
             
             return permission_list
             
@@ -941,6 +991,15 @@ class AdminService:
             if not permission_info:
                 raise ValueError("权限不存在")
             
+            original_name = permission_info["name"]
+            
+            # 检查是否为默认权限（限制修改）
+            if original_name in self.default_permissions:
+                # 默认权限只允许修改描述，不允许修改名称
+                if name is not None and name != original_name:
+                    raise ValueError(f"默认权限 '{original_name}' 的名称不可修改")
+                name = None  # 强制不修改权限名称
+            
             # 构建更新数据
             update_data = {}
             if name is not None:
@@ -983,6 +1042,12 @@ class AdminService:
             
             if not permission_info:
                 raise ValueError("权限不存在")
+            
+            permission_name = permission_info["name"]
+            
+            # 检查是否为默认权限（不可删除）
+            if permission_name in self.default_permissions:
+                raise ValueError(f"默认权限 '{permission_name}' 不可删除")
             
             # 删除角色权限关联
             delete_role_perm_query = role_permission_table.delete().where(
@@ -1114,8 +1179,76 @@ class AdminService:
     # 权限分组和层级管理方法
     # ==========================================
     
+    async def get_assignable_permissions(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取可分配的权限列表（按分组组织，用于前端勾选）"""
+        try:
+            # 获取所有权限
+            permissions = await self.get_permissions()
+            
+            # 按权限名称的前缀进行分组
+            groups = {
+                "系统管理": [],
+                "用户管理": [],
+                "角色管理": [],
+                "权限管理": [],
+                "内容管理": [],
+                "构建管理": [],
+                "其他": []
+            }
+            
+            for permission in permissions:
+                name = permission["name"]
+                
+                # 为每个权限添加额外信息
+                permission_info = {
+                    "id": permission["id"],
+                    "name": permission["name"],
+                    "description": permission["description"],
+                    "is_default": permission["is_default"],
+                    "category": self._get_permission_category(name),
+                    "selectable": True  # 所有权限都可选择（包括默认权限）
+                }
+                
+                if name.startswith("super_admin") or name.startswith("admin_access") or name.startswith("system."):
+                    groups["系统管理"].append(permission_info)
+                elif name.startswith("user."):
+                    groups["用户管理"].append(permission_info)
+                elif name.startswith("role."):
+                    groups["角色管理"].append(permission_info)
+                elif name.startswith("permission."):
+                    groups["权限管理"].append(permission_info)
+                elif name.startswith("content.") or name.startswith("file."):
+                    groups["内容管理"].append(permission_info)
+                elif name.startswith("build.") or name.startswith("epub_") or name.startswith("manual_"):
+                    groups["构建管理"].append(permission_info)
+                else:
+                    groups["其他"].append(permission_info)
+            
+            return groups
+            
+        except Exception as e:
+            logger.error(f"获取可分配权限列表失败: {str(e)}")
+            raise Exception(f"获取可分配权限列表失败: {str(e)}")
+    
+    def _get_permission_category(self, permission_name: str) -> str:
+        """获取权限分类"""
+        if permission_name.startswith("super_admin") or permission_name.startswith("admin_access") or permission_name.startswith("system."):
+            return "系统管理"
+        elif permission_name.startswith("user."):
+            return "用户管理"
+        elif permission_name.startswith("role."):
+            return "角色管理"
+        elif permission_name.startswith("permission."):
+            return "权限管理"
+        elif permission_name.startswith("content.") or permission_name.startswith("file."):
+            return "内容管理"
+        elif permission_name.startswith("build.") or permission_name.startswith("epub_") or permission_name.startswith("manual_"):
+            return "构建管理"
+        else:
+            return "其他"
+
     async def get_permission_groups(self) -> Dict[str, List[Dict[str, Any]]]:
-        """获取权限分组"""
+        """获取权限分组（旧版本，保持兼容性）"""
         try:
             # 获取所有权限
             permissions = await self.get_permissions()

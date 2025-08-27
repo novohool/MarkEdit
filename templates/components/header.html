@@ -1,0 +1,72 @@
+<!-- 
+Header组件 - 可配置的页面头部
+参数：
+- header_title: 页面标题（默认为block title的值）
+- show_theme_selector: 是否显示主题选择器（默认true）
+- show_admin_menu: 是否显示管理菜单按钮（默认根据权限自动判断）
+- show_user_panel: 是否显示用户面板按钮（默认true）
+- custom_buttons: 自定义按钮组（传入按钮HTML）
+-->
+<header>
+    <div class="header-left">
+        <h1><a href="/" style="text-decoration: none; color: inherit;">{% block header_title %}{{ header_title or "MarkEdit" }}{% endblock %}</a></h1>
+    </div>
+    
+    <!-- 右侧区域：包含主题选择器、管理按钮和用户面板 -->
+    <div class="header-right">
+        <!-- 主题选择器 -->
+        {% if show_theme_selector != false %}
+        {% include 'components/theme-selector.html' %}
+        {% endif %}
+        
+        <!-- 图书转换功能 -->
+        {% if show_book_converter != false %}
+        <div class="book-converter-container">
+            <select id="book-converter-select" class="converter-select" title="选择转换格式">
+                <option value="">选择转换格式</option>
+                <option value="build">所有格式</option>
+                <option value="epub">EPUB格式</option>
+                <option value="pdf">PDF格式</option>
+                <option value="html">HTML格式</option>
+            </select>
+        </div>
+        {% endif %}
+        
+        <!-- 管理和其他功能按钮 -->
+        {% if show_dashboard != false %}
+        <button id="dashboard-btn" class="btn-secondary" title="仪表板">
+            <i class="btn-icon">📊</i>
+            <span class="btn-text">仪表板</span>
+        </button>
+        {% endif %}
+        
+        {% if (show_admin_menu != false) and (has_admin_access or permissions.has_admin_access) %}
+        <button id="admin-menu-btn" class="btn-secondary" title="管理">
+            <i class="btn-icon">⚙️</i>
+            <span class="btn-text">管理</span>
+        </button>
+        {% endif %}
+        
+        <!-- 自定义按钮组 -->
+        {% block custom_header_buttons %}{% endblock %}
+        
+        <!-- 用户面板按钮 -->
+        {% if show_user_panel != false %}
+        <div class="user-panel-area">
+            <button id="myaccount-btn" class="user-panel-btn" title="用户面板">
+                <i class="user-avatar-icon">👤</i>
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</header>
+
+<!-- 管理员抽屉菜单（仅在需要时显示） -->
+{% if (show_admin_menu != false) and (has_admin_access or permissions.has_admin_access) %}
+{% include 'components/admin-drawer.html' %}
+{% endif %}
+
+<!-- 用户面板抽屉菜单（仅在需要时显示） -->
+{% if show_user_panel != false %}
+{% include 'components/user-panel-drawer.html' %}
+{% endif %}

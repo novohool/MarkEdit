@@ -1,0 +1,22 @@
+<!-- User operation block component -->
+<div class="section">
+    <h3>用户操作</h3>
+    <div class="btn-group">
+        <button type="button" 
+                id="{{ logout_btn_id or 'user-panel-logout-btn' }}" 
+                class="btn-secondary logout-btn" 
+                data-logout-handler="{{ logout_handler or 'handleUserPanelLogout' }}">
+            登出
+        </button>
+        {% if show_account_details != false %}
+        <a href="/myaccount" class="btn-secondary" target="_blank">账户详情</a>
+        {% endif %}
+        
+        {% if show_back_button %}
+        <button type="button" class="btn-secondary back-btn" data-action="back">返回</button>
+        {% endif %}
+        
+        <!-- 自定义用户操作按钮 -->
+        {% block custom_user_actions %}{% endblock %}
+    </div>
+</div>

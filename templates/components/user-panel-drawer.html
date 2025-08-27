@@ -1,0 +1,39 @@
+<!-- 
+用户面板抽屉组件
+参数：
+- panel_id: 面板ID（默认'user-panel-drawer'）
+- show_user_info: 是否显示用户信息（默认true）
+- show_theme_settings: 是否显示主题设置（默认true）
+- show_llm_config: 是否显示LLM配置（默认true）
+- show_user_actions: 是否显示用户操作（默认true）
+-->
+<div id="{{ panel_id or 'user-panel-drawer' }}" class="drawer drawer-right user-panel-drawer">
+    <div class="drawer-header">
+        <h2>用户面板</h2>
+        <button id="close-user-panel-btn" class="btn-secondary">✖</button>
+    </div>
+    <div class="drawer-content">
+        <!-- 用户信息 -->
+        {% if show_user_info != false %}
+        {% include 'components/user-info-section.html' %}
+        {% endif %}
+        
+        <!-- 主题设置 -->
+        {% if show_theme_settings != false %}
+        {% include 'components/theme-settings-section.html' %}
+        {% endif %}
+        
+        <!-- LLM配置 -->
+        {% if show_llm_config != false %}
+        {% include 'components/llm-config-section.html' %}
+        {% endif %}
+        
+        <!-- 用户操作 -->
+        {% if show_user_actions != false %}
+        {% include 'components/user-actions-section.html' %}
+        {% endif %}
+        
+        <!-- 自定义用户面板内容 -->
+        {% block custom_user_panel_content %}{% endblock %}
+    </div>
+</div>

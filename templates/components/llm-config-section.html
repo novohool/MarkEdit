@@ -1,0 +1,17 @@
+<!-- LLM配置区块组件 -->
+<div class="section">
+    <h3>自定义LLM配置</h3>
+    <div class="form-group">
+        <label for="{{ llm_config_id or 'user-panel-llm-config' }}">LLM配置 (JSON格式):</label>
+        <textarea id="{{ llm_config_id or 'user-panel-llm-config' }}" 
+                  placeholder='{"model": "gpt-4", "api_key": "your-api-key"}'></textarea>
+    </div>
+    <div class="btn-group">
+        <button type="button" id="{{ save_llm_btn_id or 'user-panel-save-llm-config-btn' }}" class="btn-primary">
+            保存LLM配置
+        </button>
+        <button type="button" id="{{ reset_llm_btn_id or 'user-panel-reset-llm-config-btn' }}" class="btn-secondary">
+            重置
+        </button>
+    </div>
+</div>

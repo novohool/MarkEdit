@@ -1,0 +1,17 @@
+<!-- 主题设置区块组件 -->
+<div class="section">
+    <h3>主题设置</h3>
+    <div class="form-group">
+        <label for="{{ theme_selector_id or 'user-panel-theme-selector' }}">选择主题:</label>
+        <select id="{{ theme_selector_id or 'user-panel-theme-selector' }}">
+            {% for theme_key, theme_name in (available_themes or [('default', '默认主题'), ('wooden', '木质主题')]) %}
+            <option value="{{ theme_key }}">{{ theme_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="btn-group">
+        <button type="button" id="{{ save_theme_btn_id or 'user-panel-save-theme-btn' }}" class="btn-primary">
+            保存主题设置
+        </button>
+    </div>
+</div>

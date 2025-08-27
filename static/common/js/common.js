@@ -20,11 +20,16 @@ class UploadProgressManager {
     constructor() {
         this.activeUploads = new Map();
         this.progressContainer = null;
-        this.createProgressContainer();
+        // 等待DOM加载完成后再创建进度容器
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.createProgressContainer());
+        } else {
+            this.createProgressContainer();
+        }
     }
     
     createProgressContainer() {
-        if (this.progressContainer) {
+        if (this.progressContainer || !document.body) {
             return;
         }
         
@@ -51,6 +56,17 @@ class UploadProgressManager {
     }
     
     showProgress(uploadId, fileName, total = 1) {
+        // 确保进度容器已创建
+        if (!this.progressContainer) {
+            this.createProgressContainer();
+        }
+        
+        // 如果仍然没有进度容器（DOM未准备好），则等待
+        if (!this.progressContainer) {
+            setTimeout(() => this.showProgress(uploadId, fileName, total), 100);
+            return;
+        }
+        
         this.activeUploads.set(uploadId, {
             fileName,
             total,
@@ -91,7 +107,7 @@ class UploadProgressManager {
     }
     
     updateDisplay() {
-        if (this.activeUploads.size === 0) {
+        if (this.activeUploads.size === 0 || !this.progressContainer) {
             return;
         }
         
@@ -120,7 +136,9 @@ class UploadProgressManager {
     }
     
     hideProgress() {
-        this.progressContainer.classList.remove('show');
+        if (this.progressContainer) {
+            this.progressContainer.classList.remove('show');
+        }
     }
 }
 
@@ -134,15 +152,24 @@ function showMessage(message, type) {
     messageElement.className = `message message-${type}`;
     messageElement.textContent = message;
     
-    // 添加到页面
-    document.body.appendChild(messageElement);
-    
-    // 3秒后自动移除
-    setTimeout(() => {
-        if (messageElement.parentNode) {
-            messageElement.parentNode.removeChild(messageElement);
+    // 确保document.body存在后再添加到页面
+    function addToBody() {
+        if (document.body) {
+            document.body.appendChild(messageElement);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (messageElement.parentNode) {
+                    messageElement.parentNode.removeChild(messageElement);
+                }
+            }, 3000);
+        } else {
+            // 如果body还未加载，等待100ms后重试
+            setTimeout(addToBody, 100);
         }
-    }, 3000);
+    }
+    
+    addToBody();
 }
 
 // 抽屉菜单控制函数
@@ -155,7 +182,16 @@ function toggleAdminDrawer() {
     console.log('overlay 元素:', overlay);
     
     if (drawer) {
+        const isOpen = drawer.classList.contains('open');
         drawer.classList.toggle('open');
+        
+        // 切换body类来调整容器布局
+        if (isOpen) {
+            document.body.classList.remove('drawer-open');
+        } else {
+            document.body.classList.add('drawer-open');
+        }
+        
         console.log('drawer 添加/移除 open 类后的 classList:', drawer.classList.toString());
     }
     if (overlay) {
@@ -174,6 +210,9 @@ function closeAdminDrawer() {
     if (overlay) {
         overlay.classList.remove('open');
     }
+    
+    // 移除body类来恢复容器布局
+    document.body.classList.remove('drawer-open');
 }
 
 // 初始化编辑器状态
@@ -291,42 +330,9 @@ async function loadFileTree() {
         const fileTreeElement = document.getElementById('file-tree');
         fileTreeElement.innerHTML = '';
         
-        // 添加工具栏
-        const toolbar = document.createElement('div');
-        toolbar.className = 'toolbar';
-        toolbar.innerHTML = `
-            <button id="refresh-btn" class="btn-secondary">刷新</button>
-        `;
-        fileTreeElement.appendChild(toolbar);
-        
-        // 添加上传EPUB按钮到独立位置
-        const uploadSection = document.createElement('div');
-        uploadSection.className = 'upload-section';
-        uploadSection.innerHTML = `
-            <button id="src-upload-btn" class="btn-secondary" title="上传EPUB文件（自动转换为Markdown）">
-                <i class="btn-icon">📚</i>
-                <span class="btn-text">上传EPUB</span>
-            </button>
-        `;
-        fileTreeElement.appendChild(uploadSection);
-        
-        // 添加刷新按钮事件
-        const refreshBtn = document.getElementById('refresh-btn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', loadFileTree);
-        }
-        
-        // 添加创建文件按钮事件
-        const createFileBtn = document.getElementById('create-file-btn');
-        if (createFileBtn) {
-            createFileBtn.addEventListener('click', showCreateFileDialog);
-        }
-        
-        // 添加上传文件按钮事件
-        const uploadFileBtn = document.getElementById('upload-file-btn');
-        if (uploadFileBtn) {
-            uploadFileBtn.addEventListener('click', () => showUploadFileDialog('', false));
-        }
+        // 创建文件区域容器
+        const fileAreasContainer = document.createElement('div');
+        fileAreasContainer.className = 'file-areas-container';
         
         // 创建src文件树容器
         const srcContainer = document.createElement('div');
@@ -334,9 +340,22 @@ async function loadFileTree() {
         srcContainer.innerHTML = `
             <div class="area-header">
                 <h3>Src</h3>
+                <button id="refresh-btn" class="btn-secondary btn-compact" title="刷新文件树">
+                    <i class="btn-icon">🔄</i>
+                </button>
+                <button id="src-upload-btn" class="btn-secondary area-upload-btn btn-compact" title="上传文档文件（EPUB、Word、文本等，自动转换为Markdown）">
+                    <i class="btn-icon">📝</i>
+                    <span class="btn-text">上传文档</span>
+                </button>
             </div>
         `;
-        fileTreeElement.appendChild(srcContainer);
+        fileAreasContainer.appendChild(srcContainer);
+        
+        // 添加刷新按钮事件（移到DOM元素创建之后）
+        const refreshBtn = srcContainer.querySelector('#refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', loadFileTree);
+        }
         
         const srcTreeContainer = document.createElement('div');
         srcTreeContainer.id = 'src-tree-container';
@@ -349,13 +368,25 @@ async function loadFileTree() {
         buildContainer.innerHTML = `
             <div class="area-header">
                 <h3>Build</h3>
-                <button id="build-upload-btn" class="btn-secondary area-upload-btn" title="上传电子书文件">
+                <button id="build-refresh-btn" class="btn-secondary btn-compact" title="刷新文件树">
+                    <i class="btn-icon">🔄</i>
+                </button>
+                <button id="build-upload-btn" class="btn-secondary area-upload-btn btn-compact" title="上传电子书文件">
                     <i class="btn-icon">📖</i>
                     <span class="btn-text">上传文件</span>
                 </button>
             </div>
         `;
-        fileTreeElement.appendChild(buildContainer);
+        fileAreasContainer.appendChild(buildContainer);
+        
+        // 添加build刷新按钮事件
+        const buildRefreshBtn = buildContainer.querySelector('#build-refresh-btn');
+        if (buildRefreshBtn) {
+            buildRefreshBtn.addEventListener('click', loadFileTree);
+        }
+
+        // 将文件区域容器添加到主容器
+        fileTreeElement.appendChild(fileAreasContainer);
         
         const buildTreeContainer = document.createElement('div');
         buildTreeContainer.id = 'build-tree-container';
@@ -488,6 +519,31 @@ async function downloadSrc() {
     } catch (error) {
         console.error('下载Src目录失败:', error);
         showMessage('下载Src目录失败: ' + error.message, 'error');
+    }
+}
+
+// 下载build区域文件
+async function downloadBuildFile(filePath) {
+    try {
+        console.log('开始下载文件:', filePath);
+        showMessage(`正在下载 ${filePath}...`, 'info');
+        
+        // 创建一个隐藏的a标签来触发下载
+        const link = document.createElement('a');
+        const encodedFilePath = encodeURIComponent(filePath);
+        link.href = `/api/file/build/${encodedFilePath}?raw=true&download=true`;
+        link.download = filePath.split('/').pop(); // 使用文件名作为下载名
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('已触发下载');
+        showMessage('下载已开始', 'success');
+    } catch (error) {
+        console.error('下载文件失败:', error);
+        showMessage('下载文件失败: ' + error.message, 'error');
     }
 }
 
@@ -737,8 +793,22 @@ function addFileClickHandler(fileItem, file, area) {
         // 激活当前文件项
         this.classList.add('active');
         
-        // 加载文件内容
-        loadFile(file.path, area);
+        // 如果是build区域的文件，优先预览可预览的文件
+        if (area === 'build' && file.type === 'file') {
+            const extension = file.path.substring(file.path.lastIndexOf('.')).toLowerCase();
+            const previewableExtensions = ['.epub', '.html', '.pdf', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.ico'];
+            
+            if (previewableExtensions.includes(extension)) {
+                // 对于可预览的文件，使用loadFile函数进行预览
+                loadFile(file.path, area);
+            } else {
+                // 对于不可预览的文件，直接下载
+                downloadBuildFile(file.path);
+            }
+        } else {
+            // 对于src区域的文件或build区域的目录，正常加载
+            loadFile(file.path, area);
+        }
     });
 }
 
@@ -776,14 +846,15 @@ function showContextMenu(x, y, path, area, type) {
     } else if (area === 'build') {
         if (type === 'file') {
             const extension = path.substring(path.lastIndexOf('.')).toLowerCase();
-            const previewableExtensions = ['.epub', '.html', '.pdf', '.svg'];
+            const previewableExtensions = ['.epub', '.html', '.pdf', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.ico'];
             if (previewableExtensions.includes(extension)) {
                 contextMenu.innerHTML = `
                     <div class="context-menu-item" data-action="preview">预览</div>
+                    <div class="context-menu-item" data-action="download">下载</div>
                 `;
             } else {
                 contextMenu.innerHTML = `
-                    <div class="context-menu-item disabled">不支持的操作</div>
+                    <div class="context-menu-item" data-action="download">下载</div>
                 `;
             }
         } else {
@@ -851,6 +922,9 @@ function handleContextMenuAction(action, path, area, type) {
                 previewBuildFile(path);
             }
             break;
+        case 'download':
+            downloadBuildFile(path);
+            break;
     }
 }
 
@@ -880,8 +954,8 @@ function showAreaUploadDialog(area) {
     
     // 根据区域设置文件类型限制和说明
     if (area === 'src') {
-        fileInput.accept = '.epub,.md,.txt,.json,.yml,.yaml,.css,.html,.js,.xml,.csv';
-        fileInput.title = '选择文件上传到src目录（EPUB文件将自动转换为Markdown）';
+        fileInput.accept = '.epub,.md,.txt,.json,.yml,.yaml,.css,.html,.js,.xml,.csv,.docx,.doc,.rtf';
+        fileInput.title = '选择文件上传到src目录（EPUB等电子书文件将自动转换为Markdown）';
     } else if (area === 'build') {
         fileInput.accept = '.epub,.pdf,.html,.zip,.tar,.gz';
         fileInput.title = '选择电子书或构建文件上传到build目录';
@@ -911,7 +985,7 @@ async function uploadFileToArea(area, file) {
         const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
         
         // 定义支持的文件类型
-        const srcSupportedTypes = ['.epub', '.md', '.txt', '.json', '.yml', '.yaml', '.css', '.html', '.js', '.xml', '.csv'];
+        const srcSupportedTypes = ['.epub', '.md', '.txt', '.json', '.yml', '.yaml', '.css', '.html', '.js', '.xml', '.csv', '.docx', '.doc', '.rtf'];
         const buildSupportedTypes = ['.epub', '.pdf', '.html', '.zip', '.tar', '.gz'];
         
         // 验证文件类型
@@ -949,8 +1023,9 @@ async function uploadFileToArea(area, file) {
             
             let message = `文件上传成功: ${fileName}`;
             
-            // 对于EPUB文件，根据目标目录添加特殊提示
-            if (fileExtension === '.epub') {
+            // 对于电子书和文档文件，根据目标目录添加特殊提示
+            const documentFormats = ['.epub', '.docx', '.doc', '.rtf'];
+            if (documentFormats.includes(fileExtension)) {
                 if (area === 'src') {
                     if (result.conversion_status === 'success') {
                         message += ` （已转换为Markdown格式，共${result.chapters_count || 0}章）`;
@@ -970,14 +1045,27 @@ async function uploadFileToArea(area, file) {
         } else {
             uploadProgressManager.completeUpload(uploadId, false);
             
+            // 解析错误信息
+            let errorMessage = result.detail || '上传失败';
+            
             if (response.status === 400 && result.detail.includes('文件已存在')) {
-                // 文件已存在，询问是否覆盖
-                if (confirm(`文件 "${fileName}" 已存在，是否覆盖？`)) {
-                    await uploadFileToAreaWithOverwrite(area, file);
+                // 文件已存在，直接覆盖
+                await uploadFileToAreaWithOverwrite(area, file);
+                return; // 返回，不显示错误信息
+            } else if (documentFormats.includes(fileExtension)) {
+                // 电子书和文档文件特殊错误处理
+                if (fileExtension === '.epub' && (errorMessage.includes('不是有效的ZIP') || errorMessage.includes('ZIP格式错误'))) {
+                    errorMessage = 'EPUB文件损坏或格式错误，请检查文件是否完整且符合EPUB标准。';
+                } else if (errorMessage.includes('缺少必需的结构')) {
+                    errorMessage = '文件不是有效的格式，缺少必需的组件。';
+                } else if (errorMessage.includes('转换失败')) {
+                    errorMessage = '文件转换失败，可能是文件内部结构问题或缺少必要的组件。请尝试使用其他文件或联系管理员。';
+                } else if (errorMessage.includes('文件为空')) {
+                    errorMessage = '上传的文件为空或损坏，请检查文件是否完整。';
                 }
-            } else {
-                throw new Error(result.detail || '上传失败');
             }
+            
+            throw new Error(errorMessage);
         }
     } catch (error) {
         uploadProgressManager.completeUpload(uploadId, false);
@@ -1010,7 +1098,7 @@ async function uploadMultipleFilesToArea(area, files) {
             // 验证文件类型
             const fileName = file.name;
             const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
-            const srcSupportedTypes = ['.epub', '.md', '.txt', '.json', '.yml', '.yaml', '.css', '.html', '.js', '.xml', '.csv'];
+            const srcSupportedTypes = ['.epub', '.md', '.txt', '.json', '.yml', '.yaml', '.css', '.html', '.js', '.xml', '.csv', '.docx', '.doc', '.rtf'];
             const buildSupportedTypes = ['.epub', '.pdf', '.html', '.zip', '.tar', '.gz'];
             
             if ((area === 'src' && !srcSupportedTypes.includes(fileExtension)) ||
@@ -1267,10 +1355,8 @@ async function uploadFileToDirectory(directoryPath, file, overwrite = false) {
             await loadFileTree();
         } else {
             if (response.status === 400 && result.detail.includes('文件已存在')) {
-                // 文件已存在，询问是否覆盖
-                if (confirm(`文件 "${fileName}" 已存在，是否覆盖？`)) {
-                    await uploadFileToDirectory(directoryPath, file, true);
-                }
+                // 文件已存在，直接覆盖
+                await uploadFileToDirectory(directoryPath, file, true);
             } else {
                 throw new Error(result.detail || '上传失败');
             }
@@ -1372,10 +1458,8 @@ function bindDrawerEvents() {
     
     if (closeUserPanelBtn && userPanelDrawer && !closeUserPanelBtn.dataset.listenerAdded) {
         closeUserPanelBtn.addEventListener('click', function() {
-            userPanelDrawer.classList.remove('open');
-            if (drawerOverlay) {
-                drawerOverlay.classList.remove('open');
-            }
+            console.log('close-user-panel-btn 被点击，调用 closeUserPanelDrawer');
+            closeUserPanelDrawer();
         });
         closeUserPanelBtn.dataset.listenerAdded = 'true';
     }
@@ -1387,6 +1471,8 @@ function bindDrawerEvents() {
             if (typeof closeUserPanelDrawer === 'function') {
                 closeUserPanelDrawer();
             }
+            // 清除所有可能的body类
+            document.body.classList.remove('drawer-open', 'drawer-right-open');
         });
         drawerOverlay.dataset.listenerAdded = 'true';
     }
@@ -1459,6 +1545,39 @@ async function buildBook(scriptName) {
     } catch (error) {
         console.error('执行图书生成失败:', error);
         showMessage(`执行图书生成失败: ${error.message}`, 'error');
+    }
+}
+
+// 处理图书转换器select change事件
+function handleBookConverterChange(event) {
+    const selectedValue = event.target.value;
+    
+    if (selectedValue) {
+        let convertTypeName;
+        switch(selectedValue) {
+            case 'build':
+                convertTypeName = '所有格式';
+                break;
+            case 'epub':
+                convertTypeName = 'EPUB格式';
+                break;
+            case 'pdf':
+                convertTypeName = 'PDF格式';
+                break;
+            case 'html':
+                convertTypeName = 'HTML格式';
+                break;
+            default:
+                convertTypeName = selectedValue;
+        }
+        
+        // 确认是否要进行转换
+        if (confirm(`确定要开始生成${convertTypeName}吗？`)) {
+            buildBook(selectedValue);
+        }
+        
+        // 重置select到默认选项
+        event.target.value = '';
     }
 }
 
@@ -1663,8 +1782,17 @@ function toggleUserPanelDrawer() {
     const overlay = document.getElementById('drawer-overlay');
     
     if (drawer && overlay) {
+        const isOpen = drawer.classList.contains('open');
         drawer.classList.toggle('open');
         overlay.classList.toggle('open');
+        
+        // 切换body类来调整容器布局（用户面板使用右侧）
+        if (isOpen) {
+            document.body.classList.remove('drawer-right-open');
+        } else {
+            document.body.classList.add('drawer-right-open');
+        }
+        
         // 加载用户信息
         if (typeof loadUserInfo === 'function') {
             loadUserInfo();
@@ -1680,6 +1808,9 @@ function closeUserPanelDrawer() {
         drawer.classList.remove('open');
         overlay.classList.remove('open');
     }
+    
+    // 移除body类来恢复容器布局（用户面板使用右侧）
+    document.body.classList.remove('drawer-right-open');
 }
 
 // 处理用户面板登出
@@ -1927,4 +2058,179 @@ async function resetSrc() {
         console.error('重置Src目录失败:', error);
         showMessage('重置Src目录失败: ' + error.message, 'error');
     }
+}
+
+// =============================================================================
+// 侧边栏显示/隐藏功能
+// =============================================================================
+
+// 切换侧边栏显示状态
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const resizer = document.getElementById('sidebar-resizer');
+    const editorArea = document.querySelector('.editor-area');
+    
+    if (!sidebar) {
+        console.warn('未找到侧边栏元素');
+        return;
+    }
+    
+    const isHidden = sidebar.style.display === 'none' || sidebar.classList.contains('hidden');
+    
+    if (isHidden) {
+        // 显示侧边栏
+        sidebar.style.display = 'block';
+        sidebar.classList.remove('hidden');
+        if (resizer) resizer.style.display = 'block';
+        if (editorArea) {
+            editorArea.style.marginLeft = '';
+            editorArea.style.width = '';
+        }
+        showMessage('侧边栏已显示', 'info');
+        // 保存状态到sessionStorage
+        sessionStorage.setItem('sidebar-visible', 'true');
+    } else {
+        // 隐藏侧边栏
+        sidebar.style.display = 'none';
+        sidebar.classList.add('hidden');
+        if (resizer) resizer.style.display = 'none';
+        if (editorArea) {
+            editorArea.style.marginLeft = '0';
+            editorArea.style.width = '100%';
+        }
+        showMessage('侧边栏已隐藏', 'info');
+        // 保存状态到sessionStorage
+        sessionStorage.setItem('sidebar-visible', 'false');
+    }
+}
+
+// 隐藏侧边栏
+function hideSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const resizer = document.getElementById('sidebar-resizer');
+    const editorArea = document.querySelector('.editor-area');
+    
+    if (!sidebar) return;
+    
+    sidebar.style.display = 'none';
+    sidebar.classList.add('hidden');
+    if (resizer) resizer.style.display = 'none';
+    if (editorArea) {
+        editorArea.style.marginLeft = '0';
+        editorArea.style.width = '100%';
+    }
+    sessionStorage.setItem('sidebar-visible', 'false');
+}
+
+// 显示侧边栏
+function showSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const resizer = document.getElementById('sidebar-resizer');
+    const editorArea = document.querySelector('.editor-area');
+    
+    if (!sidebar) return;
+    
+    sidebar.style.display = 'block';
+    sidebar.classList.remove('hidden');
+    if (resizer) resizer.style.display = 'block';
+    if (editorArea) {
+        editorArea.style.marginLeft = '';
+        editorArea.style.width = '';
+    }
+    sessionStorage.setItem('sidebar-visible', 'true');
+}
+
+// 初始化侧边栏状态
+function initializeSidebarState() {
+    const sidebarVisible = sessionStorage.getItem('sidebar-visible');
+    
+    // 如果之前设置为隐藏，则恢复隐藏状态
+    if (sidebarVisible === 'false') {
+        hideSidebar();
+    }
+}
+
+// =============================================================================
+// 可调整分隔符功能
+// =============================================================================
+
+// 初始化可调整分隔符
+function initializeResizer() {
+    const resizer = document.getElementById('sidebar-resizer');
+    const sidebar = document.querySelector('.sidebar');
+    const editorArea = document.querySelector('.editor-area');
+    const mainContent = document.querySelector('.main-content');
+    
+    if (!resizer || !sidebar || !editorArea || !mainContent) {
+        console.warn('找不到必要的元素，无法初始化分隔符');
+        return;
+    }
+    
+    let isResizing = false;
+    let startX = 0;
+    let startSidebarWidth = 0;
+    
+    // 仍sessionStorage读取保存的宽度
+    const savedWidth = sessionStorage.getItem('sidebar-width');
+    if (savedWidth) {
+        const width = parseInt(savedWidth);
+        if (width >= 250 && width <= 700) { // 限制合理范围
+            sidebar.style.width = width + 'px';
+        }
+    }
+    
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startSidebarWidth = sidebar.offsetWidth;
+        
+        // 添加拖拽时的视觉反馈
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        resizer.style.background = 'linear-gradient(90deg, rgba(33, 150, 243, 0.4) 0%, rgba(33, 150, 243, 0.8) 50%, rgba(33, 150, 243, 0.4) 100%)';
+        
+        // 防止选中文本
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const deltaX = e.clientX - startX;
+        const newWidth = startSidebarWidth + deltaX;
+        
+        // 限制最小和最大宽度
+        const minWidth = 250;
+        const maxWidth = Math.min(700, mainContent.offsetWidth * 0.6); // 最大不超过60%
+        
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+            sidebar.style.width = newWidth + 'px';
+            
+            // 保存到sessionStorage
+            sessionStorage.setItem('sidebar-width', newWidth.toString());
+        }
+        
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            
+            // 恢复鼠标样式
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            resizer.style.background = '';
+        }
+    });
+    
+    // 双击重置宽度
+    resizer.addEventListener('dblclick', () => {
+        const defaultWidth = 320; // 默认宽度
+        sidebar.style.width = defaultWidth + 'px';
+        sessionStorage.setItem('sidebar-width', defaultWidth.toString());
+        showMessage('已重置侧边栏宽度', 'info');
+    });
+    
+    console.log('可调整分隔符初始化成功');
 }

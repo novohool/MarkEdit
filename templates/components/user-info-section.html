@@ -1,0 +1,28 @@
+<!-- 用户信息区块组件 -->
+<div class="section">
+    <h3>用户信息</h3>
+    <div class="user-info">
+        <div class="user-info-item">
+            <div class="user-info-label">用户名:</div>
+            <div class="user-info-value" id="{{ username_id or 'user-panel-username' }}">-</div>
+        </div>
+        <div class="user-info-item">
+            <div class="user-info-label">注册时间:</div>
+            <div class="user-info-value" id="{{ created_at_id or 'user-panel-created-at' }}">-</div>
+        </div>
+        <div class="user-info-item">
+            <div class="user-info-label">最后登录:</div>
+            <div class="user-info-value" id="{{ login_time_id or 'user-panel-login-time' }}">-</div>
+        </div>
+        <div class="user-info-item">
+            <div class="user-info-label">当前主题:</div>
+            <div class="user-info-value" id="{{ current_theme_id or 'user-panel-current-theme' }}">-</div>
+        </div>
+        {% if show_user_role != false %}
+        <div class="user-info-item">
+            <div class="user-info-label">用户角色:</div>
+            <div class="user-info-value" id="{{ user_role_id or 'user-panel-user-role' }}">-</div>
+        </div>
+        {% endif %}
+    </div>
+</div>

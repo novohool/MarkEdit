@@ -16,17 +16,19 @@
 <body>
     <div class="container">
         <header>
-            <h1>系统管理</h1>
-            <div class="header-buttons">
+            <div class="header-left">
+                <h1><a href="/" style="text-decoration: none; color: inherit;">系统管理</a></h1>
+            </div>
+            <div class="header-right">
                 <button id="admin-menu-btn" class="btn-secondary">菜单</button>
             </div>
         </header>
         
         <!-- 抽屉式菜单 -->
-        <div id="admin-drawer" class="drawer">
+        <div id="admin-drawer" class="drawer drawer-left">
             <div class="drawer-header">
                 <h2>导航菜单</h2>
-                <button id="close-drawer-btn" class="btn-secondary">关闭</button>
+                <button id="close-drawer-btn" class="btn-secondary">✖</button>
             </div>
             <div class="drawer-content">
                 <ul>
@@ -114,7 +116,7 @@
                             <!-- 可分配的角色将通过JavaScript动态添加 -->
                         </select>
                         <button type="button" id="assign-role-btn" class="btn-primary">分配角色</button>
-                        <button type="button" id="close-user-roles-btn" class="btn-secondary">关闭</button>
+                        <button type="button" id="close-user-roles-btn" class="btn-secondary">✖</button>
                     </div>
                     
                     <!-- 用户角色列表 -->
@@ -188,7 +190,7 @@
                         <!-- 可分配的权限将通过JavaScript动态添加 -->
                     </select>
                     <button type="button" id="assign-permission-btn" class="btn-primary">分配权限</button>
-                    <button type="button" id="close-role-permissions-btn" class="btn-secondary">关闭</button>
+                    <button type="button" id="close-role-permissions-btn" class="btn-secondary">✖</button>
                 </div>
                 
                 <!-- 角色权限列表 -->

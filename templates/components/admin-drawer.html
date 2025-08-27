@@ -1,0 +1,48 @@
+<!-- 
+管理员抽屉菜单组件
+参数：
+- drawer_id: 抽屉ID（默认'admin-drawer'）
+- menu_title: 菜单标题（默认'管理菜单'）
+- custom_menu_items: 自定义菜单项
+- drawer_left: 是否显示在左侧（默认false，显示在右侧）
+-->
+<div id="{{ drawer_id or 'admin-drawer' }}" class="drawer">
+    <div class="drawer-header">
+        <h2><i class="icon-menu">☰</i> {{ menu_title or '管理菜单' }}</h2>
+        <button id="close-drawer-btn" class="btn-secondary">✕</button>
+    </div>
+    <div class="drawer-content">
+        <!-- 管理功能菜单 -->
+        <div class="menu-section">
+            <h4 class="menu-section-title">管理功能</h4>
+            <ul class="menu-list">
+                <li><a href="/dashboard" class="menu-item"><i class="icon">📊</i>工作面板</a></li>
+                <li><a href="/admin" class="menu-item"><i class="icon">⚙️</i>系统管理</a></li>
+                <li><a href="/admin/role-permission" class="menu-item"><i class="icon">🔐</i>角色权限管理</a></li>
+                {% block custom_admin_menu_items %}{% endblock %}
+            </ul>
+        </div>
+        
+        <!-- 个人设置菜单 -->
+        <div class="menu-section">
+            <h4 class="menu-section-title">个人设置</h4>
+            <ul class="menu-list">
+                <li><a href="#" id="drawer-myaccount-link" class="menu-item"><i class="icon">👤</i>个人设置</a></li>
+                <li><a href="/logout" class="menu-item logout-item"><i class="icon">🚪</i>登出</a></li>
+            </ul>
+        </div>
+        
+        <!-- 自定义菜单项 -->
+        {% if custom_menu_items %}
+        <div class="menu-section">
+            <h4 class="menu-section-title">其他功能</h4>
+            <ul class="menu-list">
+                {{ custom_menu_items | safe }}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 抽屉菜单遮罩层 -->
+<div id="drawer-overlay" class="drawer-overlay"></div>

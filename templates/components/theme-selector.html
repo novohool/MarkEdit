@@ -1,0 +1,14 @@
+<!-- 
+主题选择器组件
+参数：
+- selector_id: 选择器ID（默认'theme-selector'）
+- selector_class: 选择器CSS类（默认'btn-secondary header-select'）
+- available_themes: 可用主题列表（默认default, wooden）
+-->
+<select id="{{ selector_id or 'theme-selector' }}" class="{{ selector_class or 'btn-secondary header-select' }}">
+    {% for theme_key, theme_name in (available_themes or [('default', '默认主题'), ('wooden', '木质主题')]) %}
+    <option value="{{ theme_key }}"{% if (current_theme or theme) == theme_key %} selected{% endif %}>
+        {{ theme_name }}
+    </option>
+    {% endfor %}
+</select>
