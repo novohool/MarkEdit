@@ -68,7 +68,8 @@
 }
 
 /* === 布局工具类 === */
-/* Container */
+/* Container - 注释掉以避免与style.css中的定义冲突 */
+/*
 .container {
     width: 100%;
     max-width: 1200px;
@@ -77,6 +78,7 @@
     padding-left: var(--spacing-4);
     padding-right: var(--spacing-4);
 }
+*/
 
 /* Flexbox */
 .flex { display: flex; }

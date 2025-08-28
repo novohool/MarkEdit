@@ -26,7 +26,7 @@
 
 <!-- 配置Header组件 -->
 {% set header_title = "MarkEdit" %}
-{% set show_theme_selector = true %}
+{% set show_theme_selector = false %}
 {% set show_admin_menu = true %}
 {% set show_user_panel = true %}
 {% set show_dashboard = true %}
@@ -58,31 +58,39 @@
 {% endblock %}
 <!-- 主要内容区域 -->
 {% block main_content %}
-<div class="main-content">
-    <div class="sidebar">
+<!-- 引入章节管理抽屉组件 -->
+{% include 'components/chapter-drawer.html' %}
+
+<!-- 三栏布局：文件浏览器、主内容、其他区域 -->
+<div class="app-layout">
+    <!-- 文件浏览器 - 现在是顶级组件 -->
+    <div class="file-browser">
         <h2>文件浏览器</h2>
         <div id="file-tree"></div>
     </div>
     
     <div class="resizer" id="sidebar-resizer"></div>
     
-    <div class="editor-area">
-        <div class="editor-header">
-            <span id="current-file">未选择文件</span>
-            <div class="editor-buttons">
-                <button id="preview-btn" class="btn-secondary" style="display: none;">预览</button>
-                <button id="llm-btn" class="btn-secondary" style="display: none;">LLM处理</button>
-                <button id="save-btn" class="btn-primary">保存 (Ctrl+S)</button>
-                <button id="delete-btn" class="btn-danger" disabled>删除</button>
+    <!-- 主内容区域 -->
+    <div class="main-content">
+        <div class="editor-area">
+            <div class="editor-header">
+                <span id="current-file">未选择文件</span>
+                <div class="editor-buttons">
+                    <button id="preview-btn" class="btn-secondary" style="display: none;">预览</button>
+                    <button id="llm-btn" class="btn-secondary" style="display: none;">LLM处理</button>
+                    <button id="save-btn" class="btn-primary">保存 (Ctrl+S)</button>
+                    <button id="delete-btn" class="btn-danger" disabled>删除</button>
+                </div>
             </div>
-        </div>
-        <div class="editor-container">
-            <textarea id="editor" style="display:none;"></textarea>
-            <div id="codemirror-editor" style="display:none;"></div>
-            <div id="preview-container" style="display:none; padding: 1rem; background-color: #fff; height: 100%; overflow-y: auto;"></div>
-            <div id="image-viewer" style="display:none;"></div>
-            <div id="binary-viewer" style="display:none;">
-                <p>这是一个二进制文件，无法在编辑器中显示。</p>
+            <div class="editor-container">
+                <textarea id="editor" style="display:none;"></textarea>
+                <div id="codemirror-editor" style="display:none;"></div>
+                <div id="preview-container" style="display:none; padding: 1rem; background-color: #fff; height: 100%; overflow-y: auto;"></div>
+                <div id="image-viewer" style="display:none;"></div>
+                <div id="binary-viewer" style="display:none;">
+                    <p>这是一个二进制文件，无法在编辑器中显示。</p>
+                </div>
             </div>
         </div>
     </div>

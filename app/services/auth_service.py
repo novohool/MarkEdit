@@ -152,36 +152,11 @@ class AuthService:
         }
     
     async def init_default_superadmin_user(self):
-        """初始化默认超级管理员用户 markedit"""
-        try:
-            # 检查 markedit 用户是否已在 user_table 中存在
-            query = user_table.select().where(user_table.c.username == "markedit")
-            existing_user = await database.fetch_one(query)
-            
-            if not existing_user:
-                # 在 user_table 中创建 markedit 用户
-                query = user_table.insert().values(
-                    username="markedit",
-                    user_type="admin",
-                    theme="default",
-                    llm_config="{}"
-                )
-                user_id = await database.execute(query)
-                logger.info(f"在统一用户表中创建 markedit 用户成功, ID: {user_id}")
-                
-                # 为 markedit 用户分配 super_admin 角色
-                await self._assign_superadmin_role_to_markedit(user_id)
-            else:
-                logger.info("markedit 用户已在统一用户表中存在")
-                # 检查是否已有 super_admin 角色
-                await self._ensure_markedit_superadmin_role(existing_user["id"])
-            
-            # 继续检查和创建旧系统管理员表中的记录（向后兼容）
-            await self._ensure_markedit_admin_record()
-                
-        except Exception as e:
-            logger.error(f"初始化默认超级管理员用户时出错: {str(e)}")
-            raise
+        """初始化默认超级管理员用户 markedit（为向后兼容保留）"""
+        # 注意：这个方法已被 startup_service.py 中的方法替代
+        # 保留此方法仅为向后兼容，但不再使用
+        logger.warning("此方法已被弃用，请使用 startup_service.py 中的 init_default_superadmin_user 方法")
+        pass
     
     async def _assign_superadmin_role_to_markedit(self, user_id: int):
         """为 markedit 用户分配 super_admin 角色"""

@@ -18,6 +18,8 @@ import base64
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
+from app.common import generate_user_illustration_path
+
 logger = logging.getLogger(__name__)
 
 class EpubService:
@@ -378,7 +380,7 @@ class EpubService:
             return svg_data
     
     def _convert_image_links_in_markdown(self, markdown_content: str, base64_to_file: Dict[str, str], 
-                                       image_file_mappings: Dict[str, str] = None) -> str:
+                                       image_file_mappings: Dict[str, str] = None, username: str = None) -> str:
         """
         转换Markdown中的图片链接
         
@@ -401,7 +403,11 @@ class EpubService:
         # 替换base64图片链接 - 使用直接字符串替换而不是正则
         for base64_url, filename in base64_to_file.items():
             if base64_url in markdown_content:
-                markdown_content = markdown_content.replace(base64_url, f"/user-illustrations/{filename}")
+                if username:
+                    new_path = generate_user_illustration_path(username, filename)
+                else:
+                    new_path = f"/user-illustrations/{filename}"  # 向后兼容
+                markdown_content = markdown_content.replace(base64_url, new_path)
                 replacement_count += 1
                 logger.debug(f"替换base64图片: {filename}")
         
@@ -414,13 +420,21 @@ class EpubService:
             # 在图片部分中替换base64链接
             for base64_url, filename in base64_to_file.items():
                 if base64_url in image_part:
-                    image_part = image_part.replace(base64_url, f"/user-illustrations/{filename}")
+                    if username:
+                        new_path = generate_user_illustration_path(username, filename)
+                    else:
+                        new_path = f"/user-illustrations/{filename}"  # 向后兼容
+                    image_part = image_part.replace(base64_url, new_path)
                     modified = True
             
             # 替换普通图片链接
             for original_path, new_filename in image_file_mappings.items():
                 if original_path in image_part:
-                    image_part = image_part.replace(original_path, f"/user-illustrations/{new_filename}")
+                    if username:
+                        new_path = generate_user_illustration_path(username, new_filename)
+                    else:
+                        new_path = f"/user-illustrations/{new_filename}"  # 向后兼容
+                    image_part = image_part.replace(original_path, new_path)
                     modified = True
             
             return f":::{style_content}\n{image_part}\n:::"
@@ -445,7 +459,11 @@ class EpubService:
                     # 尝试匹配部分base64字符串
                     if base64_url == image_path or image_path in base64_url:
                         logger.debug(f"在图片链接中发现未处理的base64: {filename}")
-                        return f"![{alt_text}](/user-illustrations/{filename})"
+                        if username:
+                            new_path = generate_user_illustration_path(username, filename)
+                        else:
+                            new_path = f"/user-illustrations/{filename}"  # 向后兼容
+                        return f"![{alt_text}]({new_path})"
                 # 如果没有找到匹配，尝试用正则匹配
                 for base64_url, filename in base64_to_file.items():
                     if 'base64,' in image_path and 'base64,' in base64_url:
@@ -455,7 +473,11 @@ class EpubService:
                             url_b64_part = base64_url.split('base64,')[1][:50]
                             if img_b64_part == url_b64_part:
                                 logger.debug(f"通过部分匹配找到base64图片: {filename}")
-                                return f"![{alt_text}](/user-illustrations/{filename})"
+                                if username:
+                                    new_path = generate_user_illustration_path(username, filename)
+                                else:
+                                    new_path = f"/user-illustrations/{filename}"  # 向后兼容
+                                return f"![{alt_text}]({new_path})"
                         except:
                             pass
                 return match.group(0)
@@ -464,19 +486,31 @@ class EpubService:
             if image_path in image_file_mappings:
                 new_filename = image_file_mappings[image_path]
                 logger.debug(f"替换图片链接: {image_path} -> {new_filename}")
-                return f"![{alt_text}](/user-illustrations/{new_filename})"
+                if username:
+                    new_path = generate_user_illustration_path(username, new_filename)
+                else:
+                    new_path = f"/user-illustrations/{new_filename}"  # 向后兼容
+                return f"![{alt_text}]({new_path})"
             
             # 尝试匹配相对路径或文件名
             image_name = Path(image_path).name
             for original_path, new_filename in image_file_mappings.items():
                 if Path(original_path).name == image_name:
                     logger.debug(f"按文件名匹配替换: {image_path} -> {new_filename}")
-                    return f"![{alt_text}](/user-illustrations/{new_filename})"
+                    if username:
+                        new_path = generate_user_illustration_path(username, new_filename)
+                    else:
+                        new_path = f"/user-illustrations/{new_filename}"  # 向后兼容
+                    return f"![{alt_text}]({new_path})"
             
             # 如果没有找到映射，使用原文件名但改为/user-illustrations/路径
             filename = Path(image_path).name
             logger.debug(f"未找到映射，使用原文件名: {image_path} -> {filename}")
-            return f"![{alt_text}](/user-illustrations/{filename})"
+            if username:
+                new_path = generate_user_illustration_path(username, filename)
+            else:
+                new_path = f"/user-illustrations/{filename}"  # 向后兼容
+            return f"![{alt_text}]({new_path})"
         
         # 替换图片链接
         markdown_content = re.sub(r'!\[([^\]]*)\]\(([^\)]+)\)', replace_image_link, markdown_content)
@@ -1078,8 +1112,19 @@ class EpubService:
                                 logger.debug(f"转换后Markdown大小: {len(markdown_content)} 字符")
                                 logger.debug(f"开始转换图片链接，base64数量: {len(base64_to_file)}, 文件映射数量: {len(image_file_mappings)}")
                                 
-                                # 转换图片链接
-                                markdown_content = self._convert_image_links_in_markdown(markdown_content, base64_to_file, image_file_mappings)
+                                # 转换图片链接，需要从output_dir路径提取用户名
+                                # 从output_dir提取用户名（格式：/path/to/users/username/src）
+                                username = None
+                                if output_dir and 'users' in output_dir:
+                                    try:
+                                        path_parts = Path(output_dir).parts
+                                        users_index = path_parts.index('users')
+                                        if users_index + 1 < len(path_parts):
+                                            username = path_parts[users_index + 1]
+                                    except (ValueError, IndexError):
+                                        logger.warning(f"无法从路径提取用户名: {output_dir}")
+                                
+                                markdown_content = self._convert_image_links_in_markdown(markdown_content, base64_to_file, image_file_mappings, username)
                                 
                                 # 写回转换后的内容
                                 with open(output_path, 'w', encoding='utf-8') as f:

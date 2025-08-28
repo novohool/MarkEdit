@@ -1,0 +1,48 @@
+<!-- 
+章节管理抽屉菜单组件
+参数：
+- drawer_id: 抽屉ID（默认'chapter-drawer'）
+- menu_title: 菜单标题（默认'章节管理'）
+-->
+<div id="{{ drawer_id or 'chapter-drawer' }}" class="drawer drawer-left">
+    <div class="drawer-header">
+        <h2><i class="icon-menu">📋</i> {{ menu_title or '章节管理' }}</h2>
+        <button id="close-chapter-drawer-btn" class="btn-secondary">✕</button>
+    </div>
+    <div class="drawer-content">
+        <!-- 章节管理功能 -->
+        <div class="menu-section">
+            <h4 class="menu-section-title">内容管理</h4>
+            
+            <!-- 章节顺序配置 -->
+            <div class="chapter-management-section">
+                <div class="form-group">
+                    <label>章节顺序</label>
+                    <ul id="drawer-chapters" class="chapter-list">
+                        <!-- 章节将通过JavaScript动态添加 -->
+                        <li class="loading-item">正在加载章节列表...</li>
+                    </ul>
+                </div>
+                <div class="btn-group">
+                    <button type="button" id="drawer-save-chapters-btn" class="btn-primary">保存章节顺序</button>
+                    <button type="button" id="drawer-reset-chapters-btn" class="btn-secondary">重置</button>
+                    <button type="button" id="drawer-refresh-chapters-btn" class="btn-secondary">🔄 刷新</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 快速操作菜单 -->
+        <div class="menu-section">
+            <h4 class="menu-section-title">快速操作</h4>
+            <ul class="menu-list">
+                <li><a href="/dashboard" class="menu-item"><i class="icon">📊</i>工作面板</a></li>
+                <li><a href="/admin" class="menu-item"><i class="icon">⚙️</i>系统管理</a></li>
+                <li><a href="#" id="drawer-create-chapter" class="menu-item"><i class="icon">➕</i>新建章节</a></li>
+                <li><a href="#" id="drawer-import-chapters" class="menu-item"><i class="icon">📂</i>导入章节</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- 章节抽屉菜单遮罩层 -->
+<div id="chapter-drawer-overlay" class="drawer-overlay"></div>

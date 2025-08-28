@@ -185,11 +185,11 @@ function toggleAdminDrawer() {
         const isOpen = drawer.classList.contains('open');
         drawer.classList.toggle('open');
         
-        // 切换body类来调整容器布局
+        // 切换body类来调整容器布局 - 使用管理抽屉专用类名
         if (isOpen) {
-            document.body.classList.remove('drawer-open');
+            document.body.classList.remove('admin-drawer-open');
         } else {
-            document.body.classList.add('drawer-open');
+            document.body.classList.add('admin-drawer-open');
         }
         
         console.log('drawer 添加/移除 open 类后的 classList:', drawer.classList.toString());
@@ -211,8 +211,8 @@ function closeAdminDrawer() {
         overlay.classList.remove('open');
     }
     
-    // 移除body类来恢复容器布局
-    document.body.classList.remove('drawer-open');
+    // 移除body类来恢复容器布局 - 使用管理抽屉专用类名
+    document.body.classList.remove('admin-drawer-open');
 }
 
 // 初始化编辑器状态
@@ -340,8 +340,8 @@ async function loadFileTree() {
         srcContainer.innerHTML = `
             <div class="area-header">
                 <h3>Src</h3>
-                <button id="refresh-btn" class="btn-secondary btn-compact" title="刷新文件树">
-                    <i class="btn-icon">🔄</i>
+                <button id="directory-btn" class="btn-secondary btn-compact" title="目录">
+                    <i class="btn-icon">📋</i>
                 </button>
                 <button id="src-upload-btn" class="btn-secondary area-upload-btn btn-compact" title="上传文档文件（EPUB、Word、文本等，自动转换为Markdown）">
                     <i class="btn-icon">📝</i>
@@ -351,10 +351,10 @@ async function loadFileTree() {
         `;
         fileAreasContainer.appendChild(srcContainer);
         
-        // 添加刷新按钮事件（移到DOM元素创建之后）
-        const refreshBtn = srcContainer.querySelector('#refresh-btn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', loadFileTree);
+        // 添加目录按钮事件（移到DOM元素创建之后）
+        const directoryBtn = srcContainer.querySelector('#directory-btn');
+        if (directoryBtn) {
+            directoryBtn.addEventListener('click', showChapterManagement);
         }
         
         const srcTreeContainer = document.createElement('div');
@@ -544,6 +544,65 @@ async function downloadBuildFile(filePath) {
     } catch (error) {
         console.error('下载文件失败:', error);
         showMessage('下载文件失败: ' + error.message, 'error');
+    }
+}
+
+// 删除build区域文件
+async function deleteBuildFile(filePath) {
+    try {
+        console.log('开始删除build文件:', filePath);
+        showMessage(`正在删除 ${filePath}...`, 'info');
+        
+        const response = await fetch(`/api/file/build/${filePath}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('文件删除成功', 'success');
+            
+            // 如果当前正在查看被删除的文件，清空显示
+            if (currentFilePath === filePath && currentFileArea === 'build') {
+                currentFilePath = null;
+                currentFileType = null;
+                currentFileEncoding = null;
+                currentFileArea = null;
+                document.getElementById('current-file').textContent = '未选择文件';
+                
+                // 隐藏所有视图
+                const editor = document.getElementById('editor');
+                const imageViewer = document.getElementById('image-viewer');
+                const binaryViewer = document.getElementById('binary-viewer');
+                const previewContainer = document.getElementById('preview-container');
+                
+                if (editor) editor.style.display = 'none';
+                if (imageViewer) imageViewer.style.display = 'none';
+                if (binaryViewer) binaryViewer.style.display = 'none';
+                if (previewContainer) previewContainer.style.display = 'none';
+                
+                // 禁用删除按钮
+                const deleteBtn = document.getElementById('delete-btn');
+                if (deleteBtn) deleteBtn.disabled = true;
+            }
+            
+            // 刷新文件树
+            loadFileTree();
+        } else {
+            throw new Error(result.detail || '删除失败');
+        }
+    } catch (error) {
+        console.error('删除build文件失败:', error);
+        let errorMessage = '删除文件失败: ' + error.message;
+        
+        // 根据错误类型提供更友好的错误信息
+        if (error.message.includes('403') || error.message.includes('权限不足')) {
+            errorMessage = '权限不足，无法删除该文件。请联系管理员获取file.manage权限。';
+        } else if (error.message.includes('404')) {
+            errorMessage = '文件不存在或已被删除。';
+        }
+        
+        showMessage(errorMessage, 'error');
     }
 }
 
@@ -851,10 +910,12 @@ function showContextMenu(x, y, path, area, type) {
                 contextMenu.innerHTML = `
                     <div class="context-menu-item" data-action="preview">预览</div>
                     <div class="context-menu-item" data-action="download">下载</div>
+                    <div class="context-menu-item" data-action="delete-build">删除</div>
                 `;
             } else {
                 contextMenu.innerHTML = `
                     <div class="context-menu-item" data-action="download">下载</div>
+                    <div class="context-menu-item" data-action="delete-build">删除</div>
                 `;
             }
         } else {
@@ -915,6 +976,11 @@ function handleContextMenuAction(action, path, area, type) {
         case 'delete':
             if (confirm(`确定要删除文件 "${path}" 吗？`)) {
                 deleteFileAtPath(path);
+            }
+            break;
+        case 'delete-build':
+            if (confirm(`确定要删除构建文件 "${path}" 吗？`)) {
+                deleteBuildFile(path);
             }
             break;
         case 'preview':
@@ -1429,7 +1495,7 @@ function bindDrawerEvents() {
     const closeUserPanelBtn = document.getElementById('close-user-panel-btn');
     const drawerOverlay = document.getElementById('drawer-overlay');
     const adminDrawer = document.getElementById('admin-drawer');
-    const userPanelDrawer = document.getElementById('user-panel-drawer');
+    const userPanelDropdown = document.getElementById('user-panel-dropdown'); // 修改为下拉菜单
     
     console.log('按钮状态检查:', {
         adminMenuBtn: !!adminMenuBtn,
@@ -1441,40 +1507,55 @@ function bindDrawerEvents() {
     
     // 确保只绑定一次事件监听器
     if (adminMenuBtn && adminDrawer && !adminMenuBtn.dataset.listenerAdded) {
-        adminMenuBtn.addEventListener('click', function() {
+        adminMenuBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('admin-menu-btn 被点击，调用 toggleAdminDrawer');
             toggleAdminDrawer();
         });
         adminMenuBtn.dataset.listenerAdded = 'true';
+        console.log('管理菜单按钮事件已绑定');
     }
     
     if (closeDrawerBtn && adminDrawer && !closeDrawerBtn.dataset.listenerAdded) {
-        closeDrawerBtn.addEventListener('click', function() {
+        closeDrawerBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('close-drawer-btn 被点击，调用 closeAdminDrawer');
             closeAdminDrawer();
         });
         closeDrawerBtn.dataset.listenerAdded = 'true';
+        console.log('管理抽屉关闭按钮事件已绑定');
     }
     
-    if (closeUserPanelBtn && userPanelDrawer && !closeUserPanelBtn.dataset.listenerAdded) {
-        closeUserPanelBtn.addEventListener('click', function() {
-            console.log('close-user-panel-btn 被点击，调用 closeUserPanelDrawer');
-            closeUserPanelDrawer();
+    if (closeUserPanelBtn && userPanelDropdown && !closeUserPanelBtn.dataset.listenerAdded) {
+        closeUserPanelBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('close-user-panel-btn 被点击，调用 closeUserPanelDropdown');
+            closeUserPanelDropdown();
         });
         closeUserPanelBtn.dataset.listenerAdded = 'true';
+        console.log('用户面板关闭按钮事件已绑定');
     }
     
     if (drawerOverlay && !drawerOverlay.dataset.listenerAdded) {
-        drawerOverlay.addEventListener('click', function() {
+        drawerOverlay.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('drawer-overlay 被点击，关闭所有抽屉');
             closeAdminDrawer();
-            if (typeof closeUserPanelDrawer === 'function') {
-                closeUserPanelDrawer();
+            if (typeof closeUserPanelDropdown === 'function') {
+                closeUserPanelDropdown();
+            }
+            if (typeof closeChapterDrawer === 'function') {
+                closeChapterDrawer();
             }
             // 清除所有可能的body类
-            document.body.classList.remove('drawer-open', 'drawer-right-open');
+            document.body.classList.remove('drawer-right-open', 'drawer-left-open', 'admin-drawer-open');
         });
         drawerOverlay.dataset.listenerAdded = 'true';
+        console.log('抽屉遮罩层事件已绑定');
     }
     
     // 为抽屉菜单中的链接添加事件监听器（只在管理抽屉存在时）
@@ -1506,13 +1587,16 @@ function bindDrawerEvents() {
             drawerMyAccountLink.addEventListener('click', function(e) {
                 e.preventDefault();
                 // 显示用户面板下拉菜单
-                if (typeof toggleUserPanelDrawer === 'function') {
-                    toggleUserPanelDrawer();
+                if (typeof toggleUserPanelDropdown === 'function') {
+                    toggleUserPanelDropdown();
                 }
             });
             drawerMyAccountLink.dataset.listenerAdded = 'true';
         }
     }
+    
+    // 绑定章节管理抽屉菜单事件
+    bindChapterDrawerEvents();
     
     console.log('bindDrawerEvents 函数执行完成');
 }
@@ -1777,40 +1861,44 @@ async function createDirectory(directoryPath, dirName) {
 }
 
 // 用户面板下拉菜单控制函数
-function toggleUserPanelDrawer() {
-    const drawer = document.getElementById('user-panel-drawer');
-    const overlay = document.getElementById('drawer-overlay');
+function toggleUserPanelDropdown() {
+    const dropdown = document.getElementById('user-panel-dropdown');
     
-    if (drawer && overlay) {
-        const isOpen = drawer.classList.contains('open');
-        drawer.classList.toggle('open');
-        overlay.classList.toggle('open');
+    if (dropdown) {
+        const isOpen = dropdown.classList.contains('open');
         
-        // 切换body类来调整容器布局（用户面板使用右侧）
-        if (isOpen) {
-            document.body.classList.remove('drawer-right-open');
-        } else {
-            document.body.classList.add('drawer-right-open');
-        }
+        // 关闭所有其他下拉菜单
+        document.querySelectorAll('.dropdown.open').forEach(otherDropdown => {
+            if (otherDropdown !== dropdown) {
+                otherDropdown.classList.remove('open');
+            }
+        });
+        
+        // 切换当前下拉菜单
+        dropdown.classList.toggle('open');
         
         // 加载用户信息
-        if (typeof loadUserInfo === 'function') {
+        if (!isOpen && typeof loadUserInfo === 'function') {
             loadUserInfo();
         }
     }
 }
 
-function closeUserPanelDrawer() {
-    const drawer = document.getElementById('user-panel-drawer');
-    const overlay = document.getElementById('drawer-overlay');
+function closeUserPanelDropdown() {
+    const dropdown = document.getElementById('user-panel-dropdown');
     
-    if (drawer && overlay) {
-        drawer.classList.remove('open');
-        overlay.classList.remove('open');
+    if (dropdown) {
+        dropdown.classList.remove('open');
     }
-    
-    // 移除body类来恢复容器布局（用户面板使用右侧）
-    document.body.classList.remove('drawer-right-open');
+}
+
+// 为了向后兼容，保留旧函数名但调用新函数
+function toggleUserPanelDrawer() {
+    toggleUserPanelDropdown();
+}
+
+function closeUserPanelDrawer() {
+    closeUserPanelDropdown();
 }
 
 // 处理用户面板登出
@@ -2064,79 +2152,130 @@ async function resetSrc() {
 // 侧边栏显示/隐藏功能
 // =============================================================================
 
-// 切换侧边栏显示状态
+// 切换文件浏览器显示状态
 function toggleSidebar() {
-    const sidebar = document.querySelector('.sidebar');
+    const fileBrowser = document.querySelector('.file-browser');
     const resizer = document.getElementById('sidebar-resizer');
-    const editorArea = document.querySelector('.editor-area');
+    const mainContent = document.querySelector('.main-content');
+    const appLayout = document.querySelector('.app-layout');
     
-    if (!sidebar) {
-        console.warn('未找到侧边栏元素');
+    if (!fileBrowser) {
+        console.warn('未找到文件浏览器元素');
         return;
     }
     
-    const isHidden = sidebar.style.display === 'none' || sidebar.classList.contains('hidden');
+    const isHidden = fileBrowser.style.display === 'none' || fileBrowser.classList.contains('hidden');
     
     if (isHidden) {
-        // 显示侧边栏
-        sidebar.style.display = 'block';
-        sidebar.classList.remove('hidden');
-        if (resizer) resizer.style.display = 'block';
-        if (editorArea) {
-            editorArea.style.marginLeft = '';
-            editorArea.style.width = '';
+        // 显示文件浏览器
+        fileBrowser.style.display = 'block';
+        fileBrowser.classList.remove('hidden');
+        
+        // 获取保存的宽度或使用默认宽度
+        const savedWidth = sessionStorage.getItem('sidebar-width');
+        const width = savedWidth ? parseInt(savedWidth) : 320;
+        fileBrowser.style.width = width + 'px';
+        
+        if (resizer) {
+            resizer.style.display = 'block';
+            resizer.style.left = width + 'px';
         }
-        showMessage('侧边栏已显示', 'info');
+        
+        if (appLayout) {
+            appLayout.style.marginLeft = width + 'px';
+        }
+        
+        if (mainContent) {
+            mainContent.style.marginLeft = '';
+            mainContent.style.width = '';
+        }
+        
+        showMessage('文件浏览器已显示', 'info');
         // 保存状态到sessionStorage
         sessionStorage.setItem('sidebar-visible', 'true');
     } else {
-        // 隐藏侧边栏
-        sidebar.style.display = 'none';
-        sidebar.classList.add('hidden');
-        if (resizer) resizer.style.display = 'none';
-        if (editorArea) {
-            editorArea.style.marginLeft = '0';
-            editorArea.style.width = '100%';
+        // 隐藏文件浏览器
+        fileBrowser.style.display = 'none';
+        fileBrowser.classList.add('hidden');
+        
+        if (resizer) {
+            resizer.style.display = 'none';
         }
-        showMessage('侧边栏已隐藏', 'info');
+        
+        if (appLayout) {
+            appLayout.style.marginLeft = '0';
+        }
+        
+        if (mainContent) {
+            mainContent.style.marginLeft = '0';
+            mainContent.style.width = '100%';
+        }
+        
+        showMessage('文件浏览器已隐藏', 'info');
         // 保存状态到sessionStorage
         sessionStorage.setItem('sidebar-visible', 'false');
     }
 }
 
-// 隐藏侧边栏
+// 隐藏文件浏览器
 function hideSidebar() {
-    const sidebar = document.querySelector('.sidebar');
+    const fileBrowser = document.querySelector('.file-browser');
     const resizer = document.getElementById('sidebar-resizer');
-    const editorArea = document.querySelector('.editor-area');
+    const mainContent = document.querySelector('.main-content');
+    const appLayout = document.querySelector('.app-layout');
     
-    if (!sidebar) return;
+    if (!fileBrowser) return;
     
-    sidebar.style.display = 'none';
-    sidebar.classList.add('hidden');
-    if (resizer) resizer.style.display = 'none';
-    if (editorArea) {
-        editorArea.style.marginLeft = '0';
-        editorArea.style.width = '100%';
+    fileBrowser.style.display = 'none';
+    fileBrowser.classList.add('hidden');
+    
+    if (resizer) {
+        resizer.style.display = 'none';
     }
+    
+    if (appLayout) {
+        appLayout.style.marginLeft = '0';
+    }
+    
+    if (mainContent) {
+        mainContent.style.marginLeft = '0';
+        mainContent.style.width = '100%';
+    }
+    
     sessionStorage.setItem('sidebar-visible', 'false');
 }
 
-// 显示侧边栏
+// 显示文件浏览器
 function showSidebar() {
-    const sidebar = document.querySelector('.sidebar');
+    const fileBrowser = document.querySelector('.file-browser');
     const resizer = document.getElementById('sidebar-resizer');
-    const editorArea = document.querySelector('.editor-area');
+    const mainContent = document.querySelector('.main-content');
+    const appLayout = document.querySelector('.app-layout');
     
-    if (!sidebar) return;
+    if (!fileBrowser) return;
     
-    sidebar.style.display = 'block';
-    sidebar.classList.remove('hidden');
-    if (resizer) resizer.style.display = 'block';
-    if (editorArea) {
-        editorArea.style.marginLeft = '';
-        editorArea.style.width = '';
+    fileBrowser.style.display = 'block';
+    fileBrowser.classList.remove('hidden');
+    
+    // 获取保存的宽度或使用默认宽度
+    const savedWidth = sessionStorage.getItem('sidebar-width');
+    const width = savedWidth ? parseInt(savedWidth) : 320;
+    fileBrowser.style.width = width + 'px';
+    
+    if (resizer) {
+        resizer.style.display = 'block';
+        resizer.style.left = width + 'px';
     }
+    
+    if (appLayout) {
+        appLayout.style.marginLeft = width + 'px';
+    }
+    
+    if (mainContent) {
+        mainContent.style.marginLeft = '';
+        mainContent.style.width = '';
+    }
+    
     sessionStorage.setItem('sidebar-visible', 'true');
 }
 
@@ -2157,32 +2296,49 @@ function initializeSidebarState() {
 // 初始化可调整分隔符
 function initializeResizer() {
     const resizer = document.getElementById('sidebar-resizer');
-    const sidebar = document.querySelector('.sidebar');
-    const editorArea = document.querySelector('.editor-area');
+    const fileBrowser = document.querySelector('.file-browser');
     const mainContent = document.querySelector('.main-content');
+    const appLayout = document.querySelector('.app-layout');
     
-    if (!resizer || !sidebar || !editorArea || !mainContent) {
+    if (!resizer || !fileBrowser || !mainContent) {
         console.warn('找不到必要的元素，无法初始化分隔符');
         return;
     }
     
     let isResizing = false;
     let startX = 0;
-    let startSidebarWidth = 0;
+    let startFileBrowserWidth = 0;
     
-    // 仍sessionStorage读取保存的宽度
+    // 更新所有相关元素的位置和大小
+    function updateLayout(width) {
+        // 更新文件浏览器宽度
+        fileBrowser.style.width = width + 'px';
+        
+        // 更新调整器位置
+        resizer.style.left = width + 'px';
+        
+        // 更新app-layout的左边距
+        if (appLayout) {
+            appLayout.style.marginLeft = width + 'px';
+        }
+        
+        // 保存到sessionStorage
+        sessionStorage.setItem('sidebar-width', width.toString());
+    }
+    
+    // 从sessionStorage读取保存的宽度并应用
     const savedWidth = sessionStorage.getItem('sidebar-width');
     if (savedWidth) {
         const width = parseInt(savedWidth);
         if (width >= 250 && width <= 700) { // 限制合理范围
-            sidebar.style.width = width + 'px';
+            updateLayout(width);
         }
     }
     
     resizer.addEventListener('mousedown', (e) => {
         isResizing = true;
         startX = e.clientX;
-        startSidebarWidth = sidebar.offsetWidth;
+        startFileBrowserWidth = fileBrowser.offsetWidth;
         
         // 添加拖拽时的视觉反馈
         document.body.style.cursor = 'ew-resize';
@@ -2197,17 +2353,14 @@ function initializeResizer() {
         if (!isResizing) return;
         
         const deltaX = e.clientX - startX;
-        const newWidth = startSidebarWidth + deltaX;
+        const newWidth = startFileBrowserWidth + deltaX;
         
         // 限制最小和最大宽度
         const minWidth = 250;
-        const maxWidth = Math.min(700, mainContent.offsetWidth * 0.6); // 最大不超过60%
+        const maxWidth = Math.min(700, window.innerWidth * 0.6); // 最大不超过屏幕宽度的60%
         
         if (newWidth >= minWidth && newWidth <= maxWidth) {
-            sidebar.style.width = newWidth + 'px';
-            
-            // 保存到sessionStorage
-            sessionStorage.setItem('sidebar-width', newWidth.toString());
+            updateLayout(newWidth);
         }
         
         e.preventDefault();
@@ -2227,10 +2380,352 @@ function initializeResizer() {
     // 双击重置宽度
     resizer.addEventListener('dblclick', () => {
         const defaultWidth = 320; // 默认宽度
-        sidebar.style.width = defaultWidth + 'px';
-        sessionStorage.setItem('sidebar-width', defaultWidth.toString());
-        showMessage('已重置侧边栏宽度', 'info');
+        updateLayout(defaultWidth);
+        showMessage('已重置文件浏览器宽度', 'info');
     });
     
     console.log('可调整分隔符初始化成功');
+}
+
+// =============================================================================
+// 章节管理抽屉菜单功能
+// =============================================================================
+
+// 显示章节管理抽屉菜单
+function showChapterManagement() {
+    console.log('显示章节管理抽屉菜单');
+    toggleChapterDrawer();
+}
+
+// 切换章节管理抽屉菜单显示状态
+function toggleChapterDrawer() {
+    const drawer = document.getElementById('chapter-drawer');
+    const overlay = document.getElementById('chapter-drawer-overlay');
+    
+    if (drawer && overlay) {
+        const isOpen = drawer.classList.contains('open');
+        
+        if (isOpen) {
+            closeChapterDrawer();
+        } else {
+            openChapterDrawer();
+        }
+    }
+}
+
+// 打开章节管理抽屉菜单
+function openChapterDrawer() {
+    const drawer = document.getElementById('chapter-drawer');
+    const overlay = document.getElementById('chapter-drawer-overlay');
+    
+    if (drawer && overlay) {
+        drawer.classList.add('open');
+        overlay.classList.add('open');
+        document.body.classList.add('drawer-left-open');
+        
+        // 加载章节管理数据
+        loadChapterManagementData();
+        
+        console.log('章节管理抽屉菜单已打开');
+    }
+}
+
+// 关闭章节管理抽屉菜单
+function closeChapterDrawer() {
+    const drawer = document.getElementById('chapter-drawer');
+    const overlay = document.getElementById('chapter-drawer-overlay');
+    
+    if (drawer && overlay) {
+        drawer.classList.remove('open');
+        overlay.classList.remove('open');
+        document.body.classList.remove('drawer-left-open');
+        
+        console.log('章节管理抽屉菜单已关闭');
+    }
+}
+
+// 加载章节管理数据
+async function loadChapterManagementData() {
+    try {
+        console.log('开始加载章节管理数据');
+        
+        // 获取章节配置
+        const response = await fetch('/api/admin/chapter-config');
+        if (response.ok) {
+            const data = await response.json();
+            renderChapterList(data.chapters || []);
+        } else {
+            console.warn('获取章节配置失败，使用默认配置');
+            renderChapterList([]);
+        }
+    } catch (error) {
+        console.error('加载章节管理数据失败:', error);
+        renderChapterList([]);
+    }
+}
+
+// 渲染章节列表
+function renderChapterList(chapters) {
+    const chaptersList = document.getElementById('drawer-chapters');
+    if (!chaptersList) return;
+    
+    chaptersList.innerHTML = '';
+    
+    if (chapters.length === 0) {
+        chaptersList.innerHTML = '<li class="no-chapters">暂无章节数据</li>';
+        return;
+    }
+    
+    chapters.forEach((chapter, index) => {
+        const li = document.createElement('li');
+        li.className = 'chapter-item';
+        li.draggable = true;
+        li.dataset.index = index;
+        
+        li.innerHTML = `
+            <div class="chapter-info">
+                <span class="chapter-order">${index + 1}.</span>
+                <span class="chapter-title">${chapter.title || '未命名章节'}</span>
+                <span class="chapter-file">${chapter.file || ''}</span>
+            </div>
+            <div class="chapter-actions">
+                <button class="btn-action btn-edit" onclick="editChapterInDrawer(${index})" title="编辑">
+                    ✏️
+                </button>
+                <button class="btn-action btn-delete" onclick="deleteChapterInDrawer(${index})" title="删除">
+                    🗑️
+                </button>
+            </div>
+        `;
+        
+        chaptersList.appendChild(li);
+    });
+    
+    // 添加拖拽排序功能
+    enableChapterDragSort();
+}
+
+// 启用章节拖拽排序
+function enableChapterDragSort() {
+    const chaptersList = document.getElementById('drawer-chapters');
+    if (!chaptersList) return;
+    
+    let draggedElement = null;
+    
+    chaptersList.addEventListener('dragstart', function(e) {
+        draggedElement = e.target.closest('.chapter-item');
+        e.target.style.opacity = '0.5';
+    });
+    
+    chaptersList.addEventListener('dragend', function(e) {
+        e.target.style.opacity = '';
+        draggedElement = null;
+    });
+    
+    chaptersList.addEventListener('dragover', function(e) {
+        e.preventDefault();
+    });
+    
+    chaptersList.addEventListener('drop', function(e) {
+        e.preventDefault();
+        const dropTarget = e.target.closest('.chapter-item');
+        
+        if (draggedElement && dropTarget && draggedElement !== dropTarget) {
+            const parent = dropTarget.parentNode;
+            const allItems = Array.from(parent.children);
+            const draggedIndex = allItems.indexOf(draggedElement);
+            const targetIndex = allItems.indexOf(dropTarget);
+            
+            if (draggedIndex < targetIndex) {
+                parent.insertBefore(draggedElement, dropTarget.nextSibling);
+            } else {
+                parent.insertBefore(draggedElement, dropTarget);
+            }
+            
+            // 更新章节顺序
+            updateChapterOrder();
+        }
+    });
+}
+
+// 更新章节顺序
+function updateChapterOrder() {
+    const chapterItems = document.querySelectorAll('#drawer-chapters .chapter-item');
+    chapterItems.forEach((item, index) => {
+        const orderSpan = item.querySelector('.chapter-order');
+        if (orderSpan) {
+            orderSpan.textContent = `${index + 1}.`;
+        }
+        item.dataset.index = index;
+    });
+}
+
+// 编辑章节（在抽屉中）
+function editChapterInDrawer(index) {
+    console.log('编辑章节:', index);
+    showMessage('章节编辑功能待实现', 'info');
+}
+
+// 删除章节（在抽屉中）
+function deleteChapterInDrawer(index) {
+    if (confirm('确定要删除这个章节吗？')) {
+        console.log('删除章节:', index);
+        showMessage('章节删除功能待实现', 'info');
+    }
+}
+
+// 保存章节顺序（抽屉版本）
+async function saveChapterOrderInDrawer() {
+    try {
+        showMessage('正在保存章节顺序...', 'info');
+        
+        const chapterItems = document.querySelectorAll('#drawer-chapters .chapter-item');
+        const chapters = Array.from(chapterItems).map((item, index) => {
+            const titleElement = item.querySelector('.chapter-title');
+            const fileElement = item.querySelector('.chapter-file');
+            
+            return {
+                title: titleElement ? titleElement.textContent : '',
+                file: fileElement ? fileElement.textContent : '',
+                order: index + 1
+            };
+        });
+        
+        const response = await fetch('/api/admin/chapter-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ chapters })
+        });
+        
+        if (response.ok) {
+            showMessage('章节顺序保存成功', 'success');
+            // 刷新文件树以反映更改
+            if (typeof loadFileTree === 'function') {
+                loadFileTree();
+            }
+        } else {
+            throw new Error('保存失败');
+        }
+    } catch (error) {
+        console.error('保存章节顺序失败:', error);
+        showMessage('保存章节顺序失败: ' + error.message, 'error');
+    }
+}
+
+// 重置章节顺序（抽屉版本）
+async function resetChapterOrderInDrawer() {
+    if (confirm('确定要重置章节顺序吗？这将会恢复到默认排序。')) {
+        try {
+            showMessage('正在重置章节顺序...', 'info');
+            
+            const response = await fetch('/api/admin/reset-chapters', {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                showMessage('章节顺序重置成功', 'success');
+                // 重新加载章节数据
+                loadChapterManagementData();
+                // 刷新文件树
+                if (typeof loadFileTree === 'function') {
+                    loadFileTree();
+                }
+            } else {
+                throw new Error('重置失败');
+            }
+        } catch (error) {
+            console.error('重置章节顺序失败:', error);
+            showMessage('重置章节顺序失败: ' + error.message, 'error');
+        }
+    }
+}
+
+// 绑定章节管理抽屉菜单事件
+function bindChapterDrawerEvents() {
+    console.log('绑定章节管理抽屉菜单事件');
+    
+    // 关闭按钮 - 统一使用closeChapterDrawer函数
+    const closeBtn = document.getElementById('close-chapter-drawer-btn');
+    if (closeBtn && !closeBtn.dataset.listenerAdded) {
+        closeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeChapterDrawer();
+        });
+        closeBtn.dataset.listenerAdded = 'true';
+        console.log('章节抽屉关闭按钮事件已绑定');
+    }
+    
+    // 遮罩层点击关闭
+    const overlay = document.getElementById('chapter-drawer-overlay');
+    if (overlay && !overlay.dataset.listenerAdded) {
+        overlay.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeChapterDrawer();
+        });
+        overlay.dataset.listenerAdded = 'true';
+        console.log('章节抽屉遮罩层事件已绑定');
+    }
+    
+    // 保存按钮
+    const saveBtn = document.getElementById('drawer-save-chapters-btn');
+    if (saveBtn && !saveBtn.dataset.listenerAdded) {
+        saveBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            saveChapterOrderInDrawer();
+        });
+        saveBtn.dataset.listenerAdded = 'true';
+        console.log('章节保存按钮事件已绑定');
+    }
+    
+    // 重置按钮
+    const resetBtn = document.getElementById('drawer-reset-chapters-btn');
+    if (resetBtn && !resetBtn.dataset.listenerAdded) {
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            resetChapterOrderInDrawer();
+        });
+        resetBtn.dataset.listenerAdded = 'true';
+        console.log('章节重置按钮事件已绑定');
+    }
+    
+    // 刷新按钮
+    const refreshBtn = document.getElementById('drawer-refresh-chapters-btn');
+    if (refreshBtn && !refreshBtn.dataset.listenerAdded) {
+        refreshBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            loadChapterManagementData();
+        });
+        refreshBtn.dataset.listenerAdded = 'true';
+        console.log('章节刷新按钮事件已绑定');
+    }
+    
+    // 快速操作按钮
+    const createChapterBtn = document.getElementById('drawer-create-chapter');
+    if (createChapterBtn && !createChapterBtn.dataset.listenerAdded) {
+        createChapterBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            showMessage('新建章节功能待实现', 'info');
+        });
+        createChapterBtn.dataset.listenerAdded = 'true';
+        console.log('新建章节按钮事件已绑定');
+    }
+    
+    const importChaptersBtn = document.getElementById('drawer-import-chapters');
+    if (importChaptersBtn && !importChaptersBtn.dataset.listenerAdded) {
+        importChaptersBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            showMessage('导入章节功能待实现', 'info');
+        });
+        importChaptersBtn.dataset.listenerAdded = 'true';
+        console.log('导入章节按钮事件已绑定');
+    }
 }

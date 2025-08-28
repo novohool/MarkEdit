@@ -46,32 +46,63 @@ body {
 header {
     background-color: #ffffff;
     color: #1e293b;
-    padding: 1rem 0.5rem;
+    padding: 0px;
     border-bottom: 1px solid #e2e8f0;
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 100 !important; /* 提高z-index确保header及其内部元素不被覆盖 */
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between; /* 修改为 space-between 让左右区域分布在两端 */
     align-items: center;
     flex-shrink: 0;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* 禁止换行，防止内容叠加 */
+    min-height: 60px; /* 确保最小高度 */
+    overflow: visible; /* 改为visible让下拉框能显示 */
+    width: 100%;
 }
 
 .header-left {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    flex-shrink: 0;
+    margin: 0px;
+    gap: 0px;
+    flex: 1; /* 占据可用空间的一部分 */
+    min-width: 0; /* 允许内容缩小 */
+    overflow: hidden; /* 防止溢出 */
 }
 
 .header-right {
     display: flex;
     align-items: center;
-    flex-shrink: 0;
-    margin-left: auto;
-    gap: 0.75rem;
+    gap: 0px; /* 减少间距以节省空间 */
+    flex: 0 0 auto; /* 不放大，不缩小，根据内容确定大小 */
+    min-width: 0; /* 允许内容缩小 */
+    overflow: visible; /* 改为visible让下拉框能够显示 */
+}
+
+/* 在狭窄空间下优化header内容显示 */
+@media (max-width: 1200px), (min-width: 768px) {
+    /* 当屏幕较小或抽屉打开导致header空间不足时的优化 */
+    body.drawer-left-open .header-left,
+    body.admin-drawer-open .header-left {
+        gap: 0px; /* 进一步减少间距 */
+    }
+    
+    body.drawer-left-open .header-right,
+    body.admin-drawer-open .header-right {
+        gap: 0px; /* 进一步减少间距 */
+    }
+    
+    /* 隐藏或简化一些非关键按钮的文字 */
+    body.drawer-left-open .btn-text,
+    body.admin-drawer-open .btn-text {
+        display: none; /* 隐藏按钮文字，只显示图标 */
+    }
+    
+    body.drawer-left-open .btn-text-short,
+    body.admin-drawer-open .btn-text-short {
+        font-size: 0.75rem; /* 缩小短文本 */
+    }
 }
 
 /* 用户面板区域样式 */
@@ -79,6 +110,8 @@ header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    position: relative; /* 为下拉菜单定位提供参考 */
+    z-index: 10 !important; /* 确保用户面板区域在顶层 */
 }
 
 .user-panel-btn {
@@ -95,6 +128,7 @@ header {
     transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
+    z-index: 10 !important; /* 确保按钮在最上层，能够正常点击 */
 }
 
 .user-panel-btn:hover {
@@ -111,6 +145,147 @@ header {
     font-size: 1.5rem;
     line-height: 1;
     margin: 1.5px;
+}
+
+/* 用户面板下拉菜单样式 */
+.dropdown-user-panel {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-user-panel .dropdown-content {
+    position: absolute;
+    top: 100%;
+    right: 50px; 
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    min-width: 320px;
+    max-width: 400px;
+    max-height: 70vh;
+    overflow-y: auto;
+    z-index: 2000 !important; /* 符合项目规范的用户面板下拉菜单z-index */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    margin-top: 30px; 
+}
+
+.dropdown-user-panel.open .dropdown-content {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-user-panel .dropdown-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    background: #f8fafc;
+    border-radius: 8px 8px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.dropdown-user-panel .dropdown-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.dropdown-user-panel .dropdown-body {
+    padding: 1rem 1.25rem;
+}
+
+/* 下拉菜单内的组件样式调整 */
+.dropdown-user-panel .section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.dropdown-user-panel .section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.dropdown-user-panel .section h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 0.75rem 0;
+    padding: 0;
+}
+
+.dropdown-user-panel .user-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.dropdown-user-panel .user-info-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-user-panel .user-info-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.dropdown-user-panel .user-info-value {
+    font-size: 0.875rem;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.dropdown-user-panel .form-group {
+    margin-bottom: 1rem;
+}
+
+.dropdown-user-panel .form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.dropdown-user-panel .form-group select,
+.dropdown-user-panel .form-group textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.dropdown-user-panel .form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+    max-height: 120px;
+}
+
+.dropdown-user-panel .btn-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.dropdown-user-panel .btn-group .btn-primary,
+.dropdown-user-panel .btn-group .btn-secondary {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
 }
 
 .btn-menu {
@@ -192,6 +367,12 @@ header .btn-secondary {
 header .btn-secondary:hover {
     background-color: #4b5563;
     border-color: #4b5563;
+}
+
+/* 仪表板按钮特定样式 */
+#dashboard-btn {
+    z-index: 10 !important; /* 确保仪表板按钮能够正常响应点击 */
+    position: relative;
 }
 
 header .btn-primary:active,
@@ -315,46 +496,253 @@ header .btn-secondary:active {
     min-height: calc(100vh - 80px);
 }
 
-/* 当左侧抽屉菜单打开时调整Header */
-body.drawer-open header {
+/* 新的三栏布局样式 */
+.app-layout {
+    display: flex;
+    flex: 1;
+    overflow: visible;
+    position: relative;
+    min-height: calc(100vh - 80px);
+    margin-left: 320px; /* 为固定定位的文件浏览器留出空间 */
+}
+
+/* 文件浏览器样式 - 现在是顶级组件 */
+.file-browser {
+    width: 320px;
+    background: #ffffff;
+    padding: 0;
+    border-right: 1px solid #e2e8f0;
+    border-top: 1px solid #e2e8f0; /* 添加顶部边框线 */
+    overflow: hidden; /* 改为hidden，让内部元素控制滚动 */
+    position: fixed; /* 固定定位，不随页面滚动 */
+    top: 80px; /* 从 header 下方开始 */
+    left: 0;
+    height: calc(100vh - 80px); /* 占满剩余高度 */
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* 优化过渡效果 */
+    flex-shrink: 0;
+    box-shadow: none; /* 确保没有自己的阴影 */
+    z-index: 10; /* 确保在其他元素上方 */
+    display: flex;
+    flex-direction: column;
+    
+    /* 隐藏滚动条但保持滚动功能 */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* 针对WebKit浏览器(Chrome, Safari)隐藏滚动条 */
+.file-browser::-webkit-scrollbar {
+    display: none;
+}
+
+.file-browser h2 {
+    font-size: 0.95rem;
+    margin: 0;
+    padding: 0.8rem 0.8rem;
+    color: #1e293b;
+    font-weight: 700;
+    position: flex;
+    z-index: 1;
+    letter-spacing: 0.3px;
+    flex-shrink: 0; /* 防止标题区域被压缩 */
+    background: #ffffff; /* 确保背景与文件浏览器一致 */
+    border-bottom: 1px solid #f1f5f9; /* 添加分隔线 */
+}
+
+.file-browser #file-tree {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    padding: 0;
+    flex: 1; /* 占据剩余空间 */
+    overflow: hidden; /* 自身不滚动，由子元素控制滚动 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 文件树滚动区域样式 */
+.file-browser #file-tree .file-areas-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 0.8rem;
+    margin: 0;
+    border: none;
+    background: transparent;
+    
+    /* 隐藏滚动条但保持滚动功能 */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* 针对WebKit浏览器(Chrome, Safari)隐藏文件区域滚动条 */
+.file-browser #file-tree .file-areas-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* 针对WebKit浏览器(Chrome, Safari)隐藏滚动条 */
+.file-browser #file-tree::-webkit-scrollbar {
+    display: none;
+}
+
+/* 当章节抽屉打开时调整整个应用布局 */
+body.drawer-left-open .app-layout {
+    margin-left: calc(75vw + 320px); /* 考虑固定的文件浏览器宽度 */
+}
+
+/* 当章节拽屉打开时，移动文件浏览器和resizer */
+body.drawer-left-open .file-browser {
+    left: 75vw;
+}
+
+body.drawer-left-open .resizer {
+    left: calc(75vw + 320px);
+}
+
+/* 保持对旧结构的兼容 */
+body.drawer-left-open .main-content {
+    margin-left: 0; /* 在新布局中，main-content不需要额外的margin */
+}
+
+/* 当管理抽屉(左侧)打开时调整整个应用布局 */
+body.admin-drawer-open .app-layout {
+    margin-left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
+}
+
+/* 当管理抽屉打开时，移动文件浏览器和resizer */
+body.admin-drawer-open .file-browser {
+    left: 320px; /* 移动到管理抽屉右侧 */
+}
+
+body.admin-drawer-open .resizer {
+    left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
+}
+
+/* 当章节抽屉打开时调整Header */
+body.drawer-left-open header {
+    margin-left: 75vw;
+    width: calc(100% - 75vw); /* 使用100%而不是100vw */
+    min-width: 400px; /* 设置最小宽度确保内容可读 */
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 当只有章节抽屉打开且文件浏览器显示时的Header */
+body.drawer-left-open:not(.admin-drawer-open) header {
+    margin-left: 75vw;
+}
+
+/* 当管理抽屉(左侧)打开时调整Header - 整个header都要移动 */
+body.admin-drawer-open header {
     margin-left: 320px;
-    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 320px); /* 使用100%而不是100vw */
+    min-width: 600px; /* 设置最小宽度 */
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当右侧抽屉菜单打开时调整Header */
 body.drawer-right-open header {
     margin-right: 320px;
+    width: calc(100% - 320px); /* 使用100%而不是100vw */
+    min-width: 600px; /* 设置最小宽度 */
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 当右侧抽屉打开时，调整文件浏览器和其他元素 */
+body.drawer-right-open .file-browser {
+    /* 文件浏览器不需要移动，保持在左侧固定位置 */
+}
+
+body.drawer-right-open .resizer {
+    /* resizer也保持原位置 */
+}
+
+body.drawer-right-open .app-layout {
+    margin-right: 320px; /* 为右侧抽屉留出空间 */
     transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 当侧边栏隐藏时，确保主内容区域占满整个宽度 */
-.sidebar.hidden + .resizer,
-.sidebar[style*="display: none"] + .resizer {
-    display: none;
+body.drawer-right-open .main-content {
+    margin-right: 320px; /* 为右侧抽屉留出空间 */
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sidebar.hidden ~ .editor-area,
-.sidebar[style*="display: none"] ~ .editor-area {
-    margin-left: 0;
-    width: 100%;
+/* 当管理抽屉和章节抽屉同时打开时的特殊处理 */
+body.admin-drawer-open.drawer-left-open .app-layout {
+    margin-left: calc(320px + 75vw + 320px); /* 管理抽屉 + 章节抽屉 + 文件浏览器 */
 }
 
-/* 当侧边栏隐藏时，确保Header也正常显示 */
-body:not(.drawer-open):not(.drawer-right-open) header {
+body.admin-drawer-open.drawer-left-open .file-browser {
+    left: calc(320px + 75vw); /* 管理抽屉 + 章节抽屉 */
+}
+
+body.admin-drawer-open.drawer-left-open .resizer {
+    left: calc(320px + 75vw + 320px); /* 管理抽屉 + 章节抽屉 + 文件浏览器 */
+}
+
+body.admin-drawer-open.drawer-left-open header {
+    margin-left: calc(320px + 75vw); /* 管理抽屉 + 章节抽屉 */
+    width: calc(100% - 320px - 75vw); /* 使用100%而不是100vw */
+    min-width: 300px; /* 设置最小宽度，避免内容叠加 */
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 当文件浏览器隐藏时，调整布局 */
+.file-browser.hidden,
+.file-browser[style*="display: none"] {
+    left: -320px; /* 向左隐藏 */
+}
+
+.file-browser.hidden + .resizer,
+.file-browser[style*="display: none"] + .resizer {
+    left: -4px; /* 跟随文件浏览器一起隐藏 */
+}
+
+.file-browser.hidden ~ .app-layout,
+.file-browser[style*="display: none"] ~ .app-layout {
+    margin-left: 0; /* 移除左边距 */
+}
+
+/* 当文件浏览器隐藏时的Header适配 */
+.file-browser.hidden ~ header,
+.file-browser[style*="display: none"] ~ header {
+    margin-left: 0 !important;
+}
+
+/* 当文件浏览器隐藏且章节抽屉打开时的Header适配 */
+body.drawer-left-open .file-browser.hidden ~ header,
+body.drawer-left-open .file-browser[style*="display: none"] ~ header {
+    margin-left: 75vw !important;
+}
+
+/* 当文件浏览器隐藏且管理抽屉打开时的Header适配 */
+body.admin-drawer-open .file-browser.hidden ~ header,
+body.admin-drawer-open .file-browser[style*="display: none"] ~ header {
+    margin-left: 320px !important;
+}
+
+/* 当文件浏览器隐藏且管理抽屉和章节抽屉都打开时的Header适配 */
+body.admin-drawer-open.drawer-left-open .file-browser.hidden ~ header,
+body.admin-drawer-open.drawer-left-open .file-browser[style*="display: none"] ~ header {
+    margin-left: calc(320px + 75vw) !important;
+}
+
+/* 默认状态的Header - 只在没有特殊状态时生效 */
+body:not(.drawer-right-open):not(.drawer-left-open):not(.admin-drawer-open) header {
     margin-left: 0;
     margin-right: 0;
-    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%; /* 改为100%避免包含滚动条宽度 */
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 可调整的分隔符 */
 .resizer {
-    width: 4px;
-    background: #e2e8f0;
+    width: 0.1px;
+    background: #fefefe;
     cursor: ew-resize;
-    position: relative;
-    flex-shrink: 0;
-    transition: all 0.2s ease;
-    z-index: 10;
+    position: fixed; /* 与文件浏览器保持一致的定位 */
+    left: 320px; /* 紧贴文件浏览器右侧 */
+    top: 80px;
+    height: calc(100vh - 80px);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, width 0.2s ease; /* 优化过渡效果 */
+    z-index: 15; /* 高于文件浏览器 */
 }
 
 .resizer:hover {
@@ -386,33 +774,7 @@ body:not(.drawer-open):not(.drawer-right-open) header {
     opacity: 1;
 }
 
-.sidebar {
-    width: 320px;
-    background: #ffffff;
-    padding: 0;
-    border-right: 1px solid #e2e8f0;
-    overflow-y: auto;
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-
-
-.sidebar h2 {
-    font-size: 0.95rem;
-    margin: 0.8rem 0.8rem 0.8rem 0.8rem;
-    color: #1e293b;
-    font-weight: 700;
-    position: relative;
-    z-index: 1;
-    letter-spacing: 0.3px;
-}
-
-#file-tree {
-    font-size: 0.75rem;
-    line-height: 1.3;
-    padding: 0 0.8rem;
-}
+/* 原 sidebar 样式已经被 file-browser 替代 */
 
 /* 文件区域容器样式 */
 .file-areas-container {
@@ -787,17 +1149,18 @@ body:not(.drawer-open):not(.drawer-right-open) header {
 }
 
 
-
 .editor-header {
-    padding: 1rem;
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 0.4rem 0.4rem;
+    background: #fff;
+    border-bottom: 1px solid #f1f5f9;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: relative;
-    z-index: 2;
+    z-index: 1;
+    margin: 0;
 }
+
 
 #current-file {
     font-weight: bold;
@@ -1265,20 +1628,20 @@ code[class*="language-"] {
 .drawer {
     position: fixed;
     top: 0;
-    right: -320px;
+    left: -320px; /* 改为左侧 */
     width: 320px;
     height: 100%;
     background-color: #ffffff;
-    border-left: 1px solid #e2e8f0;
-    z-index: 1001;
-    transition: right 0.3s ease;
+    border-right: 1px solid #e2e8f0; /* 改为右边框 */
+    z-index: 1600 !important;
+    transition: left 0.3s ease; /* 改为left过渡 */
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 .drawer.open {
-    right: 0;
+    left: 0; /* 改为左侧打开 */
 }
 
 .drawer-header {
@@ -1437,7 +1800,7 @@ code[class*="language-"] {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.3);
-    z-index: 1000;
+    z-index: 1500 !important;
     display: none;
     transition: all 0.3s ease;
 }
@@ -1672,7 +2035,7 @@ code[class*="language-"] {
     background-color: #d7ccc8;
 }
 
-/* 用户面板下拉菜单样式 */
+/* 用户面板下拉菜单样式（旧的抽屉样式已废弃）
 .user-panel-drawer .section {
     background: #ffffff;
     border-radius: 4px;
@@ -1752,6 +2115,7 @@ code[class*="language-"] {
     padding: 0.4rem 0.8rem;
     font-size: 0.9rem;
 }
+*/
 
 /* 响应式按钮样式 */
 .btn-text {
@@ -1796,8 +2160,9 @@ code[class*="language-"] {
     }
     
     .drawer {
-        width: 100vw;
-        right: -100vw;
+        width: 100%;
+        right: -100%;
+        max-width: 100vw; /* 确保不超过视口宽度 */
     }
     
     .container {
@@ -1961,4 +2326,227 @@ code[class*="language-"] {
     background: rgba(244, 67, 54, 0.15);
     color: #d32f2f;
     border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+/* =============================================================================
+ * 章节管理左侧抽屉菜单样式
+ * ============================================================================= */
+
+/* 左侦抽屉菜单基本样式 */
+.drawer.drawer-left {
+    position: fixed;
+    top: 0;
+    left: -75vw; /* 初始隐藏在屏幕左侧 */
+    width: 75vw !important; /* 使用!important确保优先级 */
+    height: 100%;
+    background-color: #fff;
+    border-right: 1px solid #e2e8f0;
+    z-index: 1001;
+    transition: left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    transform: none !important; /* 禁用transform变换 */
+}
+
+.drawer.drawer-left.open {
+    left: 0 !important; /* 显示在屏幕左侧 */
+    transform: none !important; /* 禁用transform变换 */
+}
+
+/* 左侧抽屉打开时body的状态 */
+body.drawer-left-open {
+    overflow: hidden;
+}
+
+/* 章节管理区域样式 */
+.chapter-management-section {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin: 0.5rem 1rem;
+}
+
+.chapter-management-section .form-group {
+    margin-bottom: 1rem;
+}
+
+.chapter-management-section label {
+    display: block;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* 章节列表样式 */
+.chapter-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    background: white;
+}
+
+.chapter-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+    cursor: move;
+    transition: background-color 0.2s ease;
+    min-height: 60px;
+}
+
+.chapter-item:last-child {
+    border-bottom: none;
+}
+
+.chapter-item:hover {
+    background-color: #f9fafb;
+}
+
+.chapter-item.dragging {
+    opacity: 0.5;
+    background-color: #f3f4f6;
+}
+
+.chapter-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.chapter-order {
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.8rem;
+    min-width: 30px;
+}
+
+.chapter-title {
+    font-weight: 500;
+    color: #111827;
+    font-size: 0.9rem;
+    word-break: break-word;
+}
+
+.chapter-file {
+    font-size: 0.8rem;
+    color: #6b7280;
+    word-break: break-all;
+}
+
+.chapter-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.chapter-actions .btn-action {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    min-width: auto;
+    border-radius: 3px;
+}
+
+/* 无章节状态 */
+.no-chapters, .loading-item {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #6b7280;
+    font-style: italic;
+    border: none;
+}
+
+/* 抽屉内的按钮组样式 */
+.chapter-management-section .btn-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.chapter-management-section .btn-group button {
+    flex: 1;
+    min-width: 100px;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .drawer.drawer-left {
+        width: 90vw !important;
+        left: -90vw !important;
+    }
+    
+    .chapter-management-section {
+        margin: 0.25rem 0.5rem;
+        padding: 0.75rem;
+    }
+    
+    .chapter-item {
+        padding: 0.5rem;
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: auto;
+    }
+    
+    .chapter-info {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .chapter-actions {
+        align-self: flex-end;
+    }
+}
+
+/* 拖拽排序动画效果 */
+.chapter-item.drag-over {
+    border-top: 2px solid #3b82f6;
+    background-color: #f0f9ff;
+}
+
+/* 抽屉中的可交互元素样式增强 */
+.drawer-left .menu-item:hover {
+    background: linear-gradient(90deg, #f0f9ff, #fafbfc);
+    border-right: 3px solid #3b82f6;
+    transform: translateX(2px);
+}
+
+.drawer-left .menu-item .icon {
+    font-size: 1rem;
+    width: 18px;
+}
+
+/* 特殊按钮样式 */
+.drawer-left .btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border: none;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.drawer-left .btn-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.drawer-left .btn-secondary {
+    background: #f8f9fa;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+}
+
+.drawer-left .btn-secondary:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
 }

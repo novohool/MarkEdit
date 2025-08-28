@@ -263,7 +263,9 @@ class StartupService:
     
     async def init_default_superadmin_user(self):
         """初始化默认超级管理员用户"""
-        username = "markedit"
+        original_username = "markedit"
+        # 为超级管理员添加前缀
+        username = f"super_admin_{original_username}"
         
         try:
             # 检查用户是否已存在
@@ -277,6 +279,15 @@ class StartupService:
                 # 确保超管用户目录和默认文件存在
                 logger.info(f"检查超管用户 {username} 的目录设置")
                 copy_default_files_to_user_directory(username)
+                return
+                
+            # 检查是否存在旧的不带前缀的用户，如果存在则迁移
+            old_query = user_table.select().where(user_table.c.username == original_username)
+            old_user = await database.fetch_one(old_query)
+            
+            if old_user:
+                logger.info(f"发现旧的超管用户 {original_username}，开始迁移到新的前缀格式")
+                await self._migrate_old_superadmin_user(old_user, username)
                 return
             
             # 生成随机密码
@@ -307,6 +318,8 @@ class StartupService:
             copy_default_files_to_user_directory(username)
             
             logger.info(f"默认超级管理员用户创建成功: {username}")
+            logger.info(f"显示用户名（不含前缀）: {original_username}")
+            logger.info(f"数据库用户名（含前缀）: {username}")
             logger.info(f"默认密码: {password}")
             logger.warning("请及时修改默认密码！")
             
@@ -362,6 +375,99 @@ class StartupService:
         await database.execute(query)
         
         logger.info(f"为用户ID {user_id} 分配了super_admin角色")
+    
+    async def _migrate_old_superadmin_user(self, old_user: dict, new_username: str):
+        """迁移旧的超管用户到新的前缀格式"""
+        old_username = old_user["username"]
+        
+        try:
+            # 更新用户表中的用户名
+            update_query = user_table.update().where(
+                user_table.c.id == old_user["id"]
+            ).values(username=new_username)
+            await database.execute(update_query)
+            
+            # 更新admin表中的用户名（如果存在）
+            admin_update_query = admin_table.update().where(
+                admin_table.c.username == old_username
+            ).values(username=new_username)
+            await database.execute(admin_update_query)
+            
+            # 确保用户有超级管理员角色
+            await self._ensure_user_has_super_admin_role(old_user["id"])
+            
+            # 迁移用户目录
+            await self._migrate_user_directory(old_username, new_username)
+            
+            logger.info(f"成功迁移超管用户：{old_username} -> {new_username}")
+            
+        except Exception as e:
+            logger.error(f"迁移超管用户失败: {str(e)}")
+            raise
+    
+    async def _migrate_user_directory(self, old_username: str, new_username: str):
+        """迁移用户目录并处理其中的超链接"""
+        from app.common.services import get_directory_manager
+        import shutil
+        import re
+        
+        directory_manager = get_directory_manager()
+        
+        try:
+            old_user_dir = directory_manager.get_user_directory(old_username)
+            new_user_dir = directory_manager.get_user_directory(new_username)
+            
+            if old_user_dir.exists():
+                # 如果新目录已存在，先备份
+                if new_user_dir.exists():
+                    backup_dir = new_user_dir.parent / f"{new_username}_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    shutil.move(str(new_user_dir), str(backup_dir))
+                    logger.info(f"备份现有目录: {new_user_dir} -> {backup_dir}")
+                
+                # 移动目录
+                shutil.move(str(old_user_dir), str(new_user_dir))
+                logger.info(f"移动用户目录: {old_user_dir} -> {new_user_dir}")
+                
+                # 处理src目录中的超链接
+                src_dir = new_user_dir / "src"
+                if src_dir.exists():
+                    await self._update_hyperlinks_in_directory(src_dir, old_username, new_username)
+                    
+            else:
+                # 如果旧目录不存在，创建新目录并复制默认文件
+                logger.info(f"旧用户目录不存在，为新用户创建目录: {new_username}")
+                copy_default_files_to_user_directory(new_username)
+                
+        except Exception as e:
+            logger.error(f"迁移用户目录失败: {str(e)}")
+            raise
+    
+    async def _update_hyperlinks_in_directory(self, directory: Path, old_username: str, new_username: str):
+        """更新目录中所有markdown文件的超链接"""
+        try:
+            for file_path in directory.rglob("*.md"):
+                try:
+                    # 读取文件内容
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # 替换超链接中的用户名
+                    # 匹配 /user-illustrations/old_username/ 格式
+                    old_pattern = f"/user-illustrations/{re.escape(old_username)}/"
+                    new_replacement = f"/user-illustrations/{new_username}/"
+                    updated_content = re.sub(old_pattern, new_replacement, content)
+                    
+                    # 如果内容有变化，写回文件
+                    if updated_content != content:
+                        with open(file_path, 'w', encoding='utf-8') as f:
+                            f.write(updated_content)
+                        logger.info(f"更新文件中的超链接: {file_path}")
+                        
+                except Exception as e:
+                    logger.warning(f"更新文件超链接失败 {file_path}: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"更新目录超链接失败: {str(e)}")
     
     async def get_startup_info(self) -> Dict[str, Any]:
         """获取启动信息"""

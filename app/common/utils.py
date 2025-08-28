@@ -94,3 +94,47 @@ def get_config_value(key: str, default: Any = None) -> Any:
     """获取配置值"""
     from app.common.services import get_global_state_manager
     return get_global_state_manager().get_config_value(key, default)
+
+def generate_user_illustration_path(username: str, filename: str) -> str:
+    """生成包含用户前缀的插图路径。
+    
+    Args:
+        username: 系统用户名（已包含前缀，如github_aaa或gmail_bbb）
+        filename: 文件名（如chapter_01.svg）
+    
+    Returns:
+        包含用户前缀的路径（如/user-illustrations/github_aaa/chapter_01.svg）
+    """
+    return f"/user-illustrations/{username}/{filename}"
+
+def get_username_prefix(username: str) -> str:
+    """从系统用户名中提取前缀。
+    
+    Args:
+        username: 系统用户名（如github_aaa或gmail_bbb）
+    
+    Returns:
+        前缀字符串（如'github'或'gmail'），无前缀则返回''
+    """
+    if username.startswith('github_'):
+        return 'github'
+    elif username.startswith('gmail_'):
+        return 'gmail'
+    else:
+        return ''
+
+def get_original_username(username: str) -> str:
+    """从系统用户名中提取原始用户名。
+    
+    Args:
+        username: 系统用户名（如github_aaa或gmail_bbb）
+    
+    Returns:
+        原始用户名（如'aaa'或'bbb'）
+    """
+    if username.startswith('github_'):
+        return username[7:]  # 去掉'github_'前缀
+    elif username.startswith('gmail_'):
+        return username[6:]  # 去掉'gmail_'前缀
+    else:
+        return username

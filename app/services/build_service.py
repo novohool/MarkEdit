@@ -465,9 +465,14 @@ class BuildService:
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 修改图片路径，将 "../illustrations/" 和 "/user-illustrations/" 替换为 "illustrations/"
+            # 修改图片路径，将 "../illustrations/" 和各种 "/user-illustrations/" 格式替换为 "illustrations/"
             content = content.replace('../illustrations/', 'illustrations/')
+            # 处理旧格式的用户插图路径
             content = content.replace('/user-illustrations/', 'illustrations/')
+            # 处理新格式的用户插图路径（包含用户名）
+            import re
+            # 匹配 /user-illustrations/username/filename 格式并替换为 illustrations/filename
+            content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'illustrations/\1', content)
             
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:
@@ -496,9 +501,14 @@ class BuildService:
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 修改图片路径，将 "../illustrations/" 和 "/user-illustrations/" 替换为 "./illustrations/"
+            # 修改图片路径，将 "../illustrations/" 和各种 "/user-illustrations/" 格式替换为 "./illustrations/"
             content = content.replace('../illustrations/', './illustrations/')
+            # 处理旧格式的用户插图路径
             content = content.replace('/user-illustrations/', './illustrations/')
+            # 处理新格式的用户插图路径（包含用户名）
+            import re
+            # 匹配 /user-illustrations/username/filename 格式并替换为 ./illustrations/filename
+            content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'./illustrations/\1', content)
             
             # 将Markdown中的SVG图片引用转换为PNG引用
             content = self.convert_svg_references_to_png(content)
@@ -562,9 +572,14 @@ class BuildService:
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 修改图片路径，将 "../illustrations/" 和 "/user-illustrations/" 替换为 "./illustrations/"
+            # 修改图片路径，将 "../illustrations/" 和各种 "/user-illustrations/" 格式替换为 "./illustrations/"
             content = content.replace('../illustrations/', './illustrations/')
+            # 处理旧格式的用户插图路径
             content = content.replace('/user-illustrations/', './illustrations/')
+            # 处理新格式的用户插图路径（包含用户名）
+            import re
+            # 匹配 /user-illustrations/username/filename 格式并替换为 ./illustrations/filename
+            content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'./illustrations/\1', content)
             
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:

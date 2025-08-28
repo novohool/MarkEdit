@@ -89,10 +89,47 @@ class DirectoryManager:
             if self.global_src_dir.exists():
                 shutil.copytree(self.global_src_dir, user_src_dir, dirs_exist_ok=True)
                 logger.info(f"已将公共src目录的文件复制到用户 {username} 的src目录")
+                
+                # 如果是超级管理员用户，需要更新超链接
+                if username.startswith('super_admin_'):
+                    self._update_hyperlinks_for_superadmin(user_src_dir, username)
             else:
                 logger.warning(f"公共src目录不存在: {self.global_src_dir}")
         else:
             logger.info(f"用户 {username} 的src目录已存在: {user_src_dir}")
+    
+    def _update_hyperlinks_for_superadmin(self, user_src_dir: Path, username: str) -> None:
+        """为超级管理员用户更新超链接"""
+        try:
+            # 从用户名中提取原始用户名（去掉super_admin_前缀）
+            original_username = username[12:]  # 去掉'super_admin_'前缀
+            
+            # 遍历所有markdown文件
+            for file_path in user_src_dir.rglob("*.md"):
+                try:
+                    # 读取文件内容
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # 替换通用的超链接格式
+                    # 从 /user-illustrations/文件名 改为 /user-illustrations/super_admin_markedit/文件名
+                    updated_content = re.sub(
+                        r'/user-illustrations/([^/)]+\.(svg|png|jpg|jpeg|gif))',
+                        f'/user-illustrations/{username}/\\1',
+                        content
+                    )
+                    
+                    # 如果内容有变化，写回文件
+                    if updated_content != content:
+                        with open(file_path, 'w', encoding='utf-8') as f:
+                            f.write(updated_content)
+                        logger.info(f"更新超管用户文件中的超链接: {file_path}")
+                        
+                except Exception as e:
+                    logger.warning(f"更新文件超链接失败 {file_path}: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"更新超管用户超链接失败: {str(e)}")
     
     def get_user_workspace_info(self, username: str) -> dict:
         """获取用户工作空间信息"""

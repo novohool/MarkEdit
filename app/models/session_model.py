@@ -18,14 +18,48 @@ class SessionData(BaseModel):
 
 class OAuthConfig(BaseModel):
     """OAuth配置模型"""
-    client_id: Optional[str] = None
-    client_secret: Optional[str] = None
-    redirect_uri: Optional[str] = None
+    # GitHub OAuth配置
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
+    github_redirect_uri: Optional[str] = None
+    
+    # Gmail OAuth配置
+    gmail_client_id: Optional[str] = None
+    gmail_client_secret: Optional[str] = None
+    gmail_redirect_uri: Optional[str] = None
+    
+    # 向后兼容属性
+    @property
+    def client_id(self) -> Optional[str]:
+        """GitHub client_id的向后兼容属性"""
+        return self.github_client_id
+    
+    @property
+    def client_secret(self) -> Optional[str]:
+        """GitHub client_secret的向后兼容属性"""
+        return self.github_client_secret
+    
+    @property
+    def redirect_uri(self) -> Optional[str]:
+        """GitHub redirect_uri的向后兼容属性"""
+        return self.github_redirect_uri
     
     @property
     def is_configured(self) -> bool:
-        """检查OAuth是否已配置"""
-        return bool(self.client_id and self.client_secret and self.redirect_uri)
+        """检查是否至少有一种OAuth已配置"""
+        github_configured = bool(self.github_client_id and self.github_client_secret and self.github_redirect_uri)
+        gmail_configured = bool(self.gmail_client_id and self.gmail_client_secret and self.gmail_redirect_uri)
+        return github_configured or gmail_configured
+    
+    @property
+    def is_github_configured(self) -> bool:
+        """检查GitHub OAuth是否已配置"""
+        return bool(self.github_client_id and self.github_client_secret and self.github_redirect_uri)
+    
+    @property
+    def is_gmail_configured(self) -> bool:
+        """检查Gmail OAuth是否已配置"""
+        return bool(self.gmail_client_id and self.gmail_client_secret and self.gmail_redirect_uri)
 
 class AuthContext(BaseModel):
     """认证上下文模型"""

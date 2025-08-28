@@ -24,41 +24,102 @@ from app.common import (
 logger = logging.getLogger(__name__)
 
 class OAuthService:
-    """OAuth认证服务类"""
+    """多平台OAuth认证服务类"""
     
     def __init__(self):
         self.config = OAuthConfig(
-            client_id=os.getenv('GITHUB_APP_CLIENT_ID'),
-            client_secret=os.getenv('GITHUB_APP_CLIENT_SECRET'),
-            redirect_uri=os.getenv('GITHUB_APP_REDIRECT_URI')
+            # GitHub OAuth配置
+            github_client_id=os.getenv('GITHUB_APP_CLIENT_ID'),
+            github_client_secret=os.getenv('GITHUB_APP_CLIENT_SECRET'),
+            github_redirect_uri=os.getenv('GITHUB_APP_REDIRECT_URI'),
+            # Gmail OAuth配置
+            gmail_client_id=os.getenv('GMAIL_CLIENT_ID'),
+            gmail_client_secret=os.getenv('GMAIL_CLIENT_SECRET'),
+            gmail_redirect_uri=os.getenv('GMAIL_REDIRECT_URI')
         )
     
     def is_configured(self) -> bool:
-        """检查OAuth是否已配置"""
+        """检查是否至少有一种OAuth已配置"""
         configured = self.config.is_configured
         logger.debug(f"OAuth configuration check:")
-        logger.debug(f"  Client ID: {'SET' if self.config.client_id else 'MISSING'}")
-        logger.debug(f"  Client Secret: {'SET' if self.config.client_secret else 'MISSING'}")
-        logger.debug(f"  Redirect URI: {self.config.redirect_uri or 'MISSING'}")
+        logger.debug(f"  GitHub Client ID: {'SET' if self.config.github_client_id else 'MISSING'}")
+        logger.debug(f"  GitHub Client Secret: {'SET' if self.config.github_client_secret else 'MISSING'}")
+        logger.debug(f"  GitHub Redirect URI: {self.config.github_redirect_uri or 'MISSING'}")
+        logger.debug(f"  Gmail Client ID: {'SET' if self.config.gmail_client_id else 'MISSING'}")
+        logger.debug(f"  Gmail Client Secret: {'SET' if self.config.gmail_client_secret else 'MISSING'}")
+        logger.debug(f"  Gmail Redirect URI: {self.config.gmail_redirect_uri or 'MISSING'}")
         logger.debug(f"  Overall configured: {configured}")
         return configured
     
-    def get_authorization_url(self, state: str = None) -> str:
+    def _detect_oauth_provider(self, request: Request) -> str:
+        """检测请求来自哪个OAuth提供商"""
+        # 通过state参数或者referer来判断
+        state = request.query_params.get("state", "")
+        referer = request.headers.get("referer", "")
+        
+        # 如果state包含提供商信息
+        if "gmail" in state.lower():
+            return "gmail"
+        if "github" in state.lower():
+            return "github"
+        
+        # 如果referer包含提供商信息
+        if "accounts.google.com" in referer:
+            return "gmail"
+        if "github.com" in referer:
+            return "github"
+        
+        # 默认为GitHub（向后兼容）
+        return "github"
+    
+    def get_authorization_url(self, state: str = None, provider: str = "github") -> str:
+        """获取OAuth授权URL"""
+        if provider == "github":
+            return self._get_github_authorization_url(state)
+        elif provider == "gmail":
+            return self._get_gmail_authorization_url(state)
+        else:
+            raise ValueError(f"不支持的OAuth提供商: {provider}")
+    
+    def _get_github_authorization_url(self, state: str = None) -> str:
         """获取GitHub授权URL"""
-        if not self.is_configured():
+        if not self.config.is_github_configured:
             raise ValueError("GitHub OAuth未配置")
         
         params = {
-            'client_id': self.config.client_id,
-            'redirect_uri': self.config.redirect_uri,
+            'client_id': self.config.github_client_id,
+            'redirect_uri': self.config.github_redirect_uri,
             'scope': 'user:email'
         }
         
         if state:
-            params['state'] = state
+            params['state'] = f"github_{state}"
+        else:
+            params['state'] = "github"
         
         query_string = '&'.join([f"{k}={v}" for k, v in params.items()])
         return f"https://github.com/login/oauth/authorize?{query_string}"
+    
+    def _get_gmail_authorization_url(self, state: str = None) -> str:
+        """获取Gmail授权URL"""
+        if not self.config.is_gmail_configured:
+            raise ValueError("Gmail OAuth未配置")
+        
+        params = {
+            'client_id': self.config.gmail_client_id,
+            'redirect_uri': self.config.gmail_redirect_uri,
+            'scope': 'openid email profile',
+            'response_type': 'code',
+            'access_type': 'offline'
+        }
+        
+        if state:
+            params['state'] = f"gmail_{state}"
+        else:
+            params['state'] = "gmail"
+        
+        query_string = '&'.join([f"{k}={v}" for k, v in params.items()])
+        return f"https://accounts.google.com/o/oauth2/v2/auth?{query_string}"
     
     async def handle_oauth_callback(self, code: str, request: Request, session: SessionData = None) -> RedirectResponse:
         """处理OAuth回调"""
@@ -67,86 +128,18 @@ class OAuthService:
             logger.debug(f"Full callback URL: {request.url}")
             logger.debug(f"Request headers: {dict(request.headers)}")
             
-            # 检查OAuth配置
-            if not self.is_configured():
-                logger.error("GitHub OAuth not configured")
-                logger.error(f"Client ID: {'configured' if self.config.client_id else 'missing'}")
-                logger.error(f"Client Secret: {'configured' if self.config.client_secret else 'missing'}")
-                logger.error(f"Redirect URI: {self.config.redirect_uri or 'missing'}")
-                raise HTTPException(status_code=500, detail="GitHub OAuth未配置")
+            # 检测是哪个提供商
+            provider = self._detect_oauth_provider(request)
+            logger.info(f"Detected OAuth provider: {provider}")
             
-            logger.debug(f"OAuth config - Client ID: {self.config.client_id[:8] if self.config.client_id else 'None'}...")
-            logger.debug(f"OAuth config - Redirect URI: {self.config.redirect_uri}")
-            
-            # 交换访问令牌
-            logger.info("Exchanging authorization code for access token")
-            token_data = await self._exchange_code_for_token(code)
-            access_token = token_data.get('access_token')
-            
-            if not access_token:
-                logger.error("No access token received from GitHub")
-                logger.error(f"Token response data: {token_data}")
-                raise HTTPException(status_code=400, detail="获取访问令牌失败")
-            
-            logger.info("Access token received successfully")
-            logger.debug(f"Token type: {token_data.get('token_type', 'unknown')}")
-            logger.debug(f"Token scope: {token_data.get('scope', 'unknown')}")
-            
-            # 获取用户信息
-            logger.info("Fetching user information from GitHub")
-            user_info = await self._get_user_info(access_token)
-            username = user_info.get('login')
-            
-            if not username:
-                logger.error("No username found in user info")
-                logger.error(f"User info received: {user_info}")
-                raise HTTPException(status_code=400, detail="获取用户信息失败")
-            
-            logger.info(f"Processing login for user: {username}")
-            logger.debug(f"User ID: {user_info.get('id')}")
-            logger.debug(f"User email: {user_info.get('email', 'not provided')}")
-            logger.debug(f"User name: {user_info.get('name', 'not provided')}")
-            
-            # 创建或更新用户
-            logger.info("Creating or updating user in database")
-            await self._create_or_update_user(username, user_info)
-            
-            # 创建会话
-            logger.info("Creating user session")
-            session_service = get_session_service()
-            session_id = session_service.create_session(username)
-            logger.debug(f"Created session ID: {session_id}")
-            
-            # 加载用户权限
-            logger.info("Loading user permissions and roles")
-            session = session_service.get_session_by_id(session_id)
-            if session:
-                await session_service.assign_default_user_role(username)
-                await session_service.load_user_permissions_and_roles(session)
-                logger.debug(f"User roles: {session.roles}")
-                logger.debug(f"User permissions: {list(session.permissions)[:10]}{'...' if len(session.permissions) > 10 else ''}")
+            # 根据提供商调用不同的处理方法
+            if provider == "github":
+                return await self._handle_github_callback(code, request, session)
+            elif provider == "gmail":
+                return await self._handle_gmail_callback(code, request, session)
             else:
-                logger.warning(f"Could not retrieve session for user {username}")
-            
-            # 复制默认文件到用户目录
-            logger.info("Setting up user directory")
-            copy_default_files_to_user_directory(username)
-            
-            # 创建重定向响应
-            logger.info("Creating redirect response")
-            response = RedirectResponse(url="/")
-            response.set_cookie(
-                key="session_id",
-                value=session_id,
-                httponly=True,
-                secure=False,  # 开发环境使用HTTP，生产环境应设为True
-                samesite="lax",
-                max_age=86400  # 24小时
-            )
-            
-            logger.info(f"用户 {username} 通过GitHub OAuth登录成功")
-            return response
-            
+                raise HTTPException(status_code=400, detail=f"不支持的OAuth提供商: {provider}")
+                
         except HTTPException as e:
             logger.error(f"HTTPException in OAuth callback: {e.status_code} - {e.detail}")
             # 重新抛出HTTPException
@@ -159,15 +152,157 @@ class OAuthService:
             error_msg = f"登录过程中发生错误: {str(e)}"
             raise HTTPException(status_code=500, detail=error_msg)
     
-    async def _exchange_code_for_token(self, code: str) -> Dict[str, Any]:
-        """交换授权码获取访问令牌"""
+    async def _handle_github_callback(self, code: str, request: Request, session: SessionData = None) -> RedirectResponse:
+        """处理GitHub OAuth回调"""
+        # 检查GitHub OAuth配置
+        if not self.config.is_github_configured:
+            logger.error("GitHub OAuth not configured")
+            logger.error(f"Client ID: {'configured' if self.config.github_client_id else 'missing'}")
+            logger.error(f"Client Secret: {'configured' if self.config.github_client_secret else 'missing'}")
+            logger.error(f"Redirect URI: {self.config.github_redirect_uri or 'missing'}")
+            raise HTTPException(status_code=500, detail="GitHub OAuth未配置")
+        
+        logger.debug(f"GitHub OAuth config - Client ID: {self.config.github_client_id[:8] if self.config.github_client_id else 'None'}...")
+        logger.debug(f"GitHub OAuth config - Redirect URI: {self.config.github_redirect_uri}")
+        
+        # 交换访问令牌
+        logger.info("Exchanging authorization code for access token")
+        token_data = await self._exchange_github_code_for_token(code)
+        access_token = token_data.get('access_token')
+        
+        if not access_token:
+            logger.error("No access token received from GitHub")
+            logger.error(f"Token response data: {token_data}")
+            raise HTTPException(status_code=400, detail="获取访问令牌失败")
+        
+        logger.info("Access token received successfully")
+        logger.debug(f"Token type: {token_data.get('token_type', 'unknown')}")
+        logger.debug(f"Token scope: {token_data.get('scope', 'unknown')}")
+        
+        # 获取用户信息
+        logger.info("Fetching user information from GitHub")
+        user_info = await self._get_github_user_info(access_token)
+        original_username = user_info.get('login')
+        
+        if not original_username:
+            logger.error("No username found in user info")
+            logger.error(f"User info received: {user_info}")
+            raise HTTPException(status_code=400, detail="获取用户信息失败")
+        
+        # 为GitHub用户添加github_前缀
+        username = f"github_{original_username}"
+        
+        logger.info(f"Processing login for user: {original_username} -> {username}")
+        logger.debug(f"User ID: {user_info.get('id')}")
+        logger.debug(f"User email: {user_info.get('email', 'not provided')}")
+        logger.debug(f"User name: {user_info.get('name', 'not provided')}")
+        logger.debug(f"Original GitHub username: {original_username}")
+        logger.debug(f"System username with prefix: {username}")
+        
+        return await self._complete_oauth_login(username, user_info, original_username, "GitHub")
+    
+    async def _handle_gmail_callback(self, code: str, request: Request, session: SessionData = None) -> RedirectResponse:
+        """处理Gmail OAuth回调"""
+        # 检查Gmail OAuth配置
+        if not self.config.is_gmail_configured:
+            logger.error("Gmail OAuth not configured")
+            logger.error(f"Client ID: {'configured' if self.config.gmail_client_id else 'missing'}")
+            logger.error(f"Client Secret: {'configured' if self.config.gmail_client_secret else 'missing'}")
+            logger.error(f"Redirect URI: {self.config.gmail_redirect_uri or 'missing'}")
+            raise HTTPException(status_code=500, detail="Gmail OAuth未配置")
+        
+        logger.debug(f"Gmail OAuth config - Client ID: {self.config.gmail_client_id[:8] if self.config.gmail_client_id else 'None'}...")
+        logger.debug(f"Gmail OAuth config - Redirect URI: {self.config.gmail_redirect_uri}")
+        
+        # 交换访问令牌
+        logger.info("Exchanging authorization code for access token")
+        token_data = await self._exchange_gmail_code_for_token(code)
+        access_token = token_data.get('access_token')
+        
+        if not access_token:
+            logger.error("No access token received from Gmail")
+            logger.error(f"Token response data: {token_data}")
+            raise HTTPException(status_code=400, detail="获取访问令牌失败")
+        
+        logger.info("Access token received successfully")
+        logger.debug(f"Token type: {token_data.get('token_type', 'unknown')}")
+        logger.debug(f"Token scope: {token_data.get('scope', 'unknown')}")
+        
+        # 获取用户信息
+        logger.info("Fetching user information from Gmail")
+        user_info = await self._get_gmail_user_info(access_token)
+        email = user_info.get('email')
+        
+        if not email:
+            logger.error("No email found in user info")
+            logger.error(f"User info received: {user_info}")
+            raise HTTPException(status_code=400, detail="获取用户信息失败")
+        
+        # 从邮箱地址提取用户名（@之前的部分）
+        original_username = email.split('@')[0]
+        # 为Gmail用户添加gmail_前缀
+        username = f"gmail_{original_username}"
+        
+        logger.info(f"Processing login for user: {email} -> {username}")
+        logger.debug(f"User ID: {user_info.get('sub')}")
+        logger.debug(f"User email: {email}")
+        logger.debug(f"User name: {user_info.get('name', 'not provided')}")
+        logger.debug(f"Original email username: {original_username}")
+        logger.debug(f"System username with prefix: {username}")
+        
+        return await self._complete_oauth_login(username, user_info, original_username, "Gmail")
+    
+    async def _complete_oauth_login(self, username: str, user_info: Dict[str, Any], original_username: str, provider: str) -> RedirectResponse:
+        """完成OAuth登录流程"""
+        # 创建或更新用户
+        logger.info("Creating or updating user in database")
+        await self._create_or_update_user(username, user_info)
+        
+        # 创建会话
+        logger.info("Creating user session")
+        session_service = get_session_service()
+        session_id = session_service.create_session(username)
+        logger.debug(f"Created session ID: {session_id}")
+        
+        # 加载用户权限
+        logger.info("Loading user permissions and roles")
+        session = session_service.get_session_by_id(session_id)
+        if session:
+            await session_service.assign_default_user_role(username)
+            await session_service.load_user_permissions_and_roles(session)
+            logger.debug(f"User roles: {session.roles}")
+            logger.debug(f"User permissions: {list(session.permissions)[:10]}{'...' if len(session.permissions) > 10 else ''}")
+        else:
+            logger.warning(f"Could not retrieve session for user {username}")
+        
+        # 复制默认文件到用户目录
+        logger.info("Setting up user directory")
+        copy_default_files_to_user_directory(username)
+        
+        # 创建重定向响应
+        logger.info("Creating redirect response")
+        response = RedirectResponse(url="/")
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            secure=False,  # 开发环境使用HTTP，生产环境应设为True
+            samesite="lax",
+            max_age=86400  # 24小时
+        )
+        
+        logger.info(f"用户 {original_username} (系统用户名: {username}) 通过{provider} OAuth登录成功")
+        return response
+    
+    async def _exchange_github_code_for_token(self, code: str) -> Dict[str, Any]:
+        """交换GitHub授权码获取访问令牌"""
         token_url = "https://github.com/login/oauth/access_token"
         
         data = {
-            'client_id': self.config.client_id,
-            'client_secret': self.config.client_secret,
+            'client_id': self.config.github_client_id,
+            'client_secret': self.config.github_client_secret,
             'code': code,
-            'redirect_uri': self.config.redirect_uri
+            'redirect_uri': self.config.github_redirect_uri
         }
         
         headers = {'Accept': 'application/json'}
@@ -213,8 +348,63 @@ class OAuthService:
             logger.error(f"Unexpected error during token exchange: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="OAuth认证过程中发生错误")
     
-    async def _get_user_info(self, access_token: str) -> Dict[str, Any]:
-        """使用访问令牌获取用户信息"""
+    async def _exchange_gmail_code_for_token(self, code: str) -> Dict[str, Any]:
+        """交换Gmail授权码获取访问令牌"""
+        token_url = "https://oauth2.googleapis.com/token"
+        
+        data = {
+            'client_id': self.config.gmail_client_id,
+            'client_secret': self.config.gmail_client_secret,
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': self.config.gmail_redirect_uri
+        }
+        
+        headers = {'Accept': 'application/json'}
+        
+        logger.debug(f"Token exchange request to: {token_url}")
+        logger.debug(f"Request data: {dict(data, client_secret='***')}")
+        logger.debug(f"Request headers: {headers}")
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                logger.debug("Sending token exchange request to Gmail")
+                response = await client.post(token_url, data=data, headers=headers)
+                
+                logger.debug(f"Gmail response status: {response.status_code}")
+                logger.debug(f"Gmail response headers: {dict(response.headers)}")
+                
+                response.raise_for_status()
+                token_data = response.json()
+                
+                logger.debug(f"Gmail response body: {dict(token_data, access_token='***' if 'access_token' in token_data else token_data.get('access_token'))}")
+                
+                # 检查是否有错误
+                if 'error' in token_data:
+                    error_desc = token_data.get('error_description', token_data['error'])
+                    logger.error(f"Gmail OAuth token exchange failed: {error_desc}")
+                    logger.error(f"Full error response: {token_data}")
+                    raise HTTPException(status_code=400, detail=f"OAuth认证失败: {error_desc}")
+                
+                logger.info("Successfully exchanged code for access token")
+                return token_data
+                
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout during token exchange: {e}")
+            raise HTTPException(status_code=500, detail="Gmail服务器响应超时")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error during token exchange: {e}")
+            logger.error(f"Response content: {e.response.content if hasattr(e, 'response') else 'N/A'}")
+            raise HTTPException(status_code=500, detail="无法获取访问令牌")
+        except httpx.RequestError as e:
+            logger.error(f"Request error during token exchange: {e}")
+            raise HTTPException(status_code=500, detail="网络连接错误")
+        except Exception as e:
+            logger.error(f"Unexpected error during token exchange: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="OAuth认证过程中发生错误")
+    
+    async def _get_github_user_info(self, access_token: str) -> Dict[str, Any]:
+        """使用访问令牌获取GitHub用户信息"""
         user_url = "https://api.github.com/user"
         headers = {
             'Authorization': f'Bearer {access_token}',
@@ -267,10 +457,64 @@ class OAuthService:
             logger.error(f"Unexpected error during user info retrieval: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="获取用户信息时发生错误")
     
+    async def _get_gmail_user_info(self, access_token: str) -> Dict[str, Any]:
+        """使用访问令牌获取Gmail用户信息"""
+        user_url = "https://www.googleapis.com/oauth2/v2/userinfo"
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json'
+        }
+        
+        logger.debug(f"User info request to: {user_url}")
+        logger.debug(f"Request headers: {dict(headers, Authorization='Bearer ***')}")
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                logger.debug("Sending user info request to Gmail")
+                response = await client.get(user_url, headers=headers)
+                
+                logger.debug(f"Gmail user API response status: {response.status_code}")
+                logger.debug(f"Gmail user API response headers: {dict(response.headers)}")
+                
+                response.raise_for_status()
+                user_data = response.json()
+                
+                # 记录用户信息（但不记录敏感信息）
+                safe_user_data = {
+                    'email': user_data.get('email'),
+                    'id': user_data.get('id'),
+                    'name': user_data.get('name'),
+                    'verified_email': user_data.get('verified_email'),
+                    'picture': user_data.get('picture')
+                }
+                logger.debug(f"User data received: {safe_user_data}")
+                
+                logger.info(f"Successfully retrieved user info for: {user_data.get('email', 'unknown')}")
+                return user_data
+                
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout during user info retrieval: {e}")
+            raise HTTPException(status_code=500, detail="Gmail服务器响应超时")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error during user info retrieval: {e}")
+            logger.error(f"Response content: {e.response.content if hasattr(e, 'response') else 'N/A'}")
+            if e.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="访问令牌无效或已过期")
+            else:
+                raise HTTPException(status_code=500, detail="无法获取用户信息")
+        except httpx.RequestError as e:
+            logger.error(f"Request error during user info retrieval: {e}")
+            raise HTTPException(status_code=500, detail="网络连接错误")
+        except Exception as e:
+            logger.error(f"Unexpected error during user info retrieval: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="获取用户信息时发生错误")
+    
     async def _create_or_update_user(self, username: str, user_info: Dict[str, Any]):
         """创建或更新用户信息"""
         try:
-            logger.info(f"Processing user data for: {username}")
+            # 提取原始用户名（去掉前缀）
+            original_username = user_info.get('login')
+            logger.info(f"Processing user data for: {original_username} (system username: {username})")
             
             # 检查用户是否已存在
             query = user_table.select().where(user_table.c.username == username)
@@ -328,14 +572,25 @@ class OAuthService:
         session_service = get_session_service()
         return session_service.destroy_session(session_id)
     
-    def get_login_url(self, next_url: str = None) -> str:
+    def get_login_url(self, next_url: str = None, provider: str = None) -> str:
         """获取登录URL"""
         if not self.is_configured():
-            # 如果GitHub OAuth未配置，返回管理员登录页面
+            # 如果OAuth未配置，返回管理员登录页面
             return "/admin/login"
         
         state = next_url if next_url else "/"
-        return self.get_authorization_url(state)
+        
+        if provider:
+            # 指定了提供商
+            return self.get_authorization_url(state, provider)
+        else:
+            # 未指定提供商，优先使用GitHub，然后是Gmail
+            if self.config.is_github_configured:
+                return self.get_authorization_url(state, "github")
+            elif self.config.is_gmail_configured:
+                return self.get_authorization_url(state, "gmail")
+            else:
+                return "/admin/login"
     
     async def revoke_token(self, access_token: str) -> bool:
         """撤销访问令牌"""
@@ -376,8 +631,16 @@ class OAuthService:
         """获取OAuth配置状态"""
         return {
             "configured": self.is_configured(),
-            "client_id": self.config.client_id[:8] + "..." if self.config.client_id else None,
-            "redirect_uri": self.config.redirect_uri,
+            "github": {
+                "configured": self.config.is_github_configured,
+                "client_id": self.config.github_client_id[:8] + "..." if self.config.github_client_id else None,
+                "redirect_uri": self.config.github_redirect_uri
+            },
+            "gmail": {
+                "configured": self.config.is_gmail_configured,
+                "client_id": self.config.gmail_client_id[:8] + "..." if self.config.gmail_client_id else None,
+                "redirect_uri": self.config.gmail_redirect_uri
+            },
             "available": True
         }
     
@@ -391,8 +654,15 @@ class OAuthService:
         if not self.is_configured():
             return RedirectResponse(url="/admin/login")
         
-        # 生成GitHub OAuth登录链接
-        auth_url = self.get_authorization_url()
+        # 生成登录链接
+        github_auth_url = ""
+        gmail_auth_url = ""
+        
+        if self.config.is_github_configured:
+            github_auth_url = self.get_authorization_url(provider="github")
+        
+        if self.config.is_gmail_configured:
+            gmail_auth_url = self.get_authorization_url(provider="gmail")
         
         # 返回登录页面HTML
         html_content = f"""
@@ -417,6 +687,7 @@ class OAuthService:
                     border-radius: 8px;
                     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                     text-align: center;
+                    min-width: 300px;
                 }}
                 .login-btn {{
                     background: #333;
@@ -426,18 +697,44 @@ class OAuthService:
                     border-radius: 4px;
                     text-decoration: none;
                     display: inline-block;
-                    margin-top: 1rem;
+                    margin: 0.5rem;
+                    min-width: 200px;
                 }}
                 .login-btn:hover {{
                     background: #555;
+                }}
+                .github-btn {{
+                    background: #333;
+                }}
+                .github-btn:hover {{
+                    background: #24292e;
+                }}
+                .gmail-btn {{
+                    background: #db4437;
+                }}
+                .gmail-btn:hover {{
+                    background: #c23321;
+                }}
+                .login-options {{
+                    margin: 1rem 0;
                 }}
             </style>
         </head>
         <body>
             <div class="login-container">
                 <h1>MarkEdit</h1>
-                <p>请使用GitHub账号登录</p>
-                <a href="{auth_url}" class="login-btn">通过GitHub登录</a>
+                <p>请选择登录方式</p>
+                <div class="login-options">
+        """
+        
+        if github_auth_url:
+            html_content += f'<a href="{github_auth_url}" class="login-btn github-btn">通过GitHub登录</a><br>'
+        
+        if gmail_auth_url:
+            html_content += f'<a href="{gmail_auth_url}" class="login-btn gmail-btn">通过Gmail登录</a><br>'
+        
+        html_content += """
+                </div>
                 <p><a href="/admin/login">管理员登录</a></p>
             </div>
         </body>
@@ -453,10 +750,18 @@ class OAuthService:
         if session.username:
             return RedirectResponse(url="/")
         
-        # 重定向到GitHub OAuth
+        # 重定向到OAuth或管理员登录
         if self.is_configured():
-            auth_url = self.get_authorization_url()
-            return RedirectResponse(url=auth_url)
+            # 如果只配置了一种，直接重定向
+            if self.config.is_github_configured and not self.config.is_gmail_configured:
+                auth_url = self.get_authorization_url(provider="github")
+                return RedirectResponse(url=auth_url)
+            elif self.config.is_gmail_configured and not self.config.is_github_configured:
+                auth_url = self.get_authorization_url(provider="gmail")
+                return RedirectResponse(url=auth_url)
+            else:
+                # 两种都配置了，返回选择页面
+                return RedirectResponse(url="/login")
         else:
             return RedirectResponse(url="/admin/login")
     

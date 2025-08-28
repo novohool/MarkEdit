@@ -249,6 +249,7 @@ async function showMarkdownPreview(editor, cmEditorContainer, previewContainer, 
         const src = img.getAttribute('src');
         if (src && src.startsWith('../illustrations/')) {
             // 将 ../illustrations/ 路径转换为 /user-illustrations/
+            // 注意：这里先使用旧格式，新的用户名路径将由服务端处理
             const newSrc = src.replace('../illustrations/', '/user-illustrations/');
             img.setAttribute('src', newSrc);
         }
@@ -410,6 +411,9 @@ function bindEventListeners() {
     // 绑定侧边栏切换按钮事件
     bindSidebarToggleButton();
     
+    // 绑定仪表板按钮事件
+    bindDashboardButton();
+    
     // 绑定文件操作按钮事件
     bindFileOperationButtons();
     
@@ -444,6 +448,24 @@ function bindSidebarToggleButton() {
         });
         toggleSidebarBtn.dataset.mainSharedListenerAdded = 'true';
         console.log('侧边栏切换按钮事件监听器已绑定');
+    }
+}
+
+// 绑定仪表板按钮
+function bindDashboardButton() {
+    const dashboardBtn = document.getElementById('dashboard-btn');
+    if (dashboardBtn && !dashboardBtn.dataset.mainSharedListenerAdded) {
+        dashboardBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof toggleChapterDrawer === 'function') {
+                toggleChapterDrawer();
+            } else {
+                console.warn('章节抽屉功能未找到');
+            }
+        });
+        dashboardBtn.dataset.mainSharedListenerAdded = 'true';
+        console.log('仪表板按钮事件监听器已绑定');
     }
 }
 
@@ -483,12 +505,36 @@ function bindUserPanelEvents() {
     const myAccountBtn = document.getElementById('myaccount-btn');
     const closeUserPanelBtn = document.getElementById('close-user-panel-btn');
     if (myAccountBtn && !myAccountBtn.dataset.mainSharedListenerAdded) {
-        myAccountBtn.addEventListener('click', toggleUserPanelDrawer);
+        myAccountBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleUserPanelDropdown();
+        }); // 修改为下拉菜单
         myAccountBtn.dataset.mainSharedListenerAdded = 'true';
     }
     if (closeUserPanelBtn && !closeUserPanelBtn.dataset.mainSharedListenerAdded) {
-        closeUserPanelBtn.addEventListener('click', closeUserPanelDrawer);
+        closeUserPanelBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeUserPanelDropdown();
+        }); // 修改为下拉菜单
         closeUserPanelBtn.dataset.mainSharedListenerAdded = 'true';
+    }
+    
+    // 添加全局点击事件来关闭下拉菜单
+    if (!document.body.dataset.dropdownGlobalListenerAdded) {
+        document.addEventListener('click', function(e) {
+            const userPanelDropdown = document.getElementById('user-panel-dropdown');
+            const myAccountBtn = document.getElementById('myaccount-btn');
+            
+            // 如果点击的不是用户面板按钮或下拉菜单内部，则关闭下拉菜单
+            if (userPanelDropdown && 
+                !myAccountBtn.contains(e.target) && 
+                !userPanelDropdown.contains(e.target)) {
+                closeUserPanelDropdown();
+            }
+        });
+        document.body.dataset.dropdownGlobalListenerAdded = 'true';
     }
     
     // 绑定用户面板中的按钮事件
@@ -514,6 +560,8 @@ function bindUserPanelEvents() {
         document.body.addEventListener('click', function(e) {
             // 处理登出按钮
             if (e.target.classList.contains('logout-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
                 const handler = e.target.getAttribute('data-logout-handler') || 'handleUserPanelLogout';
                 
                 // 尝试调用指定的处理函数
@@ -529,10 +577,54 @@ function bindUserPanelEvents() {
             
             // 处理返回按钮
             if (e.target.classList.contains('back-btn') && e.target.getAttribute('data-action') === 'back') {
+                e.preventDefault();
+                e.stopPropagation();
                 window.history.back();
+            }
+            
+            // 处理通用抽屉关闭按钮
+            if (e.target.classList.contains('drawer-close-btn') || e.target.id === 'close-drawer-btn' || e.target.id === 'close-chapter-drawer-btn') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // 根据ID或父元素确定要关闭的抽屉
+                if (e.target.id === 'close-chapter-drawer-btn' || e.target.closest('#chapter-drawer')) {
+                    if (typeof closeChapterDrawer === 'function') {
+                        closeChapterDrawer();
+                    }
+                } else if (e.target.id === 'close-drawer-btn' || e.target.closest('#admin-drawer')) {
+                    if (typeof closeAdminDrawer === 'function') {
+                        closeAdminDrawer();
+                    }
+                } else {
+                    // 通用抽屉关闭
+                    const drawer = e.target.closest('.drawer');
+                    if (drawer) {
+                        drawer.classList.remove('open');
+                        const overlay = document.querySelector('.drawer-overlay');
+                        if (overlay) {
+                            overlay.classList.remove('open');
+                        }
+                    }
+                }
+            }
+            
+            // 处理章节编辑按钮
+            if (e.target.classList.contains('btn-edit') && e.target.getAttribute('onclick')) {
+                e.preventDefault();
+                e.stopPropagation();
+                // 获取onclick属性的函数调用
+                const onclickValue = e.target.getAttribute('onclick');
+                try {
+                    // 安全执行函数调用
+                    new Function(onclickValue).call(e.target);
+                } catch (error) {
+                    console.error('执行按钮事件失败:', error);
+                }
             }
         });
         document.body.dataset.userActionsBtnListenerAdded = 'true';
+        console.log('通用按钮事件委托已绑定');
     }
 }
 

@@ -50,12 +50,14 @@ Header组件 - 可配置的页面头部
         <!-- 自定义按钮组 -->
         {% block custom_header_buttons %}{% endblock %}
         
-        <!-- 用户面板按钮 -->
+        <!-- 用户面板按钮和下拉菜单 -->
         {% if show_user_panel != false %}
         <div class="user-panel-area">
             <button id="myaccount-btn" class="user-panel-btn" title="用户面板">
                 <i class="user-avatar-icon">👤</i>
             </button>
+            <!-- 用户面板下拉菜单（嵌入在用户面板区域中） -->
+            {% include 'components/user-panel-drawer.html' %}
         </div>
         {% endif %}
     </div>
@@ -64,9 +66,4 @@ Header组件 - 可配置的页面头部
 <!-- 管理员抽屉菜单（仅在需要时显示） -->
 {% if (show_admin_menu != false) and (has_admin_access or permissions.has_admin_access) %}
 {% include 'components/admin-drawer.html' %}
-{% endif %}
-
-<!-- 用户面板抽屉菜单（仅在需要时显示） -->
-{% if show_user_panel != false %}
-{% include 'components/user-panel-drawer.html' %}
 {% endif %}

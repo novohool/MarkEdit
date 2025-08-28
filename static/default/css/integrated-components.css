@@ -17,15 +17,7 @@ body {
 }
 
 /* Container 样式增强 - 避免固定高度和overflow hidden组合 */
-.container {
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: var(--spacing-4);
-    padding-right: var(--spacing-4);
-    max-width: 1200px;
-    min-height: 100vh;
-    overflow: visible;
-}
+/* 注意: 基础container样式已在style.css中定义，此处仅针对特殊页面进行覆盖 */
 
 /* 管理页面容器滚动修复 */
 body.admin-page .container {
@@ -92,24 +84,12 @@ body.role-permission-page .role-permission-container {
     min-height: calc(100vh - 120px) !important;
 }
 
-@media (min-width: 640px) {
-    .container { 
-        padding-left: var(--spacing-6);
-        padding-right: var(--spacing-6);
-    }
-}
 
-@media (min-width: 1024px) {
-    .container { 
-        padding-left: var(--spacing-8);
-        padding-right: var(--spacing-8);
-    }
-}
 
 /* === Header组件样式 === */
 header {
     background-color: var(--color-white);
-    box-shadow: var(--shadow-lg);
+    box-shadow: none; /* 移除阴影避免影响下方文件浏览器 */
     border-bottom: 1px solid var(--color-gray-200);
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.95);
@@ -119,6 +99,10 @@ header {
     align-items: center;
     gap: var(--spacing-3);
     flex-wrap: wrap;
+    position: relative;
+    z-index: 100 !important; /* 提高z-index确保header及其内部元素不被覆盖 */
+    overflow: visible; /* 让下拉框能显示 */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .header-left {
@@ -153,6 +137,7 @@ header h1 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    z-index: 10 !important; /* 确保用户面板区域在顶层 */
 }
 
 .user-panel-btn {
@@ -168,6 +153,7 @@ header h1 {
     cursor: pointer;
     transition: background-color 0.2s ease;
     outline: none;
+    z-index: 10 !important; /* 确保按钮在最上层，能够正常点击 */
 }
 
 .user-panel-btn:hover {
@@ -272,6 +258,12 @@ header h1 {
     box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.3);
 }
 
+/* 仪表板按钮特定样式 */
+#dashboard-btn {
+    z-index: 10 !important; /* 确保仪表板按钮能够正常响应点击 */
+    position: relative;
+}
+
 /* 危险按钮 */
 .btn-danger {
     padding: var(--spacing-2) var(--spacing-4);
@@ -358,10 +350,23 @@ header h1 {
     background-color: var(--color-white);
     box-shadow: var(--shadow-2xl);
     width: 320px;
-    z-index: 1000;
+    z-index: 1600 !important;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-right: 1px solid var(--color-gray-200);
+}
+
+/* 章节抽屉特殊样式（覆盖通用drawer样式）*/
+.drawer.drawer-left {
+    width: 75vw;
+    left: -75vw;
+    transform: none;
+    transition: left 0.3s ease;
+}
+
+.drawer.drawer-left.open {
+    left: 0;
+    transform: none;
 }
 
 /* 右侧抽屉样式（特殊情况使用） */
@@ -377,14 +382,38 @@ header h1 {
     transform: translateX(0);
 }
 
+/* 不要对章节抽屉使用transform */
+.drawer.drawer-left.open {
+    transform: none;
+}
+
 /* 主内容区域样式 - 根据抽屉状态调整 */
 .main-content {
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 当左侧抽屉打开时，主内容区域左边距调整 */
-body.drawer-open .main-content {
-    margin-left: 320px;
+/* 当章节抽屉打开时，主内容区域左边距调整 */
+body.drawer-left-open .main-content {
+    margin-left: 0; /* 在新布局中，main-content不需要额外的margin */
+}
+
+/* 支持新的app-layout结构 */
+body.drawer-left-open .app-layout {
+    margin-left: calc(75vw + 320px); /* 考虑固定的文件浏览器宽度 */
+}
+
+/* 当管理抽屉(左侧)打开时支持app-layout结构 */
+body.admin-drawer-open .app-layout {
+    margin-left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
+}
+
+/* 当管理抽屉打开时，移动文件浏览器和resizer */
+body.admin-drawer-open .file-browser {
+    left: 320px; /* 移动到管理抽屉右侧 */
+}
+
+body.admin-drawer-open .resizer {
+    left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
 }
 
 /* 当右侧抽屉打开时，主内容区域右边距调整 */
@@ -392,34 +421,52 @@ body.drawer-right-open .main-content {
     margin-right: 320px;
 }
 
-/* 当左侧抽屉打开时，Header也要调整 */
-body.drawer-open header {
+/* 当右侧抽屉打开时，app-layout右边距调整 */
+body.drawer-right-open .app-layout {
+    margin-right: 320px;
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 当章节抽屉打开时，Header也要调整 */
+body.drawer-left-open header {
+    margin-left: 75vw;
+    width: 25vw;
+    min-width: 400px; /* 设置最小宽度确保内容可读 */
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 当管理抽屉(左侧)打开时调整Header - 整个header都要移动 */
+body.admin-drawer-open header {
     margin-left: 320px;
-    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 320px); /* 使用100%而不是100vw */
+    min-width: 600px;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当右侧抽屉打开时，Header也要调整 */
 body.drawer-right-open header {
     margin-right: 320px;
-    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 320px); /* 使用100%而不是100vw */
+    min-width: 600px;
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .drawer-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    z-index: 1500 !important;
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
 }
 
 .drawer-overlay.open {
-    opacity: 1;
-    visibility: visible;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .drawer-header {
@@ -611,7 +658,7 @@ body.drawer-right-open header {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
+    z-index: 9999 !important;
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

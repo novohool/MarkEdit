@@ -99,11 +99,14 @@ class FileService:
     
     def delete_file(self, file_type: str, file_path: str, request: Request) -> Dict[str, str]:
         """删除指定文件"""
-        if file_type != "src":
-            raise HTTPException(status_code=400, detail="只能删除src目录下的文件")
+        if file_type == "src":
+            user_dir = self.get_user_src_dir(request)
+        elif file_type == "build":
+            user_dir = self.get_user_build_dir(request)
+        else:
+            raise HTTPException(status_code=400, detail="不支持的文件类型。支持的类型: src, build")
         
-        user_src_dir = self.get_user_src_dir(request)
-        full_path = user_src_dir / file_path
+        full_path = user_dir / file_path
         
         delete_file_safely(full_path)
         
@@ -243,8 +246,29 @@ class FileService:
         return create_static_file_response(full_path)
     
     def serve_user_illustrations_file(self, file_path: str, request: Request) -> Response:
-        """动态提供用户特定的illustrations目录下的文件"""
+        """动态提供用户特定的illustrations目录下的文件（向后兼容）"""
         user_src_dir = self.get_user_src_dir(request)
+        illustrations_dir = user_src_dir / "illustrations"
+        full_path = illustrations_dir / file_path
+        
+        if not full_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        if not full_path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
+        
+        # 只允许图片文件
+        if not is_image_file(full_path):
+            raise HTTPException(status_code=400, detail="不支持的文件类型")
+        
+        return create_static_file_response(full_path)
+    
+    def serve_user_illustrations_file_with_username(self, username: str, file_path: str, request: Request) -> Response:
+        """为指定用户提供插图文件（支持用户名前缀）"""
+        from app.common import get_user_src_directory
+        
+        # 直接使用传入的用户名（已包含前缀）获取其src目录
+        user_src_dir = get_user_src_directory(username)
         illustrations_dir = user_src_dir / "illustrations"
         full_path = illustrations_dir / file_path
         

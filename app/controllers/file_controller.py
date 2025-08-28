@@ -66,9 +66,21 @@ async def save_file(file_type: str, file_path: str, request: Request, session: S
 @controller_exception_handler("删除文件")
 async def delete_file(file_type: str, file_path: str, request: Request, session: SessionData = Depends(require_auth_session)):
     """删除指定文件"""
+    from app.common import check_user_permission
+    
     # 验证文件类型和路径
     file_ctrl.validate_file_type(file_type)
     file_ctrl.validate_file_path(file_path)
+    
+    # 检查权限：src文件需要content.edit权限，build文件需要file.manage权限
+    if file_type == "src":
+        has_permission = await check_user_permission(session.username, "content.edit")
+        if not has_permission:
+            raise HTTPException(status_code=403, detail="权限不足，无法删除src目录下的文件")
+    elif file_type == "build":
+        has_permission = await check_user_permission(session.username, "file.manage")
+        if not has_permission:
+            raise HTTPException(status_code=403, detail="权限不足，无法删除build目录下的文件")
     
     result = file_service.delete_file(file_type, file_path, request)
     return file_ctrl.create_success_response(result, "文件删除成功")
@@ -199,9 +211,14 @@ async def serve_user_static_file(file_path: str, request: Request, session: Sess
     """动态提供用户特定的src目录下的文件"""
     return file_service.serve_user_static_file(file_path, request)
 
+@static_router.get("/user-illustrations/{username}/{file_path:path}")
+async def serve_user_illustrations_file_with_username(username: str, file_path: str, request: Request, session: SessionData = Depends(require_auth_session)) -> Response:
+    """为指定用户提供插图文件（支持用户名前缀）"""
+    return file_service.serve_user_illustrations_file_with_username(username, file_path, request)
+
 @static_router.get("/user-illustrations/{file_path:path}")
 async def serve_user_illustrations_file(file_path: str, request: Request, session: SessionData = Depends(require_auth_session)) -> Response:
-    """动态提供用户特定的illustrations目录下的文件"""
+    """动态提供用户特定的illustrations目录下的文件（向后兼容）"""
     return file_service.serve_user_illustrations_file(file_path, request)
 
 @static_router.get("/EPUB/illustrations/{file_path:path}")
