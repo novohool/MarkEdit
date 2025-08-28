@@ -1414,7 +1414,8 @@ async def get_role_info(request: Request):
             "info": {
                 "permissions": user_permissions,
                 "roles": user_roles,
-                "user_type": session.user_type or "user"
+                "user_type": session.user_type or "user",
+                "username": session.username  # 添加用户名信息
             }
         }
     except HTTPException:
@@ -1427,7 +1428,8 @@ async def get_role_info(request: Request):
             "info": {
                 "permissions": [],
                 "roles": [],
-                "user_type": "user"
+                "user_type": "user",
+                "username": None  # 添加默认用户名信息
             }
         }
 

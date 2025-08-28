@@ -249,17 +249,14 @@ async function showMarkdownPreview(editor, cmEditorContainer, previewContainer, 
     // 获取当前用户信息以正确构建路径
     let currentUsername = null;
     try {
-        // 尝试从全局变量或API获取当前用户名
+        // 尝试从全局变量获取当前用户名
         if (window.userInfo && window.userInfo.username) {
             currentUsername = window.userInfo.username;
         } else {
-            // 如果没有用户信息，尝试从API获取
-            const response = await fetch('/api/user/info');
-            if (response.ok) {
-                const userInfo = await response.json();
-                currentUsername = userInfo.username;
-                // 缓存用户信息
-                window.userInfo = userInfo;
+            // 如果没有用户信息，调用checkUserInfo获取
+            if (typeof checkUserInfo === 'function') {
+                await checkUserInfo();
+                currentUsername = window.userInfo ? window.userInfo.username : null;
             }
         }
     } catch (error) {
