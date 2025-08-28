@@ -245,12 +245,40 @@ async function showMarkdownPreview(editor, cmEditorContainer, previewContainer, 
     
     // 处理图片路径，将相对路径转换为正确的静态文件服务端点
     const images = previewContainer.querySelectorAll('img');
+    
+    // 获取当前用户信息以正确构建路径
+    let currentUsername = null;
+    try {
+        // 尝试从全局变量或API获取当前用户名
+        if (window.userInfo && window.userInfo.username) {
+            currentUsername = window.userInfo.username;
+        } else {
+            // 如果没有用户信息，尝试从API获取
+            const response = await fetch('/api/user/info');
+            if (response.ok) {
+                const userInfo = await response.json();
+                currentUsername = userInfo.username;
+                // 缓存用户信息
+                window.userInfo = userInfo;
+            }
+        }
+    } catch (error) {
+        console.warn('获取用户信息失败，使用默认路径处理:', error);
+    }
+    
     images.forEach(img => {
         const src = img.getAttribute('src');
         if (src && src.startsWith('../illustrations/')) {
-            // 将 ../illustrations/ 路径转换为 /user-illustrations/
-            // 注意：这里先使用旧格式，新的用户名路径将由服务端处理
-            const newSrc = src.replace('../illustrations/', '/user-illustrations/');
+            // 将 ../illustrations/ 路径转换为 /user-illustrations/username/ 格式
+            let newSrc;
+            if (currentUsername) {
+                // 使用带用户名的路径
+                const filename = src.replace('../illustrations/', '');
+                newSrc = `/user-illustrations/${currentUsername}/${filename}`;
+            } else {
+                // 向后兼容：如果无法获取用户名，使用旧格式
+                newSrc = src.replace('../illustrations/', '/user-illustrations/');
+            }
             img.setAttribute('src', newSrc);
         }
     });

@@ -8,6 +8,7 @@ let currentFileEncoding = null;
 let currentFileArea = null; // 'src' 或 'build'
 let codeMirrorEditor = null; // CodeMirror 编辑器实例
 let userInfo = {
+    username: null, // 用户名
     role: 'user', // 默认角色为普通用户
     isAdmin: false,
     permissions: [], // 用户权限列表
@@ -289,6 +290,9 @@ async function checkUserInfo() {
         userInfo.roles = roleData.info ? roleData.info.roles : [];
         userInfo.userType = roleData.info ? roleData.info.user_type : 'user';
         
+        // 获取用户名信息（包含系统用户名）
+        userInfo.username = roleData.info ? roleData.info.username : null;
+        
         return userInfo;
     } catch (error) {
         console.error('获取用户角色信息失败:', error);
@@ -297,6 +301,7 @@ async function checkUserInfo() {
         userInfo.permissions = [];
         userInfo.roles = [];
         userInfo.userType = 'user';
+        userInfo.username = null;
         return userInfo;
     }
 }
