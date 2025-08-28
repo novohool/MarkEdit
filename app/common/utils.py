@@ -111,12 +111,14 @@ def get_username_prefix(username: str) -> str:
     """从系统用户名中提取前缀。
     
     Args:
-        username: 系统用户名（如github_aaa或gmail_bbb）
+        username: 系统用户名（如github_aaa、gmail_bbb或super_admin_markedit）
     
     Returns:
-        前缀字符串（如'github'或'gmail'），无前缀则返回''
+        前缀字符串（如'github'、'gmail'或'super_admin'），无前缀则返回''
     """
-    if username.startswith('github_'):
+    if username.startswith('super_admin_'):
+        return 'super_admin'
+    elif username.startswith('github_'):
         return 'github'
     elif username.startswith('gmail_'):
         return 'gmail'
@@ -127,12 +129,14 @@ def get_original_username(username: str) -> str:
     """从系统用户名中提取原始用户名。
     
     Args:
-        username: 系统用户名（如github_aaa或gmail_bbb）
+        username: 系统用户名（如github_aaa、gmail_bbb或super_admin_markedit）
     
     Returns:
-        原始用户名（如'aaa'或'bbb'）
+        原始用户名（如'aaa'、'bbb'或'markedit'）
     """
-    if username.startswith('github_'):
+    if username.startswith('super_admin_'):
+        return username[12:]  # 去掉'super_admin_'前缀
+    elif username.startswith('github_'):
         return username[7:]  # 去掉'github_'前缀
     elif username.startswith('gmail_'):
         return username[6:]  # 去掉'gmail_'前缀

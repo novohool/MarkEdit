@@ -812,9 +812,21 @@ async def admin_login(request: Request):
         if not username or not password:
             raise HTTPException(status_code=400, detail="用户名和密码不能为空")
         
-        # 查询管理员用户
+        # 先尝试使用原始用户名查找
         query = admin_table.select().where(admin_table.c.username == username)
         admin_user = await database.fetch_one(query)
+        
+        # 如果找不到，且用户名是“markedit”，尝试查找super_admin_markedit
+        actual_username = username
+        if not admin_user and username == "markedit":
+            prefixed_username = f"super_admin_{username}"
+            query = admin_table.select().where(admin_table.c.username == prefixed_username)
+            admin_user = await database.fetch_one(query)
+            
+            # 如果找到了，更新实际用户名
+            if admin_user:
+                actual_username = prefixed_username
+                logger.info(f"管理员登录：{username} 映射到 {actual_username}")
         
         if not admin_user:
             raise HTTPException(status_code=401, detail="用户名或密码错误")
@@ -823,19 +835,20 @@ async def admin_login(request: Request):
         if not verify_password(password, admin_user["password"]):
             raise HTTPException(status_code=401, detail="用户名或密码错误")
         
-        # 创建会话
+        # 创建会话（使用实际的系统用户名）
         session_service = get_session_service()
-        session_id = session_service.create_session(username, user_type="admin")
+        session_id = session_service.create_session(actual_username, user_type="admin")
         
         # 加载用户权限
         session = session_service.get_session_by_id(session_id)
         if session:
-            await session_service.assign_default_user_role(username)
+            await session_service.assign_default_user_role(actual_username)
             await session_service.load_user_permissions_and_roles(session)
         
-        # 返回成功响应
+        # 返回成功响应（显示的用户名不包含前缀）
         from fastapi.responses import JSONResponse
-        response = JSONResponse({"message": "登录成功", "username": username})
+        display_username = username  # 始终显示原始输入的用户名
+        response = JSONResponse({"message": "登录成功", "username": display_username})
         response.set_cookie(
             key="session_id",
             value=session_id,
