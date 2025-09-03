@@ -6,6 +6,11 @@
 \usepackage{xeCJK}
 \usepackage[margin=2cm]{geometry}
 \usepackage{graphicx}
+\graphicspath{{./}{./illustrations/}{../illustrations/}}
+$if(graphicspath)$
+% 动态注入的额外图片搜索路径（由构建器传入）
+\graphicspath{$graphicspath$}
+$endif$
 \usepackage{longtable,booktabs}
 \usepackage{hyperref}
 \usepackage{caption}
@@ -52,16 +57,7 @@ $endif$
 \makeatother
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
 
-% 支持多种图片格式，优先PNG格式（SVG已转换为PNG）
-\DeclareGraphicsExtensions{.png,.pdf,.jpg,.jpeg}
-% XeTeX优先处理PNG格式（由SVG转换而来），然后是PDF、JPG等格式
-% PNG文件处理（主要用于SVG转换后的PNG文件）
-\DeclareGraphicsRule{.png}{png}{.png}{}
-% 直接PDF文件处理
-\DeclareGraphicsRule{.pdf}{pdf}{.pdf}{}
-% JPEG文件处理
-\DeclareGraphicsRule{.jpg}{jpg}{.jpg}{}
-\DeclareGraphicsRule{.jpeg}{jpeg}{.jpeg}{}
+% 使用XeLaTeX原生的图片格式支持（PNG/JPG/PDF）
 
 % 定义pandoc使用的命令
 \providecommand{\pandocbounded}[1]{#1}

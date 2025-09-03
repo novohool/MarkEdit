@@ -1,12 +1,3 @@
-"""
-Build service for MarkEdit application.
-
-This module contains business logic for building various formats:
-- EPUB generation
-- PDF generation  
-- HTML generation
-- File processing and optimization
-"""
 import os
 import json
 import subprocess
@@ -22,7 +13,7 @@ import datetime
 logger = logging.getLogger(__name__)
 
 # 导入用户操作日志记录函数
-from app.services.error_logging_service import log_user_operation, log_user_operation_async
+from app.services.error_logging_service import log_user_operation_async
 
 class BuildService:
     """构建服务类"""
@@ -567,16 +558,17 @@ class BuildService:
             with open(src_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 修改图片路径，将 "../illustrations/" 和各种 "/user-illustrations/" 格式替换为 "./illustrations/"
-            content = content.replace('../illustrations/', './illustrations/')
+            # 修改图片路径，将 "../illustrations/" 和各种 "/user-illustrations/" 格式替换为 "../illustrations/"
+            # 在临时工作目录中，chapters目录和illustrations目录是平级的，所以使用../illustrations/
+            content = content.replace('../illustrations/', '../illustrations/')
             # 处理旧格式的用户插图路径
-            content = content.replace('/user-illustrations/', './illustrations/')
+            content = content.replace('/user-illustrations/', '../illustrations/')
             # 处理新格式的用户插图路径（包含用户名）
             import re
-            # 匹配 /user-illustrations/username/filename 格式并替换为 ./illustrations/filename
-            content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'./illustrations/\1', content)
-            # 处理绝对路径格式的用户插图路径（如 /user-illustrations/super_admin_markedit/chapter_01.svg）
-            content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'./illustrations/\1', content)
+            # 匹配 /user-illustrations/username/filename 格式并替换为 ../illustrations/filename
+            content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'../illustrations/\1', content)
+            # 兼容将 images 放在 illustrations/<username>/filename 的情况，扁平化到 illustrations/filename
+            content = re.sub(r'(?:\./|\.\./)?illustrations/[^/]+/([^)]+)', r'../illustrations/\1', content)
             
             # 将Markdown中的SVG图片引用转换为PNG引用
             content = self.convert_svg_references_to_png(content)
@@ -996,12 +988,16 @@ class BuildService:
             # 创建输出目录（如果不存在）
             build_dir.mkdir(parents=True, exist_ok=True)
             
-            # 复制插图目录到构建目录
-            build_illustrations_dir = build_dir / "illustrations"
-            self.copy_illustrations(illustrations_dir, build_illustrations_dir)
+            # 使用用户构建目录作为工作目录，确保资源路径与最终产物一致
+            temp_work_dir = build_dir
+            temp_work_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 复制插图目录到构建工作目录
+            temp_illustrations_dir = temp_work_dir / "illustrations"
+            self.copy_illustrations(illustrations_dir, temp_illustrations_dir)
             
             # 将所有图片转换为PNG格式
-            self.convert_all_images_to_png(build_illustrations_dir)
+            self.convert_all_images_to_png(temp_illustrations_dir)
             
             # 从metadata.yml加载元数据配置
             metadata_config = self.load_metadata_config(src_dir)
@@ -1014,11 +1010,14 @@ class BuildService:
             chapter_config = self.load_chapter_config(src_dir)
             chapter_files = [chapter["file"] for chapter in chapter_config.get("chapters", [])]
             
-            # 为PDF创建临时章节目录
-            temp_chapters_dir = build_dir / "temp-chapters-pdf"
-            self.process_chapters_for_pdf(chapters_dir, temp_chapters_dir, chapter_files, build_illustrations_dir)
+            # 为PDF创建章节目录（位于构建工作目录）
+            temp_chapters_dir = temp_work_dir / "chapters"
+            self.process_chapters_for_pdf(chapters_dir, temp_chapters_dir, chapter_files, temp_illustrations_dir)
             
-            # 构建pandoc命令参数
+            # 使用源目录中的元数据、主文件与模板（不复制到构建目录）
+            latex_template = src_dir / "templates" / "latex-template.tex"
+            
+            # 构建pandoc命令参数，直接使用源目录中的文件
             input_files = [metadata_file, book_file]
             
             # 添加章节文件，处理包含chapters/前缀的文件名
@@ -1034,12 +1033,27 @@ class BuildService:
             
             logger.info("开始生成PDF文件...")
             
-            # 使用pandoc生成PDF文件，使用自定义LaTeX模板支持中文日文
-            latex_template = src_dir / "templates" / "latex-template.tex"
-            
             # 检测系统字体并设置字体变量
             font_variables = self._detect_and_set_fonts()
             
+            # 资源搜索路径：优先构建工作目录，其次为源目录及插图目录
+            resource_paths = os.pathsep.join([
+                str(temp_work_dir),
+                str(build_dir),
+                str(build_dir / "illustrations"),
+                str(src_dir),
+                str(src_dir / "illustrations")
+            ])
+
+            # 注入 LaTeX 用的 \graphicspath 变量，指向用户构建目录及其 illustrations
+            build_dir_posix = str(build_dir).replace('\\', '/')
+            illustrations_posix = str((build_dir / "illustrations")).replace('\\', '/')
+            if not build_dir_posix.endswith('/'):
+                build_dir_posix += '/'
+            if not illustrations_posix.endswith('/'):
+                illustrations_posix += '/'
+            graphicspath_value = "{{{}}}{{{}}}".format(build_dir_posix, illustrations_posix)
+
             pandoc_args = [
                 "pandoc"
             ] + [str(f) for f in input_files] + [
@@ -1050,10 +1064,11 @@ class BuildService:
                 "--toc-depth=2",
                 "--pdf-engine=xelatex",
                 f"--template={latex_template}",
+                "--variable=graphicspath:" + graphicspath_value,
                 "--variable=documentclass:article",
                 "--variable=fontsize:12pt",
                 "--variable=linestretch:1.5",
-                f"--resource-path={build_dir}"
+                f"--resource-path={resource_paths}"
             ]
             
             # 添加字体变量
@@ -1063,10 +1078,10 @@ class BuildService:
             pandoc_command = " ".join(pandoc_args)
             logger.info(f"正在执行命令生成PDF: {pandoc_command}")
             
-            # 执行pandoc命令生成PDF
+            # 执行pandoc命令生成PDF，使用构建工作目录作为工作目录
             result = subprocess.run(
                 pandoc_args,
-                cwd=str(Path.cwd()),  # 使用当前工作目录
+                cwd=str(temp_work_dir),  # 使用构建工作目录作为工作目录
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -1085,10 +1100,7 @@ class BuildService:
                     "file_size": pdf_output_path.stat().st_size,
                     "method": "pandoc"
                 })
-                # 清理临时目录
-                if temp_chapters_dir.exists():
-                    shutil.rmtree(temp_chapters_dir)
-                    logger.info("已清理临时目录")
+                # 不清理构建工作目录（其中包含最终产物及资源）
                 
                 return {
                     "status": "success",
@@ -1104,10 +1116,10 @@ class BuildService:
                 await log_user_operation_async("system", "PDF文件构建失败", {
                     "error": error_msg
                 })
-                # 清理临时目录
-                if temp_chapters_dir.exists():
-                    shutil.rmtree(temp_chapters_dir)
-                    logger.info("已清理临时目录")
+                # 清理临时工作目录
+                if temp_work_dir.exists():
+                    shutil.rmtree(temp_work_dir)
+                    logger.info("已清理临时工作目录")
                 
                 return {
                     "status": "error",
@@ -1123,6 +1135,10 @@ class BuildService:
             await log_user_operation_async("system", "PDF文件构建超时", {
                 "error": error_msg
             })
+            # 清理临时工作目录
+            if 'temp_work_dir' in locals() and temp_work_dir.exists():
+                shutil.rmtree(temp_work_dir)
+                logger.info("已清理临时工作目录")
             return {
                 "status": "error",
                 "message": error_msg
@@ -1137,6 +1153,10 @@ class BuildService:
             # 记录堆栈跟踪信息
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            # 清理临时工作目录
+            if 'temp_work_dir' in locals() and temp_work_dir.exists():
+                shutil.rmtree(temp_work_dir)
+                logger.info("已清理临时工作目录")
             return {
                 "status": "error",
                 "message": error_msg
