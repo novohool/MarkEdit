@@ -99,10 +99,11 @@ async function loadPreviewableFile(filePath, area, extension) {
         }
     }
 
-    // 显示预览按钮并设置初始状态为"预览"
+    // 隐藏预览按钮（根据用户需求，始终不显示）
     const previewBtn = document.getElementById('preview-btn');
-    previewBtn.style.display = 'inline-block';
-    previewBtn.textContent = '预览';
+    if (previewBtn) {
+        previewBtn.style.display = 'none';
+    }
 }
 
 // 加载常规文件（文本、图片等）
@@ -193,10 +194,10 @@ async function loadTextFile(data, filePath, area) {
         currentFileEl.textContent = `${area}/${filePath}`;
     }
 
-    // 如果是Markdown文件，显示预览按钮并设置初始状态为"预览"
+    // 如果是Markdown文件且在src目录下，显示预览按钮并设置初始状态为"预览"
     const previewBtn = document.getElementById('preview-btn');
     if (previewBtn) {
-        if (filePath.endsWith('.md') || filePath.endsWith('.markdown')) {
+        if (area === 'src' && (filePath.endsWith('.md') || filePath.endsWith('.markdown'))) {
             previewBtn.style.display = 'inline-block';
             previewBtn.textContent = '预览';
         } else {
@@ -332,9 +333,10 @@ async function togglePreview() {
                 // Build目录下的文件预览
                 console.log('显示Build文件预览');
                 await previewBuildFile(currentFilePath);
+                // 隐藏预览按钮（根据用户需求，始终不显示）
                 const previewBtn = document.getElementById('preview-btn');
                 if (previewBtn) {
-                    previewBtn.textContent = '编辑';
+                    previewBtn.style.display = 'none';
                 }
             } else {
                 console.log('不支持的文件类型预览:', currentFileArea, currentFilePath);
@@ -475,9 +477,10 @@ async function hidePreview(editor, cmEditorContainer, previewContainer) {
         } else if (currentFileArea === 'build') {
             // Build目录下的文件，重新加载文件内容
             await loadFile(currentFilePath, currentFileArea);
+            // 隐藏预览按钮（根据用户需求，始终不显示）
             const previewBtn = document.getElementById('preview-btn');
             if (previewBtn) {
-                previewBtn.textContent = '预览';
+                previewBtn.style.display = 'none';
             }
         } else if (currentFileType === 'preview') {
             // 对于预览模式的文件，重新加载文件内容
@@ -679,11 +682,8 @@ function bindSidebarToggleButton() {
     const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
     if (toggleSidebarBtn && !toggleSidebarBtn.dataset.mainSharedListenerAdded) {
         toggleSidebarBtn.addEventListener('click', function () {
-            if (typeof toggleSidebar === 'function') {
-                toggleSidebar();
-            } else {
-                console.warn('切换侧边栏功能未找到');
-            }
+            // 使用统一的文件浏览器切换函数
+            toggleFileBrowser();
         });
         toggleSidebarBtn.dataset.mainSharedListenerAdded = 'true';
         console.log('侧边栏切换按钮事件监听器已绑定');
@@ -711,7 +711,15 @@ function showFileBrowser() {
             if (width >= 200 && width <= window.innerWidth * 0.6) {
                 fileBrowser.style.width = savedWidth;
                 appLayout.style.marginLeft = savedWidth;
+            } else {
+                // 如果保存的宽度无效，恢复默认值
+                fileBrowser.style.width = '320px';
+                appLayout.style.marginLeft = '320px';
             }
+        } else if (appLayout) {
+            // 如果没有保存的宽度，使用默认值
+            fileBrowser.style.width = '320px';
+            appLayout.style.marginLeft = '320px';
         }
 
         // 更新切换按钮状态
@@ -1788,16 +1796,236 @@ const closeAdminDropdown = closeAdminPanelDropdown;
 
 // 显示LLM对话框
 function showLLMDialog() {
-    // 这里可以实现LLM对话框功能
-    // 暂时显示一个简单的提示
-    window.ComponentManager.getComponent('message').info('LLM功能正在开发中...');
+    // 创建LLM对话框HTML
+    const modalHtml = `
+        <div class="modal-content" style="width: 800px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>LLM 助手</h3>
+                <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div id="llm-chat-container" style="height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
+                    <div class="llm-message system" style="margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
+                        <strong>系统:</strong> 欢迎使用LLM助手！我可以帮助您处理文本、生成代码、回答问题等。
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <textarea id="llm-input" placeholder="输入您的问题或指令..."
+                        style="flex: 1; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                    <button id="llm-send-btn" class="btn btn-primary" style="height: fit-content;" onclick="sendLLMMessage()">发送</button>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="clearLLMChat()">清空对话</button>
+                    <button class="btn btn-secondary" onclick="insertSelectedText()">插入选中文本</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button>
+            </div>
+        </div>
+    `;
+    
+    // 显示模态框
+    showModal(modalHtml);
+    
+    // 绑定回车发送事件
+    const input = document.getElementById('llm-input');
+    if (input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendLLMMessage();
+            }
+        });
+    }
+}
 
-    // TODO: 实现完整的LLM对话框
-    // 可以包括：
-    // - 文本处理
-    // - AI对话
-    // - 代码生成
-    // - 等等
+// 发送LLM消息
+async function sendLLMMessage() {
+    const input = document.getElementById('llm-input');
+    const sendBtn = document.getElementById('llm-send-btn');
+    const chatContainer = document.getElementById('llm-chat-container');
+    
+    if (!input || !sendBtn || !chatContainer) return;
+    
+    const message = input.value.trim();
+    if (!message) return;
+    
+    // 禁用输入和按钮
+    input.disabled = true;
+    sendBtn.disabled = true;
+    sendBtn.textContent = '发送中...';
+    
+    // 添加用户消息到聊天记录
+    addMessageToChat('user', message);
+    input.value = '';
+    
+    try {
+        // 这里应该调用实际的LLM API
+        // 模拟API调用
+        const response = await simulateLLMResponse(message);
+        
+        // 添加AI回复到聊天记录
+        addMessageToChat('ai', response);
+    } catch (error) {
+        addMessageToChat('error', `错误: ${error.message}`);
+    } finally {
+        // 重新启用输入和按钮
+        input.disabled = false;
+        sendBtn.disabled = false;
+        sendBtn.textContent = '发送';
+        input.focus();
+    }
+}
+
+// 添加消息到聊天记录
+function addMessageToChat(role, content) {
+    const chatContainer = document.getElementById('llm-chat-container');
+    if (!chatContainer) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `llm-message ${role}`;
+    messageDiv.style.marginBottom = '10px';
+    messageDiv.style.padding = '8px';
+    messageDiv.style.borderRadius = '4px';
+    
+    let roleText = '';
+    switch (role) {
+        case 'user':
+            roleText = '您:';
+            messageDiv.style.backgroundColor = '#e3f2fd';
+            break;
+        case 'ai':
+            roleText = 'AI:';
+            messageDiv.style.backgroundColor = '#f5f5f5';
+            break;
+        case 'error':
+            roleText = '错误:';
+            messageDiv.style.backgroundColor = '#ffebee';
+            messageDiv.style.color = '#c62828';
+            break;
+        default:
+            roleText = '系统:';
+            messageDiv.style.backgroundColor = '#f8f9fa';
+    }
+    
+    messageDiv.innerHTML = `<strong>${roleText}</strong> ${content.replace(/\n/g, '<br>')}`;
+    chatContainer.appendChild(messageDiv);
+    
+    // 滚动到底部
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// 清空聊天记录
+function clearLLMChat() {
+    const chatContainer = document.getElementById('llm-chat-container');
+    if (!chatContainer) return;
+    
+    chatContainer.innerHTML = `
+        <div class="llm-message system" style="margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
+            <strong>系统:</strong> 对话已清空。您可以开始新的对话。
+        </div>
+    `;
+}
+
+// 插入选中文本
+function insertSelectedText() {
+    const input = document.getElementById('llm-input');
+    if (!input) return;
+    
+    // 获取编辑器中选中的文本
+    let selectedText = '';
+    
+    // 尝试从CodeMirror编辑器获取选中文本
+    if (window.codeMirrorEditor) {
+        selectedText = window.codeMirrorEditor.getSelection();
+    }
+    // 尝试从普通textarea编辑器获取选中文本
+    else {
+        const editor = document.getElementById('editor');
+        if (editor) {
+            selectedText = editor.value.substring(editor.selectionStart, editor.selectionEnd);
+        }
+    }
+    
+    if (selectedText) {
+        // 在光标位置插入文本
+        const startPos = input.selectionStart;
+        const endPos = input.selectionEnd;
+        input.value = input.value.substring(0, startPos) + selectedText + input.value.substring(endPos);
+        input.selectionStart = input.selectionEnd = startPos + selectedText.length;
+    } else {
+        window.ComponentManager.getComponent('message').info('编辑器中没有选中文本');
+    }
+    
+    input.focus();
+}
+
+// 模拟LLM响应（实际实现中应替换为真实的API调用）
+async function simulateLLMResponse(message) {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 根据消息内容返回不同的模拟响应
+    if (message.toLowerCase().includes('hello') || message.includes('你好')) {
+        return "您好！我是您的AI助手，有什么我可以帮助您的吗？";
+    } else if (message.toLowerCase().includes('code') || message.includes('代码')) {
+        return "我可以帮助您生成代码。请告诉我您需要什么编程语言和具体需求。例如：\n\n```python\ndef hello_world():\n    print('Hello, World!')\n```";
+    } else if (message.toLowerCase().includes('text') || message.includes('文本')) {
+        return "我可以帮助您处理文本，包括翻译、总结、润色等。请提供您需要处理的文本内容。";
+    } else {
+        return `我收到了您的消息: "${message}"。我是AI助手，可以帮您处理各种任务，包括文本处理、代码生成、问题解答等。请告诉我您具体需要什么帮助？`;
+    }
+}
+
+// 显示模态框（如果尚不存在）
+function showModal(html) {
+    let modal = document.getElementById('llm-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'llm-modal';
+        modal.className = 'modal';
+        modal.style.cssText = `
+            display: block;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // 创建模态框内容容器
+    const modalContainer = document.createElement('div');
+    modalContainer.className = 'modal-dialog';
+    modalContainer.style.cssText = `
+        position: relative;
+        margin: 5% auto;
+        width: fit-content;
+        max-width: 90%;
+    `;
+    modalContainer.innerHTML = html;
+    
+    modal.innerHTML = '';
+    modal.appendChild(modalContainer);
+    
+    // 点击模态框外部关闭
+    modal.onclick = function(event) {
+        if (event.target === modal) {
+            closeModal();
+        }
+    };
+}
+
+// 关闭模态框
+function closeModal() {
+    const modal = document.getElementById('llm-modal');
+    if (modal) {
+        modal.remove();
+    }
 }
 
 // 侧边栏切换功能

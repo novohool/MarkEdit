@@ -4,17 +4,7 @@
     <div class="btn-group" style="flex-direction: column; gap: 8px;">
         <a href="/admin" class="btn-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
             <i>⚙️</i>系统管理
-        </a>
-        <button onclick="toggleSection('role-permission')" class="btn-secondary" style="display: flex; align-items: center; gap: 8px;">
-            <i>🔐</i>权限管理
-        </button>
-        <a href="/admin#user-management" class="btn-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
-            <i>👥</i>用户管理
-        </a>
-        <button onclick="toggleSection('audit-logs')" class="btn-secondary" style="display: flex; align-items: center; gap: 8px;">
-            <i>📋</i>审计日志
-        </button>
-        
+        </a>        
         <!-- 自定义管理功能按钮 -->
         {% block custom_admin_functions %}{% endblock %}
     </div>

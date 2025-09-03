@@ -3031,7 +3031,148 @@ function toggleSelectAllUsers() {
 
 // 显示创建用户模态框
 function showCreateUserModal() {
-    showMessage('创建用户功能开发中...', 'info');
+    // 创建用户模态框HTML
+    const modalHtml = `
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>创建新用户</h3>
+                <button type="button" class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <form id="create-user-form">
+                    <div class="form-group">
+                        <label for="create-username">用户名</label>
+                        <input type="text" id="create-username" name="username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="create-password">密码</label>
+                        <input type="password" id="create-password" name="password" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="create-email">邮箱</label>
+                        <input type="email" id="create-email" name="email" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="create-theme">主题</label>
+                        <select id="create-theme" name="theme" class="form-control">
+                            <option value="default">默认</option>
+                            <option value="wooden">木质</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="create-user-type">用户类型</label>
+                        <select id="create-user-type" name="user_type" class="form-control">
+                            <option value="user">普通用户</option>
+                            <option value="admin">管理员</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitCreateUser()">创建</button>
+            </div>
+        </div>
+    `;
+    
+    // 显示模态框
+    showAdminModal(modalHtml);
+}
+
+// 提交创建用户表单
+async function submitCreateUser() {
+    const form = document.getElementById('create-user-form');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const userData = {
+        username: formData.get('username'),
+        password: formData.get('password'),
+        email: formData.get('email') || '',
+        theme: formData.get('theme') || 'default',
+        user_type: formData.get('user_type') || 'user'
+    };
+    
+    // 验证必填字段
+    if (!userData.username || !userData.password) {
+        showMessage('用户名和密码不能为空', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(userData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('用户创建成功', 'success');
+            closeAdminModal();
+            // 重新加载用户列表
+            loadAdminUserList();
+        } else {
+            throw new Error(result.detail || '创建用户失败');
+        }
+    } catch (error) {
+        console.error('创建用户失败:', error);
+        showMessage(`创建用户失败: ${error.message}`, 'error');
+    }
+}
+
+// 显示管理员模态框
+function showAdminModal(html) {
+    let modal = document.getElementById('admin-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'admin-modal';
+        modal.className = 'modal';
+        modal.style.cssText = `
+            display: block;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // 创建模态框内容容器
+    const modalContainer = document.createElement('div');
+    modalContainer.className = 'modal-dialog';
+    modalContainer.style.cssText = `
+        position: relative;
+        margin: 5% auto;
+        width: fit-content;
+        max-width: 90%;
+    `;
+    modalContainer.innerHTML = html;
+    
+    modal.innerHTML = '';
+    modal.appendChild(modalContainer);
+    
+    // 点击模态框外部关闭
+    modal.onclick = function(event) {
+        if (event.target === modal) {
+            closeAdminModal();
+        }
+    };
+}
+
+// 关闭管理员模态框
+function closeAdminModal() {
+    const modal = document.getElementById('admin-modal');
+    if (modal) {
+        modal.remove();
+    }
 }
 
 // 显示批量操作模态框
@@ -3042,7 +3183,206 @@ function showBulkActionsModal() {
         return;
     }
     
-    showMessage(`已选择 ${selectedUsers.length} 个用户，批量操作功能开发中...`, 'info');
+    // 创建批量操作模态框HTML
+    const selectedUserCount = selectedUsers.length;
+    const modalHtml = `
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>批量操作</h3>
+                <button type="button" class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p>已选择 <strong>${selectedUserCount}</strong> 个用户</p>
+                
+                <div class="form-group">
+                    <label>选择操作:</label>
+                    <select id="bulk-action-select" class="form-control" onchange="handleBulkActionChange()">
+                        <option value="">请选择操作</option>
+                        <option value="delete">删除用户</option>
+                        <option value="activate">激活用户</option>
+                        <option value="deactivate">停用用户</option>
+                        <option value="reset-password">重置密码</option>
+                    </select>
+                </div>
+                
+                <div id="bulk-action-options" style="display: none; margin-top: 15px;">
+                    <!-- 操作选项将在这里动态显示 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="executeBulkAction()" id="execute-bulk-action-btn" disabled>执行</button>
+            </div>
+        </div>
+    `;
+    
+    // 显示模态框
+    showAdminModal(modalHtml);
+}
+
+// 处理批量操作选择变化
+function handleBulkActionChange() {
+    const actionSelect = document.getElementById('bulk-action-select');
+    const optionsContainer = document.getElementById('bulk-action-options');
+    const executeBtn = document.getElementById('execute-bulk-action-btn');
+    
+    if (!actionSelect || !optionsContainer || !executeBtn) return;
+    
+    const action = actionSelect.value;
+    optionsContainer.style.display = action ? 'block' : 'none';
+    executeBtn.disabled = !action;
+    
+    // 根据选择的操作显示不同的选项
+    switch (action) {
+        case 'delete':
+            optionsContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <strong>警告:</strong> 此操作将永久删除选中的用户，无法恢复。
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" id="confirm-delete" class="form-check-input">
+                    <label for="confirm-delete" class="form-check-label">我确认要删除这些用户</label>
+                </div>
+            `;
+            break;
+        case 'activate':
+            optionsContainer.innerHTML = `
+                <div class="alert alert-info">
+                    <strong>信息:</strong> 此操作将激活选中的用户账户。
+                </div>
+            `;
+            break;
+        case 'deactivate':
+            optionsContainer.innerHTML = `
+                <div class="alert alert-info">
+                    <strong>信息:</strong> 此操作将停用选中的用户账户。
+                </div>
+            `;
+            break;
+        case 'reset-password':
+            optionsContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <strong>警告:</strong> 此操作将重置选中用户的所有密码。
+                </div>
+                <div class="form-group">
+                    <label for="password-template">密码模板 (可选):</label>
+                    <input type="text" id="password-template" class="form-control" placeholder="留空则使用随机密码">
+                </div>
+            `;
+            break;
+        default:
+            optionsContainer.innerHTML = '';
+    }
+}
+
+// 执行批量操作
+async function executeBulkAction() {
+    const actionSelect = document.getElementById('bulk-action-select');
+    const selectedUsers = document.querySelectorAll('.user-checkbox:checked');
+    
+    if (!actionSelect || selectedUsers.length === 0) return;
+    
+    const action = actionSelect.value;
+    if (!action) {
+        showMessage('请选择要执行的操作', 'warning');
+        return;
+    }
+    
+    // 获取选中的用户ID
+    const userIds = Array.from(selectedUsers).map(checkbox => checkbox.value);
+    
+    // 根据操作类型执行不同的确认检查
+    switch (action) {
+        case 'delete':
+            const confirmDelete = document.getElementById('confirm-delete');
+            if (!confirmDelete || !confirmDelete.checked) {
+                showMessage('请确认删除操作', 'warning');
+                return;
+            }
+            break;
+    }
+    
+    try {
+        // 显示加载状态
+        const executeBtn = document.getElementById('execute-bulk-action-btn');
+        const originalText = executeBtn.textContent;
+        executeBtn.disabled = true;
+        executeBtn.textContent = '执行中...';
+        
+        // 调用相应的API
+        let response, result;
+        switch (action) {
+            case 'delete':
+                response = await fetch('/api/admin/users/bulk-delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ user_ids: userIds })
+                });
+                break;
+            case 'activate':
+                response = await fetch('/api/admin/users/bulk-activate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ user_ids: userIds })
+                });
+                break;
+            case 'deactivate':
+                response = await fetch('/api/admin/users/bulk-deactivate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ user_ids: userIds })
+                });
+                break;
+            case 'reset-password':
+                const passwordTemplate = document.getElementById('password-template')?.value || '';
+                response = await fetch('/api/admin/users/bulk-reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        user_ids: userIds,
+                        password_template: passwordTemplate
+                    })
+                });
+                break;
+        }
+        
+        if (!response) {
+            throw new Error('未知操作');
+        }
+        
+        result = await response.json();
+        
+        if (response.ok) {
+            showMessage(`批量操作成功完成 (${result.success_count}/${userIds.length})`, 'success');
+            closeAdminModal();
+            // 重新加载用户列表
+            loadAdminUserList();
+        } else {
+            throw new Error(result.detail || '批量操作失败');
+        }
+    } catch (error) {
+        console.error('批量操作失败:', error);
+        showMessage(`批量操作失败: ${error.message}`, 'error');
+    } finally {
+        // 恢复按钮状态
+        const executeBtn = document.getElementById('execute-bulk-action-btn');
+        if (executeBtn) {
+            executeBtn.disabled = false;
+            executeBtn.textContent = '执行';
+        }
+    }
 }
 
 // 导出用户
@@ -3079,7 +3419,123 @@ async function exportUsers() {
 
 // 编辑用户
 function editUser(userId) {
-    showMessage(`编辑用户 ${userId} 功能开发中...`, 'info');
+    // 获取用户信息
+    const user = window.adminUsers?.find(u => u.id == userId);
+    if (!user) {
+        showMessage('用户不存在', 'error');
+        return;
+    }
+    
+    // 创建编辑用户模态框HTML
+    const modalHtml = `
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>编辑用户</h3>
+                <button type="button" class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <form id="edit-user-form">
+                    <input type="hidden" id="edit-user-id" value="${user.id}">
+                    <div class="form-group">
+                        <label for="edit-username">用户名</label>
+                        <input type="text" id="edit-username" name="username" class="form-control" value="${user.username}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-email">邮箱</label>
+                        <input type="email" id="edit-email" name="email" class="form-control" value="${user.email || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-theme">主题</label>
+                        <select id="edit-theme" name="theme" class="form-control">
+                            <option value="default" ${user.theme === 'default' ? 'selected' : ''}>默认</option>
+                            <option value="wooden" ${user.theme === 'wooden' ? 'selected' : ''}>木质</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-user-type">用户类型</label>
+                        <select id="edit-user-type" name="user_type" class="form-control">
+                            <option value="user" ${user.user_type === 'user' ? 'selected' : ''}>普通用户</option>
+                            <option value="admin" ${user.user_type === 'admin' ? 'selected' : ''}>管理员</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-password">新密码 (留空则不修改)</label>
+                        <input type="password" id="edit-password" name="password" class="form-control" placeholder="留空则不修改密码">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-confirm-password">确认新密码</label>
+                        <input type="password" id="edit-confirm-password" name="confirm_password" class="form-control" placeholder="再次输入新密码">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="edit-is-active" name="is_active" class="form-check-input" ${user.is_active ? 'checked' : ''}>
+                        <label for="edit-is-active" class="form-check-label">账户活跃</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditUser()">保存</button>
+            </div>
+        </div>
+    `;
+    
+    // 显示模态框
+    showAdminModal(modalHtml);
+}
+
+// 提交编辑用户表单
+async function submitEditUser() {
+    const form = document.getElementById('edit-user-form');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const userId = formData.get('user_id');
+    const password = formData.get('password');
+    const confirmPassword = formData.get('confirm_password');
+    
+    // 验证密码确认
+    if (password && password !== confirmPassword) {
+        showMessage('两次输入的密码不一致', 'warning');
+        return;
+    }
+    
+    const userData = {
+        username: formData.get('username'),
+        email: formData.get('email') || '',
+        theme: formData.get('theme') || 'default',
+        user_type: formData.get('user_type') || 'user',
+        is_active: formData.get('is_active') === 'on'
+    };
+    
+    // 只有在输入了新密码时才包含密码字段
+    if (password) {
+        userData.password = password;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(userData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('用户信息更新成功', 'success');
+            closeAdminModal();
+            // 重新加载用户列表
+            loadAdminUserList();
+        } else {
+            throw new Error(result.detail || '更新用户信息失败');
+        }
+    } catch (error) {
+        console.error('更新用户信息失败:', error);
+        showMessage(`更新用户信息失败: ${error.message}`, 'error');
+    }
 }
 
 // 删除用户
@@ -3959,43 +4415,467 @@ document.addEventListener('DOMContentLoaded', function() {
     // 添加角色按钮
     const addRoleBtn = document.getElementById('add-role-btn');
     if (addRoleBtn) {
-        addRoleBtn.addEventListener('click', () => {
-            // TODO: 实现添加角色功能
-            showNotification('添加角色功能开发中', 'info');
-        });
+        addRoleBtn.addEventListener('click', showAddRoleModal);
     }
     
     // 添加权限按钮
     const addPermissionBtn = document.getElementById('add-permission-btn');
     if (addPermissionBtn) {
-        addPermissionBtn.addEventListener('click', () => {
-            // TODO: 实现添加权限功能
-            showNotification('添加权限功能开发中', 'info');
-        });
+        addPermissionBtn.addEventListener('click', showAddPermissionModal);
     }
 });
 
+// 显示添加权限模态框
+function showAddPermissionModal() {
+    const modalHtml = `
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>添加新权限</h3>
+                <button type="button" class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <form id="add-permission-form">
+                    <div class="form-group">
+                        <label for="add-permission-name">权限名称</label>
+                        <input type="text" id="add-permission-name" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-permission-description">权限描述</label>
+                        <textarea id="add-permission-description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-permission-group">权限分组</label>
+                        <select id="add-permission-group" name="group" class="form-control">
+                            <option value="user">用户管理</option>
+                            <option value="role">角色管理</option>
+                            <option value="permission">权限管理</option>
+                            <option value="system">系统管理</option>
+                            <option value="file">文件管理</option>
+                            <option value="build">构建权限</option>
+                            <option value="content">内容管理</option>
+                            <option value="backup">备份管理</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddPermission()">创建</button>
+            </div>
+        </div>
+    `;
+    
+    showAdminModal(modalHtml);
+}
+
+// 提交添加权限表单
+async function submitAddPermission() {
+    const form = document.getElementById('add-permission-form');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const permissionData = {
+        name: formData.get('name'),
+        description: formData.get('description') || '',
+        group: formData.get('group') || 'other'
+    };
+    
+    // 验证必填字段
+    if (!permissionData.name) {
+        showMessage('权限名称不能为空', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/permissions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(permissionData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('权限创建成功', 'success');
+            closeAdminModal();
+            // 重新加载权限列表
+            if (typeof loadManagePermissionsData === 'function') {
+                loadManagePermissionsData();
+            }
+        } else {
+            throw new Error(result.detail || '创建权限失败');
+        }
+    } catch (error) {
+        console.error('创建权限失败:', error);
+        showMessage(`创建权限失败: ${error.message}`, 'error');
+    }
+}
+
 // 工具函数
 function editRole(roleId) {
-    // TODO: 实现编辑角色功能
-    showNotification('编辑角色功能开发中', 'info');
+    // 获取角色信息
+    const role = window.adminRoles?.find(r => r.id == roleId);
+    if (!role) {
+        showMessage('角色不存在', 'error');
+        return;
+    }
+    
+    // 检查是否为默认角色
+    if (role.is_default) {
+        showMessage('默认角色不能编辑', 'warning');
+        return;
+    }
+    
+    // 创建编辑角色模态框
+    const modalHtml = `
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>编辑角色</h3>
+                <button type="button" class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <form id="edit-role-form">
+                    <input type="hidden" id="edit-role-id" value="${role.id}">
+                    <div class="form-group">
+                        <label for="edit-role-name">角色名称</label>
+                        <input type="text" id="edit-role-name" name="name" class="form-control" value="${escapeHtml(role.name)}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-role-description">角色描述</label>
+                        <textarea id="edit-role-description" name="description" class="form-control" rows="3">${escapeHtml(role.description || '')}</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditRole()">保存</button>
+            </div>
+        </div>
+    `;
+    
+    showAdminModal(modalHtml);
+}
+
+// 提交编辑角色表单
+async function submitEditRole() {
+    const form = document.getElementById('edit-role-form');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const roleId = formData.get('role_id');
+    const roleData = {
+        name: formData.get('name'),
+        description: formData.get('description') || ''
+    };
+    
+    // 验证必填字段
+    if (!roleData.name) {
+        showMessage('角色名称不能为空', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/roles/${roleId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(roleData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('角色更新成功', 'success');
+            closeAdminModal();
+            // 重新加载角色列表
+            if (typeof loadManageRolesData === 'function') {
+                loadManageRolesData();
+            }
+        } else {
+            throw new Error(result.detail || '更新角色失败');
+        }
+    } catch (error) {
+        console.error('更新角色失败:', error);
+        showMessage(`更新角色失败: ${error.message}`, 'error');
+    }
+}
+
+// 显示添加角色模态框
+function showAddRoleModal() {
+    const modalHtml = `
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>添加新角色</h3>
+                <button type="button" class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <form id="add-role-form">
+                    <div class="form-group">
+                        <label for="add-role-name">角色名称</label>
+                        <input type="text" id="add-role-name" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-role-description">角色描述</label>
+                        <textarea id="add-role-description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddRole()">创建</button>
+            </div>
+        </div>
+    `;
+    
+    showAdminModal(modalHtml);
+}
+
+// 提交添加角色表单
+async function submitAddRole() {
+    const form = document.getElementById('add-role-form');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const roleData = {
+        name: formData.get('name'),
+        description: formData.get('description') || ''
+    };
+    
+    // 验证必填字段
+    if (!roleData.name) {
+        showMessage('角色名称不能为空', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/roles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(roleData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('角色创建成功', 'success');
+            closeAdminModal();
+            // 重新加载角色列表
+            if (typeof loadManageRolesData === 'function') {
+                loadManageRolesData();
+            }
+        } else {
+            throw new Error(result.detail || '创建角色失败');
+        }
+    } catch (error) {
+        console.error('创建角色失败:', error);
+        showMessage(`创建角色失败: ${error.message}`, 'error');
+    }
 }
 
 function deleteRole(roleId) {
-    if (confirm('确定要删除这个角色吗？')) {
-        // TODO: 实现删除角色功能
-        showNotification('删除角色功能开发中', 'info');
+    // 获取角色信息
+    const role = window.adminRoles?.find(r => r.id == roleId);
+    if (!role) {
+        showMessage('角色不存在', 'error');
+        return;
+    }
+    
+    // 检查是否为默认角色
+    if (role.is_default) {
+        showMessage('默认角色不能删除', 'warning');
+        return;
+    }
+    
+    // 确认删除
+    if (!confirm(`确定要删除角色 "${role.name}" 吗？此操作不可恢复。`)) {
+        return;
+    }
+    
+    // 执行删除
+    performDeleteRole(roleId);
+}
+
+// 执行删除角色
+async function performDeleteRole(roleId) {
+    try {
+        const response = await fetch(`/api/admin/roles/${roleId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('删除失败');
+        }
+        
+        showMessage('角色删除成功', 'success');
+        
+        // 重新加载角色列表
+        if (typeof loadManageRolesData === 'function') {
+            loadManageRolesData();
+        }
+    } catch (error) {
+        console.error('删除角色失败:', error);
+        showMessage(`删除角色失败: ${error.message}`, 'error');
     }
 }
 
 function editPermission(permissionId) {
-    // TODO: 实现编辑权限功能
-    showNotification('编辑权限功能开发中', 'info');
+    // 获取权限信息
+    const permission = window.adminPermissions?.find(p => p.id == permissionId);
+    if (!permission) {
+        showMessage('权限不存在', 'error');
+        return;
+    }
+    
+    // 检查是否为默认权限
+    if (permission.is_default) {
+        showMessage('默认权限不能编辑', 'warning');
+        return;
+    }
+    
+    // 创建编辑权限模态框
+    const modalHtml = `
+        <div class="modal-content" style="width: 500px; max-width: 90vw;">
+            <div class="modal-header">
+                <h3>编辑权限</h3>
+                <button type="button" class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <form id="edit-permission-form">
+                    <input type="hidden" id="edit-permission-id" value="${permission.id}">
+                    <div class="form-group">
+                        <label for="edit-permission-name">权限名称</label>
+                        <input type="text" id="edit-permission-name" name="name" class="form-control" value="${escapeHtml(permission.name)}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-permission-description">权限描述</label>
+                        <textarea id="edit-permission-description" name="description" class="form-control" rows="3">${escapeHtml(permission.description || '')}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-permission-group">权限分组</label>
+                        <select id="edit-permission-group" name="group" class="form-control">
+                            <option value="user" ${permission.group === 'user' ? 'selected' : ''}>用户管理</option>
+                            <option value="role" ${permission.group === 'role' ? 'selected' : ''}>角色管理</option>
+                            <option value="permission" ${permission.group === 'permission' ? 'selected' : ''}>权限管理</option>
+                            <option value="system" ${permission.group === 'system' ? 'selected' : ''}>系统管理</option>
+                            <option value="file" ${permission.group === 'file' ? 'selected' : ''}>文件管理</option>
+                            <option value="build" ${permission.group === 'build' ? 'selected' : ''}>构建权限</option>
+                            <option value="content" ${permission.group === 'content' ? 'selected' : ''}>内容管理</option>
+                            <option value="backup" ${permission.group === 'backup' ? 'selected' : ''}>备份管理</option>
+                            <option value="other" ${permission.group === 'other' || !permission.group ? 'selected' : ''}>其他</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditPermission()">保存</button>
+            </div>
+        </div>
+    `;
+    
+    showAdminModal(modalHtml);
+}
+
+// 提交编辑权限表单
+async function submitEditPermission() {
+    const form = document.getElementById('edit-permission-form');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const permissionId = formData.get('permission_id');
+    const permissionData = {
+        name: formData.get('name'),
+        description: formData.get('description') || '',
+        group: formData.get('group') || 'other'
+    };
+    
+    // 验证必填字段
+    if (!permissionData.name) {
+        showMessage('权限名称不能为空', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/permissions/${permissionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(permissionData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('权限更新成功', 'success');
+            closeAdminModal();
+            // 重新加载权限列表
+            if (typeof loadManagePermissionsData === 'function') {
+                loadManagePermissionsData();
+            }
+        } else {
+            throw new Error(result.detail || '更新权限失败');
+        }
+    } catch (error) {
+        console.error('更新权限失败:', error);
+        showMessage(`更新权限失败: ${error.message}`, 'error');
+    }
 }
 
 function deletePermission(permissionId) {
-    if (confirm('确定要删除这个权限吗？')) {
-        // TODO: 实现删除权限功能
-        showNotification('删除权限功能开发中', 'info');
+    // 获取权限信息
+    const permission = window.adminPermissions?.find(p => p.id == permissionId);
+    if (!permission) {
+        showMessage('权限不存在', 'error');
+        return;
+    }
+    
+    // 检查是否为默认权限
+    if (permission.is_default) {
+        showMessage('默认权限不能删除', 'warning');
+        return;
+    }
+    
+    // 确认删除
+    if (!confirm(`确定要删除权限 "${permission.name}" 吗？此操作不可恢复。`)) {
+        return;
+    }
+    
+    // 执行删除
+    performDeletePermission(permissionId);
+}
+
+// 执行删除权限
+async function performDeletePermission(permissionId) {
+    try {
+        const response = await fetch(`/api/admin/permissions/${permissionId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('删除失败');
+        }
+        
+        showMessage('权限删除成功', 'success');
+        
+        // 重新加载权限列表
+        if (typeof loadManagePermissionsData === 'function') {
+            loadManagePermissionsData();
+        }
+    } catch (error) {
+        console.error('删除权限失败:', error);
+        showMessage(`删除权限失败: ${error.message}`, 'error');
     }
 }

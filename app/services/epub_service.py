@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from app.common import generate_user_illustration_path
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,28 @@ class EpubService:
     
     def __init__(self):
         self.base_dir = Path(__file__).resolve().parent.parent.parent
+    
+    def load_metadata_config(self, src_dir: Path) -> Dict[str, Any]:
+        """
+        加载metadata.yml配置文件
+        
+        Args:
+            src_dir: 源目录路径
+            
+        Returns:
+            包含元数据的字典
+        """
+        metadata_path = src_dir / "metadata.yml"
+        if not metadata_path.exists():
+            return {}
+        
+        try:
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                metadata_config = yaml.safe_load(f)
+            return metadata_config or {}
+        except Exception as e:
+            logger.warning(f"加载metadata.yml失败: {str(e)}")
+            return {}
     
     def parse_content_opf(self, content_opf_path: Path) -> Dict[str, Any]:
         """
@@ -1245,6 +1268,59 @@ language: "{metadata.get('language', 'en')}"
                         json.dump(basic_config, f, ensure_ascii=False, indent=2)
                     
                     logger.info(f"已生成基本的chapter-config.json，包含 {len(basic_chapters)} 个章节")
+                
+                # 生成book.md文件
+                # 加载metadata配置
+                metadata_config = self.load_metadata_config(final_output_dir)
+                title = metadata_config.get('title', metadata.get('title', 'Converted EPUB'))
+                author = metadata_config.get('author', metadata.get('creator', 'Unknown'))
+                
+                book_md_content = f"""# {title}
+
+作者：{author}
+语言：{metadata.get('language', 'en')}
+转换日期：{__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+本文档由EPUB文件转换而来。
+
+## 目录
+"""
+                
+                # 添加章节链接
+                for i, converted_file in enumerate(converted_files):
+                    chapter_title = converted_file.get('title', f'Chapter {i+1}')
+                    chapter_file = f"chapters/{converted_file['converted']}"
+                    book_md_content += f"- [{chapter_title}]({chapter_file})\n"
+                
+                # 写入book.md文件
+                with open(final_output_dir / "book.md", 'w', encoding='utf-8') as f:
+                    f.write(book_md_content)
+                
+                logger.info("已生成book.md文件")
+                
+                # 拷贝css和templates目录到输出目录
+                project_root = Path(__file__).parent.parent.parent
+                src_dir = project_root / "src"
+                
+                # 拷贝css目录
+                src_css_dir = src_dir / "css"
+                if src_css_dir.exists():
+                    output_css_dir = final_output_dir / "css"
+                    output_css_dir.mkdir(exist_ok=True)
+                    for css_file in src_css_dir.iterdir():
+                        if css_file.is_file():
+                            shutil.copy2(css_file, output_css_dir / css_file.name)
+                    logger.info(f"已拷贝CSS文件到 {output_css_dir}")
+                
+                # 拷贝templates目录
+                src_templates_dir = src_dir / "templates"
+                if src_templates_dir.exists():
+                    output_templates_dir = final_output_dir / "templates"
+                    output_templates_dir.mkdir(exist_ok=True)
+                    for template_file in src_templates_dir.iterdir():
+                        if template_file.is_file():
+                            shutil.copy2(template_file, output_templates_dir / template_file.name)
+                    logger.info(f"已拷贝模板文件到 {output_templates_dir}")
                 
                 # 如果是临时目录，需要创建ZIP文件
                 if not output_dir:

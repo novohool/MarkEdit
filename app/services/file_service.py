@@ -321,6 +321,7 @@ class FileService:
         """处理src目录上传的EPUB文件，转换为Markdown格式"""
         import tempfile
         import zipfile
+        import shutil
         from app.common import get_epub_service
         
         # 检查文件是否已存在
@@ -378,6 +379,15 @@ class FileService:
             import logging
             logger = logging.getLogger(__name__)
             logger.info(f"开始转换EPUB文件: {file.filename}, 大小: {len(content)} 字节")
+            
+            # 在转换之前清空src目录
+            if user_src_dir.exists():
+                logger.info(f"清空用户src目录: {user_src_dir}")
+                for item in user_src_dir.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
             
             # 执行EPUB转换
             result = await epub_service.convert_epub_to_markdown(temp_file_path, str(user_src_dir))

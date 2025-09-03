@@ -84,20 +84,13 @@ class ThemeLoader {
             loadFileTree();
         }
         
-        // 绑定事件监听器
+        // 绑定事件监听器（包含文件浏览器初始化）
         if (typeof bindEventListeners === 'function') {
             bindEventListeners();
         }
         
-        // 初始化可调整分隔符
-        if (typeof initializeResizer === 'function') {
-            initializeResizer();
-        }
-        
-        // 初始化侧边栏状态
-        if (typeof initializeSidebarState === 'function') {
-            initializeSidebarState();
-        }
+        // 注意：不再调用 initializeResizer 和 initializeSidebarState
+        // 因为 bindEventListeners 中的 initializeFileBrowser 已经包含了这些初始化
     }
 
     /**
