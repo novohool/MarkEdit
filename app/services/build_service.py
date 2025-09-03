@@ -21,16 +21,28 @@ import datetime
 
 logger = logging.getLogger(__name__)
 
+# 导入用户操作日志记录函数
+from app.services.error_logging_service import log_user_operation, log_user_operation_async
+
 class BuildService:
     """构建服务类"""
     
     def __init__(self):
-        self.base_dir = Path(__file__).resolve().parent.parent.parent
-        self.src_dir = self.base_dir / "src"
-        self.build_dir = self.base_dir / "build"
-        
-        # 确保构建目录存在
-        self.build_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            logger.debug("开始初始化BuildService")
+            self.base_dir = Path(__file__).resolve().parent.parent.parent
+            logger.debug(f"base_dir: {self.base_dir}")
+            self.src_dir = self.base_dir / "src"
+            logger.debug(f"src_dir: {self.src_dir}")
+            self.build_dir = self.base_dir / "build"
+            logger.debug(f"build_dir: {self.build_dir}")
+            
+            # 确保构建目录存在
+            self.build_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug("BuildService初始化完成")
+        except Exception as e:
+            logger.error(f"BuildService初始化失败: {str(e)}", exc_info=True)
+            raise
     
     def _detect_and_set_fonts(self) -> List[str]:
         """检测系统字体并设置字体变量"""
@@ -181,7 +193,7 @@ class BuildService:
         # 检查是否以 YAML frontmatter 格式开始（以 --- 开始）
         if content.strip().startswith('---'):
             # 解析 YAML frontmatter 格式
-            parts = content.split('---', 2)
+            parts = content.split('---')
             if len(parts) >= 3:
                 # 取第二部分（第一部分是空的，第二部分是 YAML，第三部分是其余内容）
                 yaml_content = parts[1].strip()
@@ -189,14 +201,40 @@ class BuildService:
                     return yaml.safe_load(yaml_content)
                 except yaml.YAMLError as e:
                     logger.warning(f"解析 YAML frontmatter 失败: {e}, 尝试作为普通 YAML 文件处理")
-                    # 如果 frontmatter 解析失败，尝试直接解析整个文件
-                    return yaml.safe_load(content)
+                    # 如果 frontmatter 解析失败，尝试使用 yaml.safe_load_all 处理多文档
+                    try:
+                        documents = list(yaml.safe_load_all(content))
+                        # 返回第一个非空文档
+                        for doc in documents:
+                            if doc is not None:
+                                return doc
+                        return {}
+                    except yaml.YAMLError as e2:
+                        logger.error(f"解析 YAML 文件完全失败: {e2}")
+                        return {}
             else:
                 logger.warning(f"YAML frontmatter 格式不正确，尝试作为普通 YAML 文件处理")
-                return yaml.safe_load(content)
+                try:
+                    return yaml.safe_load(content)
+                except yaml.YAMLError:
+                    # 尝试使用 yaml.safe_load_all 处理多文档
+                    try:
+                        documents = list(yaml.safe_load_all(content))
+                        # 返回第一个非空文档
+                        for doc in documents:
+                            if doc is not None:
+                                return doc
+                        return {}
+                    except yaml.YAMLError as e:
+                        logger.error(f"解析 YAML 文件失败: {e}")
+                        return {}
         else:
             # 普通的 YAML 文件
-            return yaml.safe_load(content)
+            try:
+                return yaml.safe_load(content)
+            except yaml.YAMLError as e:
+                logger.error(f"解析普通 YAML 文件失败: {e}")
+                return {}
     
     def load_chapter_config(self, src_dir: Path) -> Dict[str, Any]:
         """从统一配置文件加载章节顺序"""
@@ -255,22 +293,31 @@ class BuildService:
     
     def optimize_svgs(self, build_illustrations_dir: Path):
         """优化SVG文件以提高epub兼容性"""
-        for file in build_illustrations_dir.iterdir():
-            if file.suffix == '.svg':
-                # 使用SVG优化方案
-                logger.info(f"使用SVG优化方案: {file.name}")
-                # 读取SVG内容
-                with open(file, 'r', encoding='utf-8') as f:
-                    svg_content = f.read()
-                
-                # 优化SVG内容
-                optimized_svg_content = self.optimize_svg_for_epub(svg_content)
-                
-                # 写入优化后的SVG内容
-                with open(file, 'w', encoding='utf-8') as f:
-                    f.write(optimized_svg_content)
-                
-                logger.info(f"已优化SVG文件: {file.name}")
+        svg_files = [file for file in build_illustrations_dir.iterdir() if file.suffix == '.svg']
+        
+        if not svg_files:
+            logger.info("illustrations目录中没有找到SVG文件")
+            return
+            
+        logger.info(f"开始优化{len(svg_files)}个SVG文件...")
+        
+        for i, file in enumerate(svg_files, 1):
+            # 使用SVG优化方案
+            logger.info(f"使用SVG优化方案: {file.name} ({i}/{len(svg_files)})")
+            # 读取SVG内容
+            with open(file, 'r', encoding='utf-8') as f:
+                svg_content = f.read()
+            
+            # 优化SVG内容
+            optimized_svg_content = self.optimize_svg_for_epub(svg_content)
+            
+            # 写入优化后的SVG内容
+            with open(file, 'w', encoding='utf-8') as f:
+                f.write(optimized_svg_content)
+            
+            logger.info(f"已优化SVG文件: {file.name} ({i}/{len(svg_files)})")
+            
+        logger.info("SVG优化完成")
     
     def convert_svg_to_png(self, svg_file_path: Path, output_dir: Path = None, width: int = 1000, height: int = 800) -> Path:
         """使用Inkscape将SVG文件转换为PNG格式
@@ -292,10 +339,11 @@ class BuildService:
         png_file_path = output_dir / png_filename
         
         try:
-            # 构建Inkscape命令
+            # 构建Inkscape命令，添加--export-dpi参数确保生成的PNG具有正确的元数据
             inkscape_command = [
                 "inkscape",
                 "--export-type=png",
+                "--export-dpi=300",  # 设置DPI确保图片质量
                 f"--export-width={width}",
                 f"--export-height={height}",
                 f"--export-filename={str(png_file_path)}",
@@ -348,11 +396,11 @@ class BuildService:
             
         logger.info(f"开始转换{len(svg_files)}个SVG文件为PNG格式...")
         
-        for svg_file in svg_files:
+        for i, svg_file in enumerate(svg_files, 1):
             try:
                 # 转换SVG为PNG
                 png_file_path = self.convert_svg_to_png(svg_file, build_illustrations_dir)
-                logger.info(f"已转换: {svg_file.name} -> {png_file_path.name}")
+                logger.info(f"已转换: {svg_file.name} -> {png_file_path.name} ({i}/{len(svg_files)})")
             except Exception as e:
                 logger.warning(f"转换SVG文件失败 {svg_file.name}: {str(e)}")
                 # 转换失败时继续处理其他文件
@@ -362,23 +410,32 @@ class BuildService:
     
     def optimize_svgs_for_pdf(self, build_illustrations_dir: Path):
         """优化SVG文件以用于PDF生成，修复字体问题但保持SVG格式"""
-        for file in build_illustrations_dir.iterdir():
-            if file.suffix == '.svg':
-                # 修复SVG字体问题，但保持SVG格式
-                # XeTeX可以直接处理优化后的SVG文件
-                logger.info(f"为PDF优化SVG文件（保持SVG格式）: {file.name}")
-                # 读取SVG内容
-                with open(file, 'r', encoding='utf-8') as f:
-                    svg_content = f.read()
-                
-                # 修复SVG字体问题
-                optimized_svg_content = self.fix_svg_fonts_for_pdf(svg_content)
-                
-                # 写入优化后的SVG内容
-                with open(file, 'w', encoding='utf-8') as f:
-                    f.write(optimized_svg_content)
-                
-                logger.info(f"已为PDF优化SVG文件: {file.name}")
+        svg_files = [file for file in build_illustrations_dir.iterdir() if file.suffix == '.svg']
+        
+        if not svg_files:
+            logger.info("illustrations目录中没有找到SVG文件")
+            return
+            
+        logger.info(f"开始为PDF优化{len(svg_files)}个SVG文件...")
+        
+        for i, file in enumerate(svg_files, 1):
+            # 修复SVG字体问题，但保持SVG格式
+            # XeTeX可以直接处理优化后的SVG文件
+            logger.info(f"为PDF优化SVG文件（保持SVG格式）: {file.name} ({i}/{len(svg_files)})")
+            # 读取SVG内容
+            with open(file, 'r', encoding='utf-8') as f:
+                svg_content = f.read()
+            
+            # 修复SVG字体问题
+            optimized_svg_content = self.fix_svg_fonts_for_pdf(svg_content)
+            
+            # 写入优化后的SVG内容
+            with open(file, 'w', encoding='utf-8') as f:
+                f.write(optimized_svg_content)
+            
+            logger.info(f"已为PDF优化SVG文件: {file.name} ({i}/{len(svg_files)})")
+            
+        logger.info("SVG为PDF优化完成")
     
 
 
@@ -444,13 +501,15 @@ class BuildService:
         logger.info(f"已修复SVG字体，使用字体: {chinese_font}")
         return svg_content
     
-    def process_chapters_for_epub(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str]):
-        """复制并修改章节文件，调整图片路径以适应EPUB"""
+    def process_chapters_for_epub(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str], build_illustrations_dir: Path):
+        """复制并修改章节文件，调整图片路径以适应EPUB，并将图片转换为base64嵌入"""
         if not temp_chapters_dir.exists():
             temp_chapters_dir.mkdir(parents=True, exist_ok=True)
         
+        logger.info(f"开始处理{len(chapter_files)}个章节文件...")
+        
         # 复制并修改章节文件，调整图片路径
-        for file_name in chapter_files:
+        for i, file_name in enumerate(chapter_files, 1):
             # 处理文件路径，如果文件名包含chapters/前缀，需要相对于src_dir处理
             if file_name.startswith('chapters/'):
                 # 去掉chapters/前缀，因为chapters_dir已经指向chapters目录
@@ -474,19 +533,26 @@ class BuildService:
             # 匹配 /user-illustrations/username/filename 格式并替换为 illustrations/filename
             content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'illustrations/\1', content)
             
+            # 将图片引用替换为base64编码的数据URL
+            content = self.convert_image_references_to_base64(content, build_illustrations_dir)
+            
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             
-            logger.info(f"已处理章节文件: {file_name}")
+            logger.info(f"已处理章节文件: {file_name} ({i}/{len(chapter_files)})")
+            
+        logger.info("章节文件处理完成")
     
-    def process_chapters_for_pdf(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str]):
-        """复制并修改章节文件，调整图片路径以适应PDF，并将SVG引用转换为PNG"""
+    def process_chapters_for_pdf(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str], build_illustrations_dir: Path):
+        """复制并修改章节文件，调整图片路径以适应PDF，并将SVG图片引用转换为PNG引用"""
         if not temp_chapters_dir.exists():
             temp_chapters_dir.mkdir(parents=True, exist_ok=True)
         
+        logger.info(f"开始处理{len(chapter_files)}个章节文件...")
+        
         # 复制并修改章节文件，调整图片路径
-        for file_name in chapter_files:
+        for i, file_name in enumerate(chapter_files, 1):
             # 处理文件路径，如果文件名包含chapters/前缀，需要相对于src_dir处理
             if file_name.startswith('chapters/'):
                 # 去掉chapters/前缀，因为chapters_dir已经指向chapters目录
@@ -509,6 +575,8 @@ class BuildService:
             import re
             # 匹配 /user-illustrations/username/filename 格式并替换为 ./illustrations/filename
             content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'./illustrations/\1', content)
+            # 处理绝对路径格式的用户插图路径（如 /user-illustrations/super_admin_markedit/chapter_01.svg）
+            content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'./illustrations/\1', content)
             
             # 将Markdown中的SVG图片引用转换为PNG引用
             content = self.convert_svg_references_to_png(content)
@@ -517,7 +585,9 @@ class BuildService:
             with open(dest_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             
-            logger.info(f"已处理章节文件: {file_name}")
+            logger.info(f"已处理章节文件: {file_name} ({i}/{len(chapter_files)})")
+            
+        logger.info("章节文件处理完成")
     
     def convert_svg_references_to_png(self, markdown_content: str) -> str:
         """将Markdown内容中的SVG图片引用转换为PNG引用
@@ -551,13 +621,161 @@ class BuildService:
         
         return converted_content
     
-    def process_chapters_for_html(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str]):
-        """复制并修改章节文件，调整图片路径以适应HTML"""
+    def convert_image_references_to_base64(self, markdown_content: str, illustrations_dir: Path) -> str:
+        """将Markdown内容中的图片引用转换为base64编码的数据URL
+        
+        支持的格式:
+        - ![alt text](path/to/image.png)
+        - ![alt text](path/to/image.png "title")
+        """
+        import re
+        
+        # 匹配Markdown图片语法中的图片文件
+        # 模式: ![alt text](path) 或 ![alt text](path "title")
+        image_pattern = r'(!\[[^\]]*\])\(([^\)]+\.(?:png|jpg|jpeg|gif|svg))([^\)]*)\)'
+        
+        def replace_image_with_base64(match):
+            alt_text = match.group(1)  # ![alt text]
+            image_path = match.group(2)  # path/to/image.png
+            additional_params = match.group(3)  # 可能包含的标题或其他参数
+            
+            # 从路径中提取文件名
+            filename = image_path.split('/')[-1]  # 获取文件名
+            image_file_path = illustrations_dir / filename
+            
+            # 检查文件是否存在
+            if not image_file_path.exists():
+                logger.warning(f"图片文件不存在: {image_file_path}")
+                return match.group(0)  # 返回原始引用
+            
+            try:
+                # 将图片编码为base64
+                base64_data_url = self.encode_image_to_base64(image_file_path)
+                
+                # 构建新的Markdown图片引用
+                new_reference = f"{alt_text}({base64_data_url}{additional_params})"
+                
+                logger.debug(f"图片引用转换: {filename} -> base64")
+                return new_reference
+            except Exception as e:
+                logger.warning(f"图片转换为base64失败 {filename}: {str(e)}")
+                return match.group(0)  # 返回原始引用
+        
+        # 执行替换
+        converted_content = re.sub(image_pattern, replace_image_with_base64, markdown_content)
+        
+        return converted_content
+    
+    def convert_image_to_png(self, image_file_path: Path, output_dir: Path = None) -> Path:
+        """将图片文件转换为PNG格式
+        
+        Args:
+            image_file_path: 图片文件路径
+            output_dir: 输出目录，如果为None则使用图片文件所在目录
+            
+        Returns:
+            转换后的PNG文件路径
+        """
+        if output_dir is None:
+            output_dir = image_file_path.parent
+            
+        # 生成PNG文件名
+        png_filename = image_file_path.stem + '.png'
+        png_file_path = output_dir / png_filename
+        
+        # 如果已经是PNG格式，直接复制
+        if image_file_path.suffix.lower() == '.png':
+            if image_file_path != png_file_path:
+                shutil.copy2(image_file_path, png_file_path)
+            return png_file_path
+            
+        # 如果是SVG格式，使用Inkscape转换
+        if image_file_path.suffix.lower() == '.svg':
+            try:
+                return self.convert_svg_to_png(image_file_path, output_dir)
+            except Exception as e:
+                logger.error(f"SVG转换为PNG失败: {str(e)}")
+                # 如果转换失败，尝试复制原文件
+                shutil.copy2(image_file_path, png_file_path)
+                return png_file_path
+            
+        try:
+            # 使用PIL将图片转换为PNG格式
+            from PIL import Image
+            with Image.open(image_file_path) as img:
+                img.save(png_file_path, 'PNG')
+            logger.info(f"图片转换为PNG成功: {image_file_path.name} -> {png_filename}")
+            return png_file_path
+        except Exception as e:
+            logger.error(f"图片转换为PNG失败: {str(e)}")
+            # 如果转换失败，尝试复制原文件
+            shutil.copy2(image_file_path, png_file_path)
+            return png_file_path
+    
+    def convert_all_images_to_png(self, build_illustrations_dir: Path):
+        """将illustrations目录中的所有图片文件转换为PNG格式"""
+        # 支持的图像格式
+        supported_formats = {'.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp', '.svg'}
+        
+        image_files = [file for file in build_illustrations_dir.iterdir()
+                      if file.suffix.lower() in supported_formats or file.suffix.lower() == '.png']
+        
+        if not image_files:
+            logger.info("illustrations目录中没有找到需要转换的图片文件")
+            return
+            
+        logger.info(f"开始转换{len(image_files)}个图片文件为PNG格式...")
+        
+        for i, image_file in enumerate(image_files, 1):
+            try:
+                # 转换图片为PNG
+                png_file_path = self.convert_image_to_png(image_file, build_illustrations_dir)
+                logger.info(f"已转换: {image_file.name} -> {png_file_path.name} ({i}/{len(image_files)})")
+            except Exception as e:
+                logger.warning(f"转换图片文件失败 {image_file.name}: {str(e)}")
+                # 转换失败时继续处理其他文件
+                continue
+                
+        logger.info("图片到PNG转换完成")
+    
+    def encode_image_to_base64(self, image_path: Path) -> str:
+        """将图片文件编码为base64字符串
+        
+        Args:
+            image_path: 图片文件路径
+            
+        Returns:
+            base64编码的图片数据URL
+        """
+        import base64
+        
+        # 获取文件的MIME类型
+        mime_types = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml'
+        }
+        
+        mime_type = mime_types.get(image_path.suffix.lower(), 'image/png')
+        
+        # 读取图片文件并编码为base64
+        with open(image_path, 'rb') as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            
+        # 返回数据URL
+        return f"data:{mime_type};base64,{encoded_string}"
+    
+    def process_chapters_for_html(self, chapters_dir: Path, temp_chapters_dir: Path, chapter_files: List[str], build_illustrations_dir: Path):
+        """复制并修改章节文件，调整图片路径以适应HTML，并将图片转换为base64嵌入"""
         if not temp_chapters_dir.exists():
             temp_chapters_dir.mkdir(parents=True, exist_ok=True)
         
+        logger.info(f"开始处理{len(chapter_files)}个章节文件...")
+        
         # 复制并修改章节文件，调整图片路径
-        for file_name in chapter_files:
+        for i, file_name in enumerate(chapter_files, 1):
             # 处理文件路径，如果文件名包含chapters/前缀，需要相对于src_dir处理
             if file_name.startswith('chapters/'):
                 # 去掉chapters/前缀，因为chapters_dir已经指向chapters目录
@@ -581,11 +799,16 @@ class BuildService:
             # 匹配 /user-illustrations/username/filename 格式并替换为 ./illustrations/filename
             content = re.sub(r'/user-illustrations/[^/]+/([^)]+)', r'./illustrations/\1', content)
             
+            # 将图片引用替换为base64编码的数据URL
+            content = self.convert_image_references_to_base64(content, build_illustrations_dir)
+            
             # 写入修改后的章节文件到临时目录
             with open(dest_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             
-            logger.info(f"已处理章节文件: {file_name}")
+            logger.info(f"已处理章节文件: {file_name} ({i}/{len(chapter_files)})")
+            
+        logger.info("章节文件处理完成")
     
     async def build_epub(self, src_dir: Path = None, build_dir: Path = None) -> Dict[str, Any]:
         """构建EPUB文件"""
@@ -593,6 +816,12 @@ class BuildService:
             src_dir = self.src_dir
         if build_dir is None:
             build_dir = self.build_dir
+            
+        # 记录用户操作日志 - 开始构建EPUB
+        await log_user_operation_async("system", "开始构建EPUB文件", {
+                    "src_dir": str(src_dir),
+                    "build_dir": str(build_dir)
+                })
             
         try:
             # 配置目录
@@ -610,6 +839,9 @@ class BuildService:
             build_illustrations_dir = build_dir / "illustrations"
             self.copy_illustrations(illustrations_dir, build_illustrations_dir)
             
+            # 将所有图片转换为PNG格式
+            self.convert_all_images_to_png(build_illustrations_dir)
+            
             # 优化SVG文件以提高EPUB兼容性
             self.optimize_svgs(build_illustrations_dir)
             
@@ -626,7 +858,7 @@ class BuildService:
             
             # 为EPUB创建临时章节目录
             temp_chapters_dir = build_dir / "temp-chapters-epub"
-            self.process_chapters_for_epub(chapters_dir, temp_chapters_dir, chapter_files)
+            self.process_chapters_for_epub(chapters_dir, temp_chapters_dir, chapter_files, build_illustrations_dir)
             
             # 构建pandoc命令参数
             input_files = [metadata_file, book_file]
@@ -663,9 +895,10 @@ class BuildService:
             logger.info(f"正在执行命令生成EPUB: {pandoc_command}")
             
             # 执行pandoc命令生成EPUB
+            # 使用绝对路径，避免工作目录问题
             result = subprocess.run(
                 pandoc_args,
-                cwd=src_dir.parent,
+                cwd=str(Path.cwd()),  # 使用当前工作目录
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -677,6 +910,11 @@ class BuildService:
             # 检查返回码
             if result.returncode == 0:
                 logger.info(f"EPUB文件生成成功: {epub_output_path}")
+                # 记录用户操作日志 - EPUB构建成功
+                await log_user_operation_async("system", "EPUB文件构建成功", {
+                                    "output_file": str(epub_output_path),
+                                    "file_size": epub_output_path.stat().st_size
+                                })
                 # 清理临时目录
                 if temp_chapters_dir.exists():
                     shutil.rmtree(temp_chapters_dir)
@@ -691,6 +929,10 @@ class BuildService:
             else:
                 error_msg = f"生成EPUB文件时出错: {result.stderr}"
                 logger.error(error_msg)
+                # 记录用户操作日志 - EPUB构建失败
+                await log_user_operation_async("system", "EPUB文件构建失败", {
+                                    "error": error_msg
+                                })
                 # 清理临时目录
                 if temp_chapters_dir.exists():
                     shutil.rmtree(temp_chapters_dir)
@@ -706,6 +948,10 @@ class BuildService:
         except subprocess.TimeoutExpired as e:
             error_msg = f"生成EPUB文件时超时: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - EPUB构建超时
+            await log_user_operation_async("system", "EPUB文件构建超时", {
+                            "error": error_msg
+                        })
             return {
                 "status": "error",
                 "message": error_msg
@@ -713,6 +959,10 @@ class BuildService:
         except Exception as e:
             error_msg = f"生成EPUB文件时出现未预期的错误: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - EPUB构建异常
+            await log_user_operation_async("system", "EPUB文件构建异常", {
+                            "error": error_msg
+                        })
             # 记录堆栈跟踪信息
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -727,6 +977,12 @@ class BuildService:
             src_dir = self.src_dir
         if build_dir is None:
             build_dir = self.build_dir
+            
+        # 记录用户操作日志 - 开始构建PDF
+        await log_user_operation_async("system", "开始构建PDF文件", {
+            "src_dir": str(src_dir),
+            "build_dir": str(build_dir)
+        })
             
         try:
             # 配置目录
@@ -744,15 +1000,8 @@ class BuildService:
             build_illustrations_dir = build_dir / "illustrations"
             self.copy_illustrations(illustrations_dir, build_illustrations_dir)
             
-            # 将SVG文件转换为PNG格式（用于XeTeX PDF生成）
-            # 这是新增的功能：在使用XeTeX生成PDF时，先将SVG转换为PNG
-            try:
-                self.convert_svgs_to_png_for_pdf(build_illustrations_dir)
-                logger.info("SVG文件已转换为PNG格式，用于PDF生成")
-            except Exception as e:
-                logger.warning(f"SVG转PNG时发生错误，将继续使用原有的SVG优化方案: {str(e)}")
-                # 如果SVG转PNG失败，回退到原有的SVG优化方案
-                self.optimize_svgs_for_pdf(build_illustrations_dir)
+            # 将所有图片转换为PNG格式
+            self.convert_all_images_to_png(build_illustrations_dir)
             
             # 从metadata.yml加载元数据配置
             metadata_config = self.load_metadata_config(src_dir)
@@ -767,7 +1016,7 @@ class BuildService:
             
             # 为PDF创建临时章节目录
             temp_chapters_dir = build_dir / "temp-chapters-pdf"
-            self.process_chapters_for_pdf(chapters_dir, temp_chapters_dir, chapter_files)
+            self.process_chapters_for_pdf(chapters_dir, temp_chapters_dir, chapter_files, build_illustrations_dir)
             
             # 构建pandoc命令参数
             input_files = [metadata_file, book_file]
@@ -817,7 +1066,7 @@ class BuildService:
             # 执行pandoc命令生成PDF
             result = subprocess.run(
                 pandoc_args,
-                cwd=src_dir.parent,
+                cwd=str(Path.cwd()),  # 使用当前工作目录
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -830,6 +1079,12 @@ class BuildService:
             # 检查返回码
             if result.returncode == 0:
                 logger.info(f"PDF文件生成成功: {pdf_output_path}")
+                # 记录用户操作日志 - PDF构建成功
+                await log_user_operation_async("system", "PDF文件构建成功", {
+                    "output_file": str(pdf_output_path),
+                    "file_size": pdf_output_path.stat().st_size,
+                    "method": "pandoc"
+                })
                 # 清理临时目录
                 if temp_chapters_dir.exists():
                     shutil.rmtree(temp_chapters_dir)
@@ -845,6 +1100,10 @@ class BuildService:
             else:
                 error_msg = f"生成PDF文件时出错: {result.stderr}"
                 logger.error(error_msg)
+                # 记录用户操作日志 - PDF构建失败
+                await log_user_operation_async("system", "PDF文件构建失败", {
+                    "error": error_msg
+                })
                 # 清理临时目录
                 if temp_chapters_dir.exists():
                     shutil.rmtree(temp_chapters_dir)
@@ -860,6 +1119,10 @@ class BuildService:
         except subprocess.TimeoutExpired as e:
             error_msg = f"生成PDF文件时超时: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - PDF构建超时
+            await log_user_operation_async("system", "PDF文件构建超时", {
+                "error": error_msg
+            })
             return {
                 "status": "error",
                 "message": error_msg
@@ -867,6 +1130,10 @@ class BuildService:
         except Exception as e:
             error_msg = f"生成PDF文件时出现未预期的错误: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - PDF构建异常
+            await log_user_operation_async("system", "PDF文件构建异常", {
+                "error": error_msg
+            })
             # 记录堆栈跟踪信息
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -881,6 +1148,12 @@ class BuildService:
             src_dir = self.src_dir
         if build_dir is None:
             build_dir = self.build_dir
+            
+        # 记录用户操作日志 - 开始构建HTML
+        await log_user_operation_async("system", "开始构建HTML文件", {
+            "src_dir": str(src_dir),
+            "build_dir": str(build_dir)
+        })
             
         try:
             # 配置目录
@@ -943,7 +1216,7 @@ class BuildService:
             
             # 为HTML创建临时章节目录
             temp_chapters_dir = build_dir / "temp-chapters-html"
-            self.process_chapters_for_html(chapters_dir, temp_chapters_dir, chapter_files)
+            self.process_chapters_for_html(chapters_dir, temp_chapters_dir, chapter_files, build_illustrations_dir)
             
             # 构建pandoc命令参数
             input_files = [metadata_file, book_file]
@@ -984,7 +1257,7 @@ class BuildService:
             # 执行pandoc命令生成HTML
             result = subprocess.run(
                 pandoc_args,
-                cwd=src_dir.parent,
+                cwd=str(Path.cwd()),  # 使用当前工作目录
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -996,6 +1269,11 @@ class BuildService:
             # 检查返回码
             if result.returncode == 0:
                 logger.info(f"HTML文件生成成功: {html_output_path}")
+                # 记录用户操作日志 - HTML构建成功
+                await log_user_operation_async("system", "HTML文件构建成功", {
+                    "output_file": str(html_output_path),
+                    "file_size": html_output_path.stat().st_size
+                })
                 # 清理临时目录
                 if temp_chapters_dir.exists():
                     shutil.rmtree(temp_chapters_dir)
@@ -1010,6 +1288,10 @@ class BuildService:
             else:
                 error_msg = f"生成HTML文件时出错: {result.stderr}"
                 logger.error(error_msg)
+                # 记录用户操作日志 - HTML构建失败
+                await log_user_operation_async("system", "HTML文件构建失败", {
+                    "error": error_msg
+                })
                 # 清理临时目录
                 if temp_chapters_dir.exists():
                     shutil.rmtree(temp_chapters_dir)
@@ -1025,6 +1307,10 @@ class BuildService:
         except subprocess.TimeoutExpired as e:
             error_msg = f"生成HTML文件时超时: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - HTML构建超时
+            await log_user_operation_async("system", "HTML文件构建超时", {
+                "error": error_msg
+            })
             return {
                 "status": "error",
                 "message": error_msg
@@ -1032,6 +1318,10 @@ class BuildService:
         except Exception as e:
             error_msg = f"生成HTML文件时出现未预期的错误: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - HTML构建异常
+            await log_user_operation_async("system", "HTML文件构建异常", {
+                "error": error_msg
+            })
             # 记录堆栈跟踪信息
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -1088,27 +1378,134 @@ class BuildService:
         if build_dir is None:
             build_dir = self.build_dir
             
+        # 记录用户操作日志 - 开始使用wkhtmltopdf构建PDF
+        await log_user_operation_async("system", "开始使用wkhtmltopdf构建PDF文件", {
+            "src_dir": str(src_dir),
+            "build_dir": str(build_dir)
+        })
+            
         try:
-            # 首先生成HTML文件
-            html_result = await self.build_html(src_dir, build_dir)
-            if html_result["status"] != "success":
-                return html_result
+            # 配置目录
+            chapters_dir = src_dir / "chapters"
+            illustrations_dir = src_dir / "illustrations"
+            metadata_file = src_dir / "metadata.yml"
+            book_file = src_dir / "book.md"
+            css_file = src_dir / "css" / "common-style.css"
+            chapter_config_file = src_dir / "chapter-config.json"
+            
+            # 创建输出目录（如果不存在）
+            build_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 复制插图目录到构建目录
+            build_illustrations_dir = build_dir / "illustrations"
+            self.copy_illustrations(illustrations_dir, build_illustrations_dir)
+            
+            # 将所有图片转换为PNG格式
+            self.convert_all_images_to_png(build_illustrations_dir)
+            
+            # 从统一配置文件加载章节顺序
+            chapter_config = self.load_chapter_config(src_dir)
+            chapter_files = [chapter["file"] for chapter in chapter_config.get("chapters", [])]
+            
+            # 为HTML创建临时章节目录
+            temp_chapters_dir = build_dir / "temp-chapters-html"
+            self.process_chapters_for_html(chapters_dir, temp_chapters_dir, chapter_files, build_illustrations_dir)
             
             # 从metadata.yml加载元数据配置生成文件名
             metadata_config = self.load_metadata_config(src_dir)
             title = metadata_config.get('title', 'untitled')
             
-            # 生成文件名
+            # 生成HTML文件名
             html_name = self._generate_filename_from_title(title, 'html')
             pdf_name = self._generate_filename_from_title(title + '-wkhtmltopdf', 'pdf')
             
-            # HTML文件路径
+            # 构建pandoc命令参数
+            input_files = [metadata_file, book_file]
+            
+            # 添加章节文件，处理包含chapters/前缀的文件名
+            for file_name in chapter_files:
+                if file_name.startswith('chapters/'):
+                    # 去掉chapters/前缀，因为temp_chapters_dir已经在临时目录下
+                    relative_file_name = file_name[9:]  # 去掉'chapters/'前缀
+                    input_files.append(temp_chapters_dir / relative_file_name)
+                else:
+                    input_files.append(temp_chapters_dir / file_name)
+            
             html_output_path = build_dir / html_name
             pdf_output_path = build_dir / pdf_name
+            
+            logger.info("开始生成HTML文件...")
+            
+            # 使用pandoc生成HTML文件
+            pandoc_args = [
+                "pandoc"
+            ] + [str(f) for f in input_files] + [
+                "-o", str(html_output_path),
+                "--toc",
+                "--toc-depth=2",
+                "--split-level=2",
+                f"--css={css_file}",
+                "--standalone",
+                "--embed-resources",
+                "--from", "markdown",
+                "--html-q-tags",
+                f"--resource-path={build_dir}"
+            ]
+            
+            # 构建完整的pandoc命令
+            pandoc_command = " ".join(pandoc_args)
+            logger.info(f"正在执行命令生成HTML: {pandoc_command}")
+            
+            # 执行pandoc命令生成HTML
+            result = subprocess.run(
+                pandoc_args,
+                cwd=str(Path.cwd()),  # 使用当前工作目录
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace',  # 遇到编码错误时用替换字符处理
+                timeout=300  # 5分钟超时
+            )
+            
+            # 检查返回码
+            if result.returncode != 0:
+                error_msg = f"生成HTML文件时出错: {result.stderr}"
+                logger.error(error_msg)
+                # 记录用户操作日志 - HTML构建失败
+                await log_user_operation_async("system", "HTML文件构建失败", {
+                    "error": error_msg
+                })
+                # 清理临时目录
+                if temp_chapters_dir.exists():
+                    shutil.rmtree(temp_chapters_dir)
+                    logger.info("已清理临时目录")
+                
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                }
+            
+            logger.info(f"HTML文件生成成功: {html_output_path}")
+            # 记录用户操作日志 - HTML构建成功
+            await log_user_operation_async("system", "HTML文件构建成功", {
+                "output_file": str(html_output_path),
+                "file_size": html_output_path.stat().st_size
+            })
+            # 清理临时目录
+            if temp_chapters_dir.exists():
+                shutil.rmtree(temp_chapters_dir)
+                logger.info("已清理临时目录")
             
             if not html_output_path.exists():
                 error_msg = "HTML文件不存在，无法转换为PDF"
                 logger.error(error_msg)
+                # 记录用户操作日志 - HTML文件不存在
+                await log_user_operation_async("system", "HTML文件不存在，无法转换为PDF", {
+                    "error": error_msg
+                })
                 return {
                     "status": "error",
                     "message": error_msg
@@ -1121,6 +1518,10 @@ class BuildService:
             if not wkhtmltopdf_path:
                 error_msg = "wkhtmltopdf未找到，请确保已安装wkhtmltopdf"
                 logger.error(error_msg)
+                # 记录用户操作日志 - wkhtmltopdf未找到
+                await log_user_operation_async("system", "wkhtmltopdf未找到，无法构建PDF", {
+                    "error": error_msg
+                })
                 return {
                     "status": "error",
                     "message": error_msg
@@ -1146,7 +1547,7 @@ class BuildService:
             # 执行wkhtmltopdf命令
             result = subprocess.run(
                 wkhtmltopdf_command,
-                cwd=src_dir.parent,
+                cwd=str(Path.cwd()),  # 使用当前工作目录
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -1159,6 +1560,12 @@ class BuildService:
             # 检查返回码
             if result.returncode == 0 and pdf_output_path.exists():
                 logger.info(f"wkhtmltopdf PDF文件生成成功: {pdf_output_path}")
+                # 记录用户操作日志 - wkhtmltopdf PDF构建成功
+                await log_user_operation_async("system", "wkhtmltopdf PDF文件构建成功", {
+                    "output_file": str(pdf_output_path),
+                    "file_size": pdf_output_path.stat().st_size,
+                    "method": "wkhtmltopdf"
+                })
                 return {
                     "status": "success",
                     "message": "wkhtmltopdf PDF文件生成成功",
@@ -1169,6 +1576,10 @@ class BuildService:
             else:
                 error_msg = f"wkhtmltopdf生成PDF文件时出错: {result.stderr}"
                 logger.error(error_msg)
+                # 记录用户操作日志 - wkhtmltopdf PDF构建失败
+                await log_user_operation_async("system", "wkhtmltopdf PDF文件构建失败", {
+                    "error": error_msg
+                })
                 return {
                     "status": "error",
                     "message": error_msg,
@@ -1179,6 +1590,10 @@ class BuildService:
         except subprocess.TimeoutExpired as e:
             error_msg = f"wkhtmltopdf生成PDF文件时超时: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - wkhtmltopdf PDF构建超时
+            await log_user_operation_async("system", "wkhtmltopdf PDF文件构建超时", {
+                "error": error_msg
+            })
             return {
                 "status": "error",
                 "message": error_msg
@@ -1186,6 +1601,10 @@ class BuildService:
         except Exception as e:
             error_msg = f"wkhtmltopdf生成PDF文件时出现未预期的错误: {str(e)}"
             logger.error(error_msg)
+            # 记录用户操作日志 - wkhtmltopdf PDF构建异常
+            await log_user_operation_async("system", "wkhtmltopdf PDF文件构建异常", {
+                "error": error_msg
+            })
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return {

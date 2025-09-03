@@ -62,7 +62,40 @@ class FileService:
         
         full_path = user_dir / file_path
         
-        if not full_path.exists():
+        # 特殊处理：如果在build目录下请求illustrations文件但未找到，则尝试在src目录下查找
+        if file_type == "build" and file_path.startswith("illustrations/") and not full_path.exists():
+            # 尝试在src目录下查找
+            src_dir = self.get_user_src_dir(request)
+            src_full_path = src_dir / file_path
+            
+            # 如果在src目录中找到了文件，则使用该文件
+            if src_full_path.exists() and src_full_path.is_file():
+                full_path = src_full_path
+            else:
+                # 如果在src目录中没找到，检查是否是带用户名前缀的路径
+                # 例如: illustrations/super_admin_markedit/chapter_08.svg
+                path_parts = file_path.split("/", 2)
+                if len(path_parts) >= 3 and path_parts[1]:  # illustrations/username/filename
+                    # 提取用户名和文件名
+                    username_prefix = path_parts[1]
+                    actual_file_path = path_parts[2]
+                    
+                    # 获取带前缀的用户名对应的src目录
+                    from app.common import get_user_src_directory
+                    try:
+                        user_src_dir = get_user_src_directory(username_prefix)
+                        user_illustrations_path = user_src_dir / "illustrations" / actual_file_path
+                        
+                        if user_illustrations_path.exists() and user_illustrations_path.is_file():
+                            full_path = user_illustrations_path
+                        else:
+                            raise HTTPException(status_code=404, detail="File not found")
+                    except ValueError:
+                        # 用户名不合法，抛出404错误
+                        raise HTTPException(status_code=404, detail="File not found")
+                else:
+                    raise HTTPException(status_code=404, detail="File not found")
+        elif not full_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
         if not full_path.is_file():
@@ -449,3 +482,53 @@ class FileService:
             "preview_url": f"/epub-viewer.html?url=/api/file/build/{file_path}?raw=true",
             "note": "该EPUB文件可直接在浏览器中阅读"
         }
+    
+    def reset_src_directory(self, request: Request) -> Dict[str, str]:
+        """重置用户的src目录为初始状态"""
+        import shutil
+        from pathlib import Path
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # 获取用户src目录
+        user_src_dir = self.get_user_src_dir(request)
+        
+        # 获取项目默认src目录
+        project_root = Path(__file__).parent.parent.parent
+        project_src_dir = project_root / "src"
+        
+        logger.info(f"重置Src目录: user_src_dir={user_src_dir}, project_src_dir={project_src_dir}")
+        
+        # 删除用户src目录中的所有内容
+        if user_src_dir.exists():
+            logger.info(f"删除用户src目录中的内容: {user_src_dir}")
+            for item in user_src_dir.iterdir():
+                if item.is_file():
+                    logger.info(f"删除文件: {item}")
+                    item.unlink()
+                elif item.is_dir():
+                    logger.info(f"删除目录: {item}")
+                    shutil.rmtree(item)
+        
+        # 复制项目默认src目录内容到用户src目录
+        if project_src_dir.exists():
+            logger.info(f"复制项目默认src目录内容到用户src目录: {project_src_dir} -> {user_src_dir}")
+            for item in project_src_dir.iterdir():
+                if item.is_file():
+                    target_path = user_src_dir / item.name
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"复制文件: {item} -> {target_path}")
+                    shutil.copy2(item, target_path)
+                elif item.is_dir():
+                    target_path = user_src_dir / item.name
+                    if target_path.exists():
+                        logger.info(f"删除已存在的目录: {target_path}")
+                        shutil.rmtree(target_path)
+                    logger.info(f"复制目录: {item} -> {target_path}")
+                    shutil.copytree(item, target_path)
+        else:
+            logger.warning(f"项目默认src目录不存在: {project_src_dir}")
+        
+        logger.info("Src目录重置完成")
+        return {"message": "Src目录已重置为初始状态"}

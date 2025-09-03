@@ -17,8 +17,8 @@ if (adminLoginForm) {
             });
             
             if (response.ok) {
-                // 登录成功，重定向到管理员首页
-                window.location.href = '/admin';
+                // 登录成功，重定向到首页（和普通用户一样）
+                window.location.href = '/';
             } else {
                 const errorData = await response.json();
                 errorMessage.textContent = errorData.detail || '登录失败';

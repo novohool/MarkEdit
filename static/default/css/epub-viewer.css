@@ -1,151 +1,316 @@
-/* epub-viewer.html页面的样式 */
+/* EPUB 阅读器样式 - 现代化设计 */
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0;
-    padding: 0;
-    background: linear-gradient(135deg, #f0f7ff 0%, #e1f4fd 25%, #c5e8fc 50%, #a6dbfc 75%, #82c9f8 100%);
-    background-attachment: fixed;
-    min-height: 100vh;
-    position: relative;
-    /* 移除可能与 EPUB 内容冲突的样式 */
+/* 阅读器容器 */
+.epub-reader-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* 全屏高度 */
+    background: #f8fafc;
 }
 
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at 25% 75%, rgba(33, 150, 243, 0.08) 0%, transparent 65%),
-                radial-gradient(circle at 75% 25%, rgba(25, 118, 210, 0.05) 0%, transparent 55%),
-                radial-gradient(circle at 50% 50%, rgba(13, 71, 161, 0.03) 0%, transparent 45%);
-    pointer-events: none;
-    z-index: -1;
+/* 阅读器工具栏 */
+.reader-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 10;
 }
 
-#viewer {
-    margin: 8px auto;
-    max-width: 1200px;
-    /* 移除 box-shadow 和 background-color，让 EPUB 内容的样式更好地显示 */
-    /* box-shadow: 0 0 8px rgba(0, 0, 0, 0.1); */
-    /* background-color: white; */
+.toolbar-left, .toolbar-center, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-#toc {
-    display: block;
-    margin: 20px auto;
-    padding: 15px 20px;
-    font-size: 16px;
-    border: 2px solid rgba(33, 150, 243, 0.2);
-    border-radius: 12px;
-    max-width: 800px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(227, 242, 253, 0.8) 100%);
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
-    box-shadow: 0 8px 32px rgba(33, 150, 243, 0.15),
-                0 2px 8px rgba(33, 150, 243, 0.08),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    color: #0d47a1;
-    font-weight: 500;
-    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    position: relative;
-    overflow: hidden;
+.toolbar-center {
+    flex: 1;
+    justify-content: center;
 }
 
-#toc::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, 
-                rgba(33, 150, 243, 0.03) 0%, 
-                rgba(255, 255, 255, 0.1) 100%);
-    pointer-events: none;
-}
-
-#toc:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(33, 150, 243, 0.2),
-                0 4px 16px rgba(33, 150, 243, 0.12),
-                inset 0 1px 0 rgba(255, 255, 255, 0.95);
-    border-color: rgba(33, 150, 243, 0.35);
-}
-
-#toc option {
+/* 目录选择器 */
+.toc-selector {
+    min-width: 200px;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.9);
-    color: #0d47a1;
-    border: none;
-    font-weight: 500;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    font-size: 14px;
+    color: #374151;
+}
+
+/* 阅读进度条 */
+.reading-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 300px;
+    width: 100%;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    transition: height 0.2s ease;
+    user-select: none;
+}
+
+.progress-bar:hover,
+.progress-bar.dragging {
+    height: 8px;
+}
+
+.progress-bar:hover .progress-fill,
+.progress-bar.dragging .progress-fill {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    border-radius: 3px;
+    transition: width 0.3s ease, box-shadow 0.2s ease;
+    width: 0%;
+    position: relative;
+    pointer-events: none;
+}
+
+/* 可拖拽的滑块 */
+.progress-slider {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    background: #3b82f6;
+    border: 3px solid white;
+    border-radius: 50%;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.progress-slider:active,
+.progress-slider.dragging {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+.progress-bar:hover .progress-slider,
+.progress-bar.dragging .progress-slider,
+.progress-slider.dragging {
+    opacity: 1;
+}
+
+/* 进度条拖拽状态 */
+.progress-bar.dragging {
+    cursor: grabbing;
+}
+
+.progress-bar.dragging .progress-fill {
+    transition: none;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: #6b7280;
+    min-width: 30px;
+}
+
+/* 字体大小控制按钮 */
+.btn-icon-only {
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #374151;
+    cursor: pointer;
     transition: all 0.2s ease;
 }
 
-#toc option:hover {
-    background: rgba(33, 150, 243, 0.1);
-    color: #1976d2;
+.btn-icon-only:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
 }
 
-.arrow {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 36px;
-    color: #0d47a1;
-    text-decoration: none;
-    padding: 15px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(227, 242, 253, 0.9) 100%);
-    backdrop-filter: blur(30px) saturate(150%);
-    -webkit-backdrop-filter: blur(30px) saturate(150%);
-    border-radius: 50%;
-    border: 2px solid rgba(33, 150, 243, 0.2);
-    box-shadow: 0 8px 32px rgba(33, 150, 243, 0.15),
-                0 3px 12px rgba(33, 150, 243, 0.08),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    z-index: 1000;
-    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    width: 60px;
-    height: 60px;
+/* 阅读器主体 */
+.reader-main {
+    flex: 1;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
+    background: white;
+    overflow: hidden;
 }
 
-#prev {
+/* EPUB 查看器 */
+.epub-viewer {
+    width: 100%;
+    height: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    background: white;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* 导航箭头 */
+.nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    color: #374151;
+    font-size: 24px;
+    font-weight: bold;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-prev {
     left: 20px;
 }
 
-#next {
+.nav-next {
     right: 20px;
 }
 
-.arrow:hover {
-    background: linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(227, 242, 253, 0.95) 100%);
-    color: #1976d2;
+.nav-arrow:hover {
+    background: white;
+    color: #3b82f6;
     transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 12px 40px rgba(33, 150, 243, 0.25),
-                0 4px 16px rgba(33, 150, 243, 0.12),
-                inset 0 2px 0 rgba(255, 255, 255, 0.95);
-    border-color: rgba(33, 150, 243, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.arrow:active {
+.nav-arrow:active {
     transform: translateY(-50%) scale(0.95);
-    transition: all 0.1s ease;
 }
 
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .reader-toolbar {
+        padding: 8px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .toolbar-center {
+        order: 3;
+        width: 100%;
+        margin-top: 8px;
+    }
+    
+    .toc-selector {
+        min-width: 150px;
+        font-size: 13px;
+    }
+    
+    .nav-arrow {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+    
+    .nav-prev {
+        left: 10px;
+    }
+    
+    .nav-next {
+        right: 10px;
+    }
+}
+
+/* 全屏模式 */
+.epub-reader-container.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: white;
+}
+
+.epub-reader-container.fullscreen .reader-main {
+    height: calc(100vh - 60px);
+}
+
+/* EPUB.js 兼容性样式 */
 .spreads {
     display: flex;
     justify-content: center;
     align-items: center;
     width: 100%;
+    height: 100%;
 }
 
 .single {
     display: block;
     margin: 0 auto;
+    width: 100%;
+    height: 100%;
+}
+
+/* 阅读设置面板 */
+.reading-settings {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    min-width: 200px;
+    z-index: 30;
+    display: none;
+}
+
+.reading-settings.show {
+    display: block;
+}
+
+.setting-group {
+    margin-bottom: 12px;
+}
+
+.setting-group:last-child {
+    margin-bottom: 0;
+}
+
+.setting-label {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.setting-control {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
 }

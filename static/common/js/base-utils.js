@@ -8,118 +8,6 @@
 // 工具类定义
 // ==========================================
 
-/**
- * 消息显示管理器
- */
-class MessageManager {
-    constructor() {
-        this.messageContainer = null;
-        // 延迟初始化，等DOM加载完成
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.initMessageContainer());
-        } else {
-            this.initMessageContainer();
-        }
-    }
-    
-    initMessageContainer() {
-        // 创建消息容器
-        if (!this.messageContainer && document.body) {
-            this.messageContainer = document.createElement('div');
-            this.messageContainer.id = 'message-container';
-            this.messageContainer.className = 'message-container';
-            document.body.appendChild(this.messageContainer);
-        }
-    }
-    
-    /**
-     * 显示消息
-     * @param {string} message 消息内容
-     * @param {string} type 消息类型: success, error, warning, info
-     * @param {number} duration 显示时长(毫秒)，0表示不自动消失
-     */
-    show(message, type = 'info', duration = 3000) {
-        // 确保消息容器已初始化
-        if (!this.messageContainer) {
-            this.initMessageContainer();
-            // 如果仍然没有初始化成功，可能是DOM还没准备好
-            if (!this.messageContainer) {
-                console.warn('消息容器初始化失败，DOM可能还没有准备好');
-                return null;
-            }
-        }
-        
-        const messageElement = document.createElement('div');
-        messageElement.className = `message message-${type}`;
-        
-        // 创建消息内容
-        const content = document.createElement('div');
-        content.className = 'message-content';
-        content.textContent = message;
-        
-        // 创建关闭按钮
-        const closeButton = document.createElement('button');
-        closeButton.className = 'message-close';
-        closeButton.innerHTML = '×';
-        closeButton.onclick = () => this.remove(messageElement);
-        
-        messageElement.appendChild(content);
-        messageElement.appendChild(closeButton);
-        
-        // 添加到容器
-        this.messageContainer.appendChild(messageElement);
-        
-        // 添加显示动画
-        setTimeout(() => messageElement.classList.add('show'), 10);
-        
-        // 自动移除
-        if (duration > 0) {
-            setTimeout(() => this.remove(messageElement), duration);
-        }
-        
-        return messageElement;
-    }
-    
-    /**
-     * 移除消息
-     */
-    remove(messageElement) {
-        if (messageElement && messageElement.parentNode) {
-            messageElement.classList.add('hide');
-            setTimeout(() => {
-                if (messageElement.parentNode) {
-                    messageElement.parentNode.removeChild(messageElement);
-                }
-            }, 300);
-        }
-    }
-    
-    /**
-     * 清除所有消息
-     */
-    clear() {
-        if (this.messageContainer) {
-            this.messageContainer.innerHTML = '';
-        }
-    }
-    
-    // 便捷方法
-    success(message, duration = 3000) {
-        return this.show(message, 'success', duration);
-    }
-    
-    error(message, duration = 5000) {
-        return this.show(message, 'error', duration);
-    }
-    
-    warning(message, duration = 4000) {
-        return this.show(message, 'warning', duration);
-    }
-    
-    info(message, duration = 3000) {
-        return this.show(message, 'info', duration);
-    }
-}
 
 /**
  * API请求管理器
@@ -551,16 +439,7 @@ class FormatUtils {
 // ==========================================
 
 // 延迟创建全局实例，避免DOM未加载完成时的错误
-let messageManager = null;
 let apiManager = null;
-
-// 获取MessageManager实例的函数
-function getMessageManager() {
-    if (!messageManager) {
-        messageManager = new MessageManager();
-    }
-    return messageManager;
-}
 
 // 获取APIManager实例的函数
 function getAPIManager() {
@@ -571,10 +450,6 @@ function getAPIManager() {
 }
 
 // 兼容性：创建属性来模拟直接访问
-Object.defineProperty(window, 'messageManager', {
-    get: getMessageManager
-});
-
 Object.defineProperty(window, 'apiManager', {
     get: getAPIManager
 });
@@ -582,13 +457,6 @@ Object.defineProperty(window, 'apiManager', {
 // ==========================================
 // 向后兼容的全局函数
 // ==========================================
-
-/**
- * 显示消息 (向后兼容)
- */
-function showMessage(message, type = 'info', duration = 3000) {
-    return getMessageManager().show(message, type, duration);
-}
 
 /**
  * 格式化日期 (向后兼容)
@@ -701,7 +569,6 @@ Object.defineProperty(window, 'eventBindingManager', {
 
 // 将工具类添加到全局作用域
 window.MarkEditUtils = {
-    MessageManager,
     APIManager,
     DOMUtils,
     FormUtils,
@@ -709,12 +576,10 @@ window.MarkEditUtils = {
     EventBindingManager,
     
     // 全局实例获取函数
-    get messageManager() { return getMessageManager(); },
     get apiManager() { return getAPIManager(); },
     get eventBindingManager() { return getEventBindingManager(); }
 };
 
 // 向后兼容的全局函数
-window.showMessage = showMessage;
 window.formatDate = formatDate;
 window.formatBytes = formatBytes;

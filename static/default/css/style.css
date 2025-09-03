@@ -1,5 +1,6 @@
 /* MarkEdit - TailwindCSS风格主题 */
 @import 'tailwind-style.css';
+@import '../../common/css/base-components.css';
 
 /* 基础重置和默认样式 */
 html {
@@ -50,14 +51,19 @@ header {
     border-bottom: 1px solid #e2e8f0;
     position: sticky;
     top: 0;
-    z-index: 100 !important; /* 提高z-index确保header及其内部元素不被覆盖 */
+    z-index: 100 !important;
+    /* 提高z-index确保header及其内部元素不被覆盖 */
     display: flex;
-    justify-content: space-between; /* 修改为 space-between 让左右区域分布在两端 */
+    justify-content: space-between;
+    /* 修改为 space-between 让左右区域分布在两端 */
     align-items: center;
     flex-shrink: 0;
-    flex-wrap: nowrap; /* 禁止换行，防止内容叠加 */
-    min-height: 60px; /* 确保最小高度 */
-    overflow: visible; /* 改为visible让下拉框能显示 */
+    flex-wrap: nowrap;
+    /* 禁止换行，防止内容叠加 */
+    min-height: 60px;
+    /* 确保最小高度 */
+    overflow: visible;
+    /* 改为visible让下拉框能显示 */
     width: 100%;
 }
 
@@ -66,42 +72,55 @@ header {
     align-items: center;
     margin: 0px;
     gap: 0px;
-    flex: 1; /* 占据可用空间的一部分 */
-    min-width: 0; /* 允许内容缩小 */
-    overflow: hidden; /* 防止溢出 */
+    flex: 1;
+    /* 占据可用空间的一部分 */
+    min-width: 0;
+    /* 允许内容缩小 */
+    overflow: hidden;
+    /* 防止溢出 */
 }
 
 .header-right {
     display: flex;
     align-items: center;
-    gap: 0px; /* 减少间距以节省空间 */
-    flex: 0 0 auto; /* 不放大，不缩小，根据内容确定大小 */
-    min-width: 0; /* 允许内容缩小 */
-    overflow: visible; /* 改为visible让下拉框能够显示 */
+    gap: 0px;
+    /* 减少间距以节省空间 */
+    flex: 0 0 auto;
+    /* 不放大，不缩小，根据内容确定大小 */
+    min-width: 0;
+    /* 允许内容缩小 */
+    overflow: visible;
+    /* 改为visible让下拉框能够显示 */
 }
 
 /* 在狭窄空间下优化header内容显示 */
-@media (max-width: 1200px), (min-width: 768px) {
+@media (max-width: 1200px),
+(min-width: 768px) {
+
     /* 当屏幕较小或抽屉打开导致header空间不足时的优化 */
     body.drawer-left-open .header-left,
     body.admin-drawer-open .header-left {
-        gap: 0px; /* 进一步减少间距 */
+        gap: 0px;
+        /* 进一步减少间距 */
     }
-    
+
     body.drawer-left-open .header-right,
     body.admin-drawer-open .header-right {
-        gap: 0px; /* 进一步减少间距 */
+        gap: 0px;
+        /* 进一步减少间距 */
     }
-    
+
     /* 隐藏或简化一些非关键按钮的文字 */
     body.drawer-left-open .btn-text,
     body.admin-drawer-open .btn-text {
-        display: none; /* 隐藏按钮文字，只显示图标 */
+        display: none;
+        /* 隐藏按钮文字，只显示图标 */
     }
-    
+
     body.drawer-left-open .btn-text-short,
     body.admin-drawer-open .btn-text-short {
-        font-size: 0.75rem; /* 缩小短文本 */
+        font-size: 0.75rem;
+        /* 缩小短文本 */
     }
 }
 
@@ -110,8 +129,10 @@ header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    position: relative; /* 为下拉菜单定位提供参考 */
-    z-index: 10 !important; /* 确保用户面板区域在顶层 */
+    position: relative;
+    /* 为下拉菜单定位提供参考 */
+    z-index: 10 !important;
+    /* 确保用户面板区域在顶层 */
 }
 
 .user-panel-btn {
@@ -128,7 +149,8 @@ header {
     transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
-    z-index: 10 !important; /* 确保按钮在最上层，能够正常点击 */
+    z-index: 10 !important;
+    /* 确保按钮在最上层，能够正常点击 */
 }
 
 .user-panel-btn:hover {
@@ -156,7 +178,7 @@ header {
 .dropdown-user-panel .dropdown-content {
     position: absolute;
     top: 100%;
-    right: 50px; 
+    right: 50px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -165,18 +187,197 @@ header {
     max-width: 400px;
     max-height: 70vh;
     overflow-y: auto;
-    z-index: 2000 !important; /* 符合项目规范的用户面板下拉菜单z-index */
+    z-index: 10000 !important;
+    /* 符合项目规范的用户面板下拉菜单z-index */
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
     transition: all 0.2s ease;
-    margin-top: 30px; 
+    margin-top: 20px;
+    /* 确保默认状态为隐藏 */
+    display: none;
+    /* 确保下拉菜单不会超出屏幕边界 */
+    transform-origin: top right;
+}
+
+/* 确保下拉菜单默认关闭 */
+.dropdown-user-panel:not(.open) .dropdown-content {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
 }
 
 .dropdown-user-panel.open .dropdown-content {
+    display: block !important;
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+}
+
+/* 管理员面板样式 - 与用户面板完全兼容 */
+#admin-panel-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+#admin-panel-dropdown .dropdown-content {
+    position: absolute;
+    top: 100%;
+    right: 50px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    min-width: 320px;
+    max-width: 400px;
+    max-height: 70vh;
+    overflow-y: auto;
+    z-index: 10000 !important;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    margin-top: 20px;
+    display: none;
+    transform-origin: top right;
+}
+
+/* 管理员面板关闭状态 */
+#admin-panel-dropdown:not(.open) .dropdown-content {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* 管理员面板打开状态 */
+#admin-panel-dropdown.open .dropdown-content {
+    display: block !important;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* 管理员面板header样式 */
+#admin-panel-dropdown .dropdown-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    background: #f8fafc;
+    border-radius: 8px 8px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#admin-panel-dropdown .dropdown-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* 管理员面板body样式 */
+#admin-panel-dropdown .dropdown-body {
+    padding: 1rem 1.25rem;
+}
+
+/* 管理员面板section样式 - 继承用户面板样式 */
+#admin-panel-dropdown .section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+#admin-panel-dropdown .section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+#admin-panel-dropdown .section h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 0.75rem 0;
+    padding: 0;
+}
+
+/* 管理员面板用户信息样式 */
+#admin-panel-dropdown .user-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+#admin-panel-dropdown .user-info-item:last-child {
+    border-bottom: none;
+}
+
+#admin-panel-dropdown .user-info-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+#admin-panel-dropdown .user-info-value {
+    font-size: 0.875rem;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+/* 管理员面板按钮组样式 */
+#admin-panel-dropdown .btn-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+#admin-panel-dropdown .btn-group .btn-primary,
+#admin-panel-dropdown .btn-group .btn-secondary {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+#admin-panel-dropdown .btn-group .btn-primary {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+#admin-panel-dropdown .btn-group .btn-primary:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+#admin-panel-dropdown .btn-group .btn-secondary {
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    color: #374151;
+}
+
+#admin-panel-dropdown .btn-group .btn-secondary:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+/* 确保用户面板正常工作 */
+#user-panel-dropdown.open .dropdown-content {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
 }
 
 .dropdown-user-panel .dropdown-header {
@@ -367,11 +568,6 @@ header .btn-secondary {
 header .btn-secondary:hover {
     background-color: #4b5563;
     border-color: #4b5563;
-}
-
-/* 仪表板按钮特定样式 */
-#dashboard-btn {
-    z-index: 10 !important; /* 确保仪表板按钮能够正常响应点击 */
     position: relative;
 }
 
@@ -503,7 +699,8 @@ header .btn-secondary:active {
     overflow: visible;
     position: relative;
     min-height: calc(100vh - 80px);
-    margin-left: 320px; /* 为固定定位的文件浏览器留出空间 */
+    margin-left: 320px;
+    /* 为固定定位的文件浏览器留出空间 */
 }
 
 /* 文件浏览器样式 - 现在是顶级组件 */
@@ -512,22 +709,44 @@ header .btn-secondary:active {
     background: #ffffff;
     padding: 0;
     border-right: 1px solid #e2e8f0;
-    border-top: 1px solid #e2e8f0; /* 添加顶部边框线 */
-    overflow: hidden; /* 改为hidden，让内部元素控制滚动 */
-    position: fixed; /* 固定定位，不随页面滚动 */
-    top: 80px; /* 从 header 下方开始 */
+    border-top: 1px solid #e2e8f0;
+    /* 添加顶部边框线 */
+    overflow: hidden;
+    /* 改为hidden，让内部元素控制滚动 */
+    position: fixed;
+    /* 固定定位，相对于浏览器窗口 */
+    top: 60px;
+    /* 紧接在header下方，header高度为60px */
     left: 0;
-    height: calc(100vh - 80px); /* 占满剩余高度 */
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* 优化过渡效果 */
+    height: calc(100vh - 60px);
+    /* 占满剩余高度 */
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 优化过渡效果 */
     flex-shrink: 0;
-    box-shadow: none; /* 确保没有自己的阴影 */
-    z-index: 10; /* 确保在其他元素上方 */
+    box-shadow: none;
+    /* 确保没有自己的阴影 */
+    z-index: 10;
+    /* 确保在其他元素上方 */
     display: flex;
     flex-direction: column;
-    
+
     /* 隐藏滚动条但保持滚动功能 */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+}
+
+/* 侧边栏隐藏状态 */
+.app-layout.sidebar-hidden .file-browser {
+    left: -320px;
+    /* 隐藏到左侧 */
+    top: 60px;
+}
+
+.app-layout.sidebar-hidden {
+    margin-left: 0;
+    /* 移除左边距 */
 }
 
 /* 针对WebKit浏览器(Chrome, Safari)隐藏滚动条 */
@@ -544,17 +763,22 @@ header .btn-secondary:active {
     position: flex;
     z-index: 1;
     letter-spacing: 0.3px;
-    flex-shrink: 0; /* 防止标题区域被压缩 */
-    background: #ffffff; /* 确保背景与文件浏览器一致 */
-    border-bottom: 1px solid #f1f5f9; /* 添加分隔线 */
+    flex-shrink: 0;
+    /* 防止标题区域被压缩 */
+    background: #ffffff;
+    /* 确保背景与文件浏览器一致 */
+    border-bottom: 1px solid #f1f5f9;
+    /* 添加分隔线 */
 }
 
 .file-browser #file-tree {
     font-size: 0.75rem;
     line-height: 1.3;
     padding: 0;
-    flex: 1; /* 占据剩余空间 */
-    overflow: hidden; /* 自身不滚动，由子元素控制滚动 */
+    flex: 1;
+    /* 占据剩余空间 */
+    overflow: hidden;
+    /* 自身不滚动，由子元素控制滚动 */
     display: flex;
     flex-direction: column;
 }
@@ -567,10 +791,12 @@ header .btn-secondary:active {
     margin: 0;
     border: none;
     background: transparent;
-    
+
     /* 隐藏滚动条但保持滚动功能 */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
 }
 
 /* 针对WebKit浏览器(Chrome, Safari)隐藏文件区域滚动条 */
@@ -585,150 +811,173 @@ header .btn-secondary:active {
 
 /* 当章节抽屉打开时调整整个应用布局 */
 body.drawer-left-open .app-layout {
-    margin-left: calc(75vw + 320px); /* 考虑固定的文件浏览器宽度 */
+    margin-left: calc(100vw + 320px);
+    /* 考虑固定的文件浏览器宽度 */
 }
 
 /* 当章节拽屉打开时，移动文件浏览器和resizer */
 body.drawer-left-open .file-browser {
-    left: 75vw;
+    left: 100vw;
+    top: 60px;
 }
 
 body.drawer-left-open .resizer {
-    left: calc(75vw + 320px);
+    left: calc(100vw + 320px);
+    top: 60px;
 }
 
 /* 保持对旧结构的兼容 */
 body.drawer-left-open .main-content {
-    margin-left: 0; /* 在新布局中，main-content不需要额外的margin */
+    margin-left: 0;
+    /* 在新布局中，main-content不需要额外的margin */
 }
 
 /* 当管理抽屉(左侧)打开时调整整个应用布局 */
 body.admin-drawer-open .app-layout {
-    margin-left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
+    margin-left: calc(320px + 320px);
+    /* 管理抽屉宽度 + 文件浏览器宽度 */
 }
 
 /* 当管理抽屉打开时，移动文件浏览器和resizer */
 body.admin-drawer-open .file-browser {
-    left: 320px; /* 移动到管理抽屉右侧 */
+    left: 320px;
+    /* 移动到管理抽屉右侧 */
+    top: 60px;
 }
 
 body.admin-drawer-open .resizer {
-    left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
+    left: calc(320px + 320px);
+    /* 管理抽屉宽度 + 文件浏览器宽度 */
+    top: 60px;
 }
 
 /* 当章节抽屉打开时调整Header */
 body.drawer-left-open header {
-    margin-left: 75vw;
-    width: calc(100% - 75vw); /* 使用100%而不是100vw */
-    min-width: 400px; /* 设置最小宽度确保内容可读 */
+    margin-left: 100vw;
+    width: calc(100% - 100vw);
+    /* 使用100%而不是100vw */
+    min-width: 400px;
+    /* 设置最小宽度确保内容可读 */
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当只有章节抽屉打开且文件浏览器显示时的Header */
 body.drawer-left-open:not(.admin-drawer-open) header {
-    margin-left: 75vw;
+    margin-left: 100vw;
 }
 
 /* 当管理抽屉(左侧)打开时调整Header - 整个header都要移动 */
 body.admin-drawer-open header {
     margin-left: 320px;
-    width: calc(100% - 320px); /* 使用100%而不是100vw */
-    min-width: 600px; /* 设置最小宽度 */
+    width: calc(100% - 320px);
+    /* 使用100%而不是100vw */
+    min-width: 600px;
+    /* 设置最小宽度 */
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当右侧抽屉菜单打开时调整Header */
 body.drawer-right-open header {
     margin-right: 320px;
-    width: calc(100% - 320px); /* 使用100%而不是100vw */
-    min-width: 600px; /* 设置最小宽度 */
+    width: calc(100% - 320px);
+    /* 使用100%而不是100vw */
+    min-width: 600px;
+    /* 设置最小宽度 */
     transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 当右侧抽屉打开时，调整文件浏览器和其他元素 */
-body.drawer-right-open .file-browser {
-    /* 文件浏览器不需要移动，保持在左侧固定位置 */
-}
-
-body.drawer-right-open .resizer {
-    /* resizer也保持原位置 */
-}
 
 body.drawer-right-open .app-layout {
-    margin-right: 320px; /* 为右侧抽屉留出空间 */
+    margin-right: 320px;
+    /* 为右侧抽屉留出空间 */
     transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body.drawer-right-open .main-content {
-    margin-right: 320px; /* 为右侧抽屉留出空间 */
+    margin-right: 320px;
+    /* 为右侧抽屉留出空间 */
     transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当管理抽屉和章节抽屉同时打开时的特殊处理 */
 body.admin-drawer-open.drawer-left-open .app-layout {
-    margin-left: calc(320px + 75vw + 320px); /* 管理抽屉 + 章节抽屉 + 文件浏览器 */
+    margin-left: calc(320px + 100vw + 320px);
+    /* 管理抽屉 + 章节抽屉 + 文件浏览器 */
 }
 
 body.admin-drawer-open.drawer-left-open .file-browser {
-    left: calc(320px + 75vw); /* 管理抽屉 + 章节抽屉 */
+    left: calc(320px + 100vw);
+    /* 管理抽屉 + 章节抽屉 */
+    top: 60px;
 }
 
 body.admin-drawer-open.drawer-left-open .resizer {
-    left: calc(320px + 75vw + 320px); /* 管理抽屉 + 章节抽屉 + 文件浏览器 */
+    left: calc(320px + 100vw + 320px);
+    /* 管理抽屉 + 章节抽屉 + 文件浏览器 */
+    top: 60px;
 }
 
 body.admin-drawer-open.drawer-left-open header {
-    margin-left: calc(320px + 75vw); /* 管理抽屉 + 章节抽屉 */
-    width: calc(100% - 320px - 75vw); /* 使用100%而不是100vw */
-    min-width: 300px; /* 设置最小宽度，避免内容叠加 */
+    margin-left: calc(320px + 100vw);
+    /* 管理抽屉 + 章节抽屉 */
+    width: calc(100% - 320px - 100vw);
+    /* 使用100%而不是100vw */
+    min-width: 300px;
+    /* 设置最小宽度，避免内容叠加 */
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当文件浏览器隐藏时，调整布局 */
 .file-browser.hidden,
 .file-browser[style*="display: none"] {
-    left: -320px; /* 向左隐藏 */
+    left: -320px;
+    /* 向左隐藏 */
+    top: 60px;
 }
 
-.file-browser.hidden + .resizer,
-.file-browser[style*="display: none"] + .resizer {
-    left: -4px; /* 跟随文件浏览器一起隐藏 */
+.file-browser.hidden+.resizer,
+.file-browser[style*="display: none"]+.resizer {
+    left: -4px;
+    /* 跟随文件浏览器一起隐藏 */
+    top: 60px;
 }
 
-.file-browser.hidden ~ .app-layout,
-.file-browser[style*="display: none"] ~ .app-layout {
-    margin-left: 0; /* 移除左边距 */
+.file-browser.hidden~.app-layout,
+.file-browser[style*="display: none"]~.app-layout {
+    margin-left: 0;
+    /* 移除左边距 */
 }
 
 /* 当文件浏览器隐藏时的Header适配 */
-.file-browser.hidden ~ header,
-.file-browser[style*="display: none"] ~ header {
+.file-browser.hidden~header,
+.file-browser[style*="display: none"]~header {
     margin-left: 0 !important;
 }
 
 /* 当文件浏览器隐藏且章节抽屉打开时的Header适配 */
-body.drawer-left-open .file-browser.hidden ~ header,
-body.drawer-left-open .file-browser[style*="display: none"] ~ header {
-    margin-left: 75vw !important;
+body.drawer-left-open .file-browser.hidden~header,
+body.drawer-left-open .file-browser[style*="display: none"]~header {
+    margin-left: 100vw !important;
 }
 
 /* 当文件浏览器隐藏且管理抽屉打开时的Header适配 */
-body.admin-drawer-open .file-browser.hidden ~ header,
-body.admin-drawer-open .file-browser[style*="display: none"] ~ header {
+body.admin-drawer-open .file-browser.hidden~header,
+body.admin-drawer-open .file-browser[style*="display: none"]~header {
     margin-left: 320px !important;
 }
 
 /* 当文件浏览器隐藏且管理抽屉和章节抽屉都打开时的Header适配 */
-body.admin-drawer-open.drawer-left-open .file-browser.hidden ~ header,
-body.admin-drawer-open.drawer-left-open .file-browser[style*="display: none"] ~ header {
-    margin-left: calc(320px + 75vw) !important;
+body.admin-drawer-open.drawer-left-open .file-browser.hidden~header,
+body.admin-drawer-open.drawer-left-open .file-browser[style*="display: none"]~header {
+    margin-left: calc(320px + 100vw) !important;
 }
 
 /* 默认状态的Header - 只在没有特殊状态时生效 */
 body:not(.drawer-right-open):not(.drawer-left-open):not(.admin-drawer-open) header {
     margin-left: 0;
     margin-right: 0;
-    width: 100%; /* 改为100%避免包含滚动条宽度 */
+    width: 100%;
+    /* 改为100%避免包含滚动条宽度 */
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -737,12 +986,17 @@ body:not(.drawer-right-open):not(.drawer-left-open):not(.admin-drawer-open) head
     width: 0.1px;
     background: #fefefe;
     cursor: ew-resize;
-    position: fixed; /* 与文件浏览器保持一致的定位 */
-    left: 320px; /* 紧贴文件浏览器右侧 */
-    top: 80px;
-    height: calc(100vh - 80px);
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, width 0.2s ease; /* 优化过渡效果 */
-    z-index: 15; /* 高于文件浏览器 */
+    position: fixed;
+    /* 固定定位，相对于浏览器窗口 */
+    left: 320px;
+    /* 紧贴文件浏览器右侧 */
+    top: 60px;
+    /* 与文件浏览器保持一致的定位 */
+    height: calc(100vh - 60px);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, width 0.2s ease;
+    /* 优化过渡效果 */
+    z-index: 15;
+    /* 高于文件浏览器 */
 }
 
 .resizer:hover {
@@ -800,6 +1054,26 @@ body:not(.drawer-right-open):not(.drawer-left-open):not(.admin-drawer-open) head
     transition: all 0.3s ease;
     position: relative;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 文件区域树容器 - 固定高度并隐藏滚动条 */
+.file-area .tree-container {
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    /* 隐藏滚动条但保持滚动功能 */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+}
+
+/* 针对WebKit浏览器(Chrome, Safari)隐藏滚动条 */
+.file-area .tree-container::-webkit-scrollbar {
+    display: none;
 }
 
 
@@ -953,12 +1227,19 @@ body:not(.drawer-right-open):not(.drawer-left-open):not(.admin-drawer-open) head
 }
 
 @keyframes bounce {
-    0%, 20%, 50%, 80%, 100% {
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
         transform: translateY(0);
     }
+
     40% {
         transform: translateY(-10px);
     }
+
     60% {
         transform: translateY(-5px);
     }
@@ -1022,9 +1303,7 @@ body:not(.drawer-right-open):not(.drawer-left-open):not(.admin-drawer-open) head
     min-width: 80px;
 }
 
-#tree-container {
-    /* 文件树容器 */
-}
+
 
 .file-item {
     padding: 0.5rem;
@@ -1263,7 +1542,8 @@ body:not(.drawer-right-open):not(.drawer-left-open):not(.admin-drawer-open) head
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 500px; /* 确保有足够的最小高度显示内容 */
+    min-height: 500px;
+    /* 确保有足够的最小高度显示内容 */
 }
 
 #editor {
@@ -1537,7 +1817,7 @@ code[class*="language-"] {
     margin-bottom: 8px;
 }
 
-#preview-container li > p {
+#preview-container li>p {
     margin-top: 16px;
 }
 
@@ -1578,7 +1858,7 @@ code[class*="language-"] {
     background-color: #efebe9;
 }
 
-#preview-container blockquote > p {
+#preview-container blockquote>p {
     margin: 0;
 }
 
@@ -1628,20 +1908,24 @@ code[class*="language-"] {
 .drawer {
     position: fixed;
     top: 0;
-    left: -320px; /* 改为左侧 */
+    left: -320px;
+    /* 改为左侧 */
     width: 320px;
     height: 100%;
     background-color: #ffffff;
-    border-right: 1px solid #e2e8f0; /* 改为右边框 */
+    border-right: 1px solid #e2e8f0;
+    /* 改为右边框 */
     z-index: 1600 !important;
-    transition: left 0.3s ease; /* 改为left过渡 */
+    transition: left 0.3s ease;
+    /* 改为left过渡 */
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 .drawer.open {
-    left: 0; /* 改为左侧打开 */
+    left: 0;
+    /* 改为左侧打开 */
 }
 
 .drawer-header {
@@ -1668,8 +1952,8 @@ code[class*="language-"] {
 }
 
 .drawer-header button {
-    background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     color: rgb(9, 31, 59);
     width: 32px;
     height: 32px;
@@ -1683,7 +1967,7 @@ code[class*="language-"] {
 }
 
 .drawer-header button:hover {
-    background: rgba(255,255,255,0.3);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .drawer-content {
@@ -1874,7 +2158,7 @@ code[class*="language-"] {
 }
 
 .llm-dialog-close:hover {
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
 }
 
@@ -2137,42 +2421,43 @@ code[class*="language-"] {
     .btn-text {
         display: none;
     }
-    
+
     header .btn-primary,
     header .btn-secondary {
         padding: 0.375rem 0.5rem;
         min-width: 36px;
         min-height: 36px;
     }
-    
+
     header {
         gap: 0.5rem;
         flex-wrap: wrap;
         padding: 0.75rem 0.5rem;
     }
-    
+
     .sidebar {
         width: 220px;
     }
-    
+
     .main-content {
         flex-direction: column;
     }
-    
+
     .drawer {
         width: 100%;
         right: -100%;
-        max-width: 100vw; /* 确保不超过视口宽度 */
+        max-width: 100vw;
+        /* 确保不超过视口宽度 */
     }
-    
+
     .container {
         padding: 0;
     }
-    
+
     header {
         padding: 1rem;
     }
-    
+
     header h1 {
         font-size: 1.3rem;
     }
@@ -2182,32 +2467,32 @@ code[class*="language-"] {
     .sidebar {
         display: none;
     }
-    
+
     .main-content {
         flex-direction: column;
     }
-    
+
     .editor-area {
         width: 100%;
     }
-    
+
     header {
         flex-direction: column;
         align-items: stretch;
         gap: 0.5rem;
     }
-    
+
     header .btn-primary,
     header .btn-secondary {
         justify-content: center;
         width: 100%;
     }
-    
+
     .button-group {
         flex-wrap: wrap;
         justify-content: center;
     }
-    
+
     header h1 {
         text-align: center;
         margin-bottom: 0.5rem;
@@ -2253,10 +2538,12 @@ code[class*="language-"] {
         opacity: 1;
         transform: scale(1);
     }
+
     50% {
         opacity: 0.7;
         transform: scale(1.1);
     }
+
     100% {
         opacity: 1;
         transform: scale(1);
@@ -2336,8 +2623,10 @@ code[class*="language-"] {
 .drawer.drawer-left {
     position: fixed;
     top: 0;
-    left: -75vw; /* 初始隐藏在屏幕左侧 */
-    width: 75vw !important; /* 使用!important确保优先级 */
+    left: -100vw;
+    /* 初始隐藏在屏幕左侧 */
+    width: 100vw !important;
+    /* 使用!important确保优先级 */
     height: 100%;
     background-color: #fff;
     border-right: 1px solid #e2e8f0;
@@ -2345,13 +2634,16 @@ code[class*="language-"] {
     transition: left 0.3s ease;
     display: flex;
     flex-direction: column;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-    transform: none !important; /* 禁用transform变换 */
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    transform: none !important;
+    /* 禁用transform变换 */
 }
 
 .drawer.drawer-left.open {
-    left: 0 !important; /* 显示在屏幕左侧 */
-    transform: none !important; /* 禁用transform变换 */
+    left: 0 !important;
+    /* 显示在屏幕左侧 */
+    transform: none !important;
+    /* 禁用transform变换 */
 }
 
 /* 左侧抽屉打开时body的状态 */
@@ -2383,6 +2675,305 @@ body.drawer-left-open {
 .chapter-list {
     list-style: none;
     padding: 0;
+    margin: 0;
+}
+
+.chapter-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fafbfc;
+}
+
+.chapter-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.chapter-item:last-child {
+    border-bottom: none;
+}
+
+.chapter-item:hover {
+    background: #f8fafc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.chapter-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.chapter-info {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 8px;
+}
+
+.chapter-handle {
+    color: #9ca3af;
+    font-size: 14px;
+    cursor: grab;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.chapter-handle:hover {
+    background: #e5e7eb;
+    color: #6b7280;
+}
+
+.chapter-handle:active {
+    cursor: grabbing;
+}
+
+.chapter-details {
+    flex: 1;
+}
+
+.chapter-title {
+    font-weight: 500;
+    color: #1f2937;
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 2px;
+}
+
+.chapter-file {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.chapter-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.chapter-item:hover .chapter-actions {
+    opacity: 1;
+}
+
+.btn-action {
+    background: none;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-action:hover {
+    background: #f3f4f6;
+}
+
+.btn-action.btn-edit:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.btn-action.btn-delete:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.no-chapters {
+    text-align: center;
+    padding: 24px;
+    color: #9ca3af;
+    font-style: italic;
+    background: #f9fafb;
+}
+
+.chapter-actions-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 8px;
+}
+
+.chapter-actions-toolbar .btn {
+    font-size: 12px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.chapter-actions-toolbar .icon {
+    font-size: 14px;
+}
+
+/* 章节编辑表单样式 */
+#chapter-edit-form {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+#chapter-edit-form .form-group {
+    margin-bottom: 16px;
+}
+
+#chapter-edit-form label {
+    display: block;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+#chapter-edit-form .form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+#chapter-edit-form .form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#chapter-edit-form .form-text {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+#chapter-edit-form .form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+#chapter-edit-form .form-actions .btn {
+    font-size: 14px;
+    padding: 8px 16px;
+}
+
+/* 帮助信息样式 */
+.help-content {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.help-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 13px;
+    color: #0369a1;
+}
+
+.help-list li {
+    margin-bottom: 4px;
+}
+
+.help-list li:last-child {
+    margin-bottom: 0;
+}
+
+/* 章节管理按钮样式 */
+.chapter-manager-container {
+    display: flex;
+    align-items: center;
+}
+
+.chapter-manager-container .header-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.chapter-manager-container .header-btn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+    transform: translateY(-1px);
+}
+
+.chapter-manager-container .header-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.chapter-manager-container .btn-icon {
+    font-size: 16px;
+}
+
+.chapter-manager-container .btn-text {
+    font-size: 13px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .chapter-manager-container .btn-text {
+        display: none;
+    }
+    
+    .chapter-manager-container .header-btn {
+        padding: 8px;
+    }
+}
+
+/* 右侧抽屉样式 */
+.drawer.drawer-right {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background: white;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s ease;
+}
+
+.drawer.drawer-right.open {
+    right: 0;
+}
+
+/* 右侧抽屉遮罩层 */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  
     margin: 0;
     max-height: 300px;
     overflow-y: auto;
@@ -2456,7 +3047,8 @@ body.drawer-left-open {
 }
 
 /* 无章节状态 */
-.no-chapters, .loading-item {
+.no-chapters,
+.loading-item {
     text-align: center;
     padding: 2rem 1rem;
     color: #6b7280;
@@ -2482,27 +3074,27 @@ body.drawer-left-open {
 /* 响应式设计 */
 @media (max-width: 768px) {
     .drawer.drawer-left {
-        width: 90vw !important;
-        left: -90vw !important;
+        width: 100w !important;
+        left: -100vw !important;
     }
-    
+
     .chapter-management-section {
         margin: 0.25rem 0.5rem;
         padding: 0.75rem;
     }
-    
+
     .chapter-item {
         padding: 0.5rem;
         flex-direction: column;
         align-items: flex-start;
         min-height: auto;
     }
-    
+
     .chapter-info {
         width: 100%;
         margin-bottom: 0.5rem;
     }
-    
+
     .chapter-actions {
         align-self: flex-end;
     }
@@ -2549,4 +3141,20 @@ body.drawer-left-open {
     background: #f3f4f6;
     border-color: #d1d5db;
     transform: translateY(-1px);
+}
+
+/* ==================== 下拉菜单样式 ==================== */
+
+/* 管理面板现在使用与用户面板完全相同的样式类 user-panel-area */
+
+/* 管理下拉菜单中登出按钮的特殊样式 */
+.dropdown-user-panel .logout-item {
+    color: #dc2626 !important;
+    border-color: #dc2626 !important;
+}
+
+.dropdown-user-panel .logout-item:hover {
+    background: #fef2f2 !important;
+    color: #b91c1c !important;
+    border-color: #b91c1c !important;
 }

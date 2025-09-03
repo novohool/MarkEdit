@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员诊断 - MarkEdit</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; border: none; border-radius: 3px; }
+        .btn-secondary { background: #6c757d; color: white; border: none; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>MarkEdit 管理员诊断工具</h1>
+    
+    <div class="section">
+        <h2>当前用户信息</h2>
+        <p><strong>用户名:</strong> <span id="current-username">{{ username or '未登录' }}</span></p>
+        <p><strong>权限:</strong> <span id="current-permissions">{{ user_permissions | join(', ') if user_permissions else '无权限' }}</span></p>
+        <p><strong>权限标志:</strong></p>
+        <pre id="permission-flags">{{ permissions | tojson(indent=2) if permissions else '{}' }}</pre>
+    </div>
+    
+    <div class="section">
+        <h2>API 测试</h2>
+        <button class="btn-primary" onclick="testAPI('/api/admin/users')">测试用户API</button>
+        <button class="btn-primary" onclick="testAPI('/api/admin/roles')">测试角色API</button>
+        <button class="btn-primary" onclick="testAPI('/api/admin/permissions')">测试权限API</button>
+        <button class="btn-secondary" onclick="clearResults()">清除结果</button>
+        
+        <div id="api-results" style="margin-top: 15px;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>数据库连接测试</h2>
+        <button class="btn-primary" onclick="testDatabase()">测试数据库</button>
+        <div id="db-results" style="margin-top: 15px;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>权限检查测试</h2>
+        <input type="text" id="permission-input" placeholder="输入权限名称，如: user.list" style="padding: 5px; width: 200px;">
+        <button class="btn-primary" onclick="testPermission()">检查权限</button>
+        <div id="permission-results" style="margin-top: 15px;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>快速操作</h2>
+        <button class="btn-primary" onclick="initializeDefaults()">初始化默认数据</button>
+        <button class="btn-secondary" onclick="window.location.href='/admin'">系统管理</button>
+    </div>
+
+    <script>
+        async function testAPI(url) {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML += `<p class="info">正在测试: ${url}</p>`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML += `<p class="success">✅ ${url} - 成功</p>`;
+                    resultsDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultsDiv.innerHTML += `<p class="error">❌ ${url} - 失败 (${response.status})</p>`;
+                    resultsDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML += `<p class="error">❌ ${url} - 错误: ${error.message}</p>`;
+            }
+        }
+        
+        async function testDatabase() {
+            const resultsDiv = document.getElementById('db-results');
+            resultsDiv.innerHTML = '<p class="info">正在测试数据库连接...</p>';
+            
+            try {
+                const response = await fetch('/api/admin/users');
+                if (response.ok) {
+                    resultsDiv.innerHTML = '<p class="success">✅ 数据库连接正常</p>';
+                } else {
+                    resultsDiv.innerHTML = `<p class="warning">⚠️ 数据库连接可能有问题 (HTTP ${response.status})</p>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">❌ 数据库连接失败: ${error.message}</p>`;
+            }
+        }
+        
+        async function testPermission() {
+            const permission = document.getElementById('permission-input').value.trim();
+            const resultsDiv = document.getElementById('permission-results');
+            
+            if (!permission) {
+                resultsDiv.innerHTML = '<p class="warning">请输入权限名称</p>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = `<p class="info">正在检查权限: ${permission}</p>`;
+            
+            try {
+                const response = await fetch(`/api/admin/check-permission?permission=${encodeURIComponent(permission)}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const hasPermission = data.has_permission;
+                    resultsDiv.innerHTML += `<p class="${hasPermission ? 'success' : 'error'}">${hasPermission ? '✅' : '❌'} 权限 "${permission}": ${hasPermission ? '有权限' : '无权限'}</p>`;
+                } else {
+                    resultsDiv.innerHTML += `<p class="error">❌ 检查失败: ${data.detail || '未知错误'}</p>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML += `<p class="error">❌ 检查错误: ${error.message}</p>`;
+            }
+        }
+        
+        async function initializeDefaults() {
+            try {
+                const response = await fetch('/api/admin/initialize-default-roles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ 默认数据初始化成功！');
+                    location.reload();
+                } else {
+                    alert(`❌ 初始化失败: ${data.detail || '未知错误'}`);
+                }
+            } catch (error) {
+                alert(`❌ 初始化错误: ${error.message}`);
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('api-results').innerHTML = '';
+            document.getElementById('db-results').innerHTML = '';
+            document.getElementById('permission-results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

@@ -20,6 +20,8 @@ import logging
 # 导入自定义模块
 from app.auth import setup_auth_routes
 from app.controllers import main_router, file_router, static_router, user_router, admin_router
+from app.controllers.error_controller import error_router
+from app.middleware.error_middleware import setup_error_middleware
 from app.common import get_startup_service
 
 # 设置日志记录
@@ -28,7 +30,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('markedit.log', encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)
@@ -50,6 +51,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 app = FastAPI(title="MarkEdit", docs_url=None)
 
+# 设置错误处理中间件
+setup_error_middleware(app)
+
 # 设置认证路由
 setup_auth_routes(app)
 
@@ -62,6 +66,7 @@ app.include_router(file_router)
 app.include_router(static_router)
 app.include_router(user_router)
 app.include_router(admin_router)
+app.include_router(error_router)
 
 @app.on_event("startup")
 async def startup_event():

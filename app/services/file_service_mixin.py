@@ -127,6 +127,141 @@ class FileOperationMixin:
             self.logger.error(f"保存文件失败: {str(e)}", exc_info=True)
             raise Exception(f"保存文件失败: {str(e)}")
     
+    async def delete_file_safely(self, file_path: Path, 
+                                create_backup: bool = True) -> Dict[str, Any]:
+        """安全删除文件，支持备份"""
+        try:
+            if not file_path.exists():
+                raise FileNotFoundError(f"文件不存在: {file_path}")
+            
+            result = {
+                "status": "success",
+                "message": f"文件 {file_path.name} 删除成功",
+                "file_path": str(file_path)
+            }
+            
+            # 创建备份（如果需要）
+            if create_backup:
+                backup_path = self._create_file_backup(file_path)
+                if backup_path:
+                    result["backup_path"] = str(backup_path)
+            
+            # 删除文件
+            file_path.unlink()
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"删除文件失败: {str(e)}", exc_info=True)
+            raise Exception(f"删除文件失败: {str(e)}")
+    
+    async def copy_file_safely(self, source_path: Path, dest_path: Path, 
+                              overwrite: bool = False) -> Dict[str, Any]:
+        """安全复制文件"""
+        try:
+            if not source_path.exists():
+                raise FileNotFoundError(f"源文件不存在: {source_path}")
+            
+            if dest_path.exists() and not overwrite:
+                raise ValueError(f"目标文件已存在: {dest_path}")
+            
+            # 确保目标目录存在
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 复制文件
+            import shutil
+            shutil.copy2(source_path, dest_path)
+            
+            return {
+                "status": "success",
+                "message": f"文件复制成功: {source_path.name} -> {dest_path.name}",
+                "source_path": str(source_path),
+                "dest_path": str(dest_path)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"复制文件失败: {str(e)}", exc_info=True)
+            raise Exception(f"复制文件失败: {str(e)}")
+    
+    async def move_file_safely(self, source_path: Path, dest_path: Path, 
+                              overwrite: bool = False) -> Dict[str, Any]:
+        """安全移动文件"""
+        try:
+            if not source_path.exists():
+                raise FileNotFoundError(f"源文件不存在: {source_path}")
+            
+            if dest_path.exists() and not overwrite:
+                raise ValueError(f"目标文件已存在: {dest_path}")
+            
+            # 确保目标目录存在
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 移动文件
+            import shutil
+            shutil.move(str(source_path), str(dest_path))
+            
+            return {
+                "status": "success",
+                "message": f"文件移动成功: {source_path.name} -> {dest_path.name}",
+                "source_path": str(source_path),
+                "dest_path": str(dest_path)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"移动文件失败: {str(e)}", exc_info=True)
+            raise Exception(f"移动文件失败: {str(e)}")
+    
+    async def list_directory_contents(self, dir_path: Path, 
+                                     include_hidden: bool = False,
+                                     file_types: List[str] = None) -> Dict[str, Any]:
+        """列出目录内容"""
+        try:
+            if not dir_path.exists():
+                raise FileNotFoundError(f"目录不存在: {dir_path}")
+            
+            if not dir_path.is_dir():
+                raise ValueError(f"路径不是目录: {dir_path}")
+            
+            files = []
+            directories = []
+            
+            for item in dir_path.iterdir():
+                # 跳过隐藏文件（如果不包括）
+                if not include_hidden and item.name.startswith('.'):
+                    continue
+                
+                if item.is_file():
+                    # 过滤文件类型
+                    if file_types and item.suffix.lower() not in [ft.lower() for ft in file_types]:
+                        continue
+                    
+                    stat_info = item.stat()
+                    files.append({
+                        "name": item.name,
+                        "path": str(item),
+                        "size": stat_info.st_size,
+                        "formatted_size": self._format_file_size(stat_info.st_size),
+                        "modified": datetime.datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
+                        "extension": item.suffix
+                    })
+                elif item.is_dir():
+                    directories.append({
+                        "name": item.name,
+                        "path": str(item)
+                    })
+            
+            return {
+                "directory": str(dir_path),
+                "files": sorted(files, key=lambda x: x["name"]),
+                "directories": sorted(directories, key=lambda x: x["name"]),
+                "total_files": len(files),
+                "total_directories": len(directories)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"列出目录内容失败: {str(e)}", exc_info=True)
+            raise Exception(f"列出目录内容失败: {str(e)}")
+    
     def _create_file_backup(self, file_path: Path) -> Path:
         """创建文件备份"""
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -286,3 +421,177 @@ class BackupOperationMixin:
         p = math.pow(1024, i)
         s = round(size_bytes / p, 2)
         return f"{s} {size_names[i]}"
+
+class FileManagementMixin(FileOperationMixin, BackupOperationMixin):
+    """文件管理混入类，整合所有文件操作功能"""
+    
+    def __init__(self):
+        super().__init__()
+        self.logger = logging.getLogger(self.__class__.__name__)
+    
+    async def get_file_info(self, file_path: Path) -> Dict[str, Any]:
+        """获取文件详细信息"""
+        try:
+            if not file_path.exists():
+                raise FileNotFoundError(f"文件不存在: {file_path}")
+            
+            stat_info = file_path.stat()
+            
+            file_info = {
+                "name": file_path.name,
+                "path": str(file_path),
+                "size": stat_info.st_size,
+                "formatted_size": self._format_file_size(stat_info.st_size),
+                "created": datetime.datetime.fromtimestamp(stat_info.st_ctime).isoformat(),
+                "modified": datetime.datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
+                "extension": file_path.suffix,
+                "is_file": file_path.is_file(),
+                "is_directory": file_path.is_dir(),
+                "is_text_file": is_text_file(file_path) if file_path.is_file() else False
+            }
+            
+            # 如果是文本文件，获取编码信息
+            if file_info["is_text_file"]:
+                try:
+                    content_info = await self.read_file_content(file_path)
+                    file_info["encoding"] = content_info.get("encoding", "unknown")
+                    file_info["line_count"] = len(content_info.get("content", "").splitlines())
+                except Exception:
+                    file_info["encoding"] = "unknown"
+                    file_info["line_count"] = 0
+            
+            return file_info
+            
+        except Exception as e:
+            self.logger.error(f"获取文件信息失败: {str(e)}", exc_info=True)
+            raise Exception(f"获取文件信息失败: {str(e)}")
+    
+    async def create_directory_safely(self, dir_path: Path, 
+                                     exist_ok: bool = True) -> Dict[str, Any]:
+        """安全创建目录"""
+        try:
+            if dir_path.exists() and not exist_ok:
+                raise ValueError(f"目录已存在: {dir_path}")
+            
+            dir_path.mkdir(parents=True, exist_ok=exist_ok)
+            
+            return {
+                "status": "success",
+                "message": f"目录创建成功: {dir_path.name}",
+                "directory_path": str(dir_path)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"创建目录失败: {str(e)}", exc_info=True)
+            raise Exception(f"创建目录失败: {str(e)}")
+    
+    async def delete_directory_safely(self, dir_path: Path, 
+                                     recursive: bool = False,
+                                     create_backup: bool = True) -> Dict[str, Any]:
+        """安全删除目录"""
+        try:
+            if not dir_path.exists():
+                raise FileNotFoundError(f"目录不存在: {dir_path}")
+            
+            if not dir_path.is_dir():
+                raise ValueError(f"路径不是目录: {dir_path}")
+            
+            result = {
+                "status": "success",
+                "message": f"目录删除成功: {dir_path.name}",
+                "directory_path": str(dir_path)
+            }
+            
+            # 创建备份（如果需要）
+            if create_backup:
+                try:
+                    backup_info = await self._create_directory_backup(dir_path)
+                    result["backup_path"] = backup_info["backup_path"]
+                except Exception as e:
+                    self.logger.warning(f"创建目录备份失败: {str(e)}")
+            
+            # 删除目录
+            import shutil
+            if recursive:
+                shutil.rmtree(dir_path)
+            else:
+                dir_path.rmdir()  # 只能删除空目录
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"删除目录失败: {str(e)}", exc_info=True)
+            raise Exception(f"删除目录失败: {str(e)}")
+    
+    async def _create_directory_backup(self, dir_path: Path) -> Dict[str, Any]:
+        """为目录创建备份"""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"{dir_path.name}_backup_{timestamp}.zip"
+        backup_path = dir_path.parent / backup_name
+        
+        file_count = 0
+        with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(dir_path):
+                for file in files:
+                    file_path = Path(root) / file
+                    arcname = file_path.relative_to(dir_path)
+                    zipf.write(file_path, arcname)
+                    file_count += 1
+        
+        return {
+            "backup_path": str(backup_path),
+            "file_count": file_count,
+            "size": backup_path.stat().st_size
+        }
+    
+    async def search_files(self, search_dir: Path, 
+                          pattern: str = "*",
+                          file_types: List[str] = None,
+                          include_content: bool = False,
+                          max_results: int = 100) -> Dict[str, Any]:
+        """在目录中搜索文件"""
+        try:
+            if not search_dir.exists() or not search_dir.is_dir():
+                raise ValueError(f"搜索目录不存在或不是目录: {search_dir}")
+            
+            import glob
+            results = []
+            search_pattern = str(search_dir / "**" / pattern)
+            
+            for file_path_str in glob.glob(search_pattern, recursive=True):
+                file_path = Path(file_path_str)
+                
+                if not file_path.is_file():
+                    continue
+                
+                # 过滤文件类型
+                if file_types and file_path.suffix.lower() not in [ft.lower() for ft in file_types]:
+                    continue
+                
+                file_info = await self.get_file_info(file_path)
+                
+                # 如果需要包含内容（只限文本文件）
+                if include_content and file_info["is_text_file"]:
+                    try:
+                        content_info = await self.read_file_content(file_path)
+                        file_info["content_preview"] = content_info["content"][:500]  # 只显示前500字符
+                    except Exception:
+                        file_info["content_preview"] = "无法读取内容"
+                
+                results.append(file_info)
+                
+                # 限制结果数量
+                if len(results) >= max_results:
+                    break
+            
+            return {
+                "search_directory": str(search_dir),
+                "pattern": pattern,
+                "results": results,
+                "total_found": len(results),
+                "limited_results": len(results) >= max_results
+            }
+            
+        except Exception as e:
+            self.logger.error(f"搜索文件失败: {str(e)}", exc_info=True)
+            raise Exception(f"搜索文件失败: {str(e)}")

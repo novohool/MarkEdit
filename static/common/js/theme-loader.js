@@ -230,7 +230,7 @@ class ThemeLoader {
                 this.applyThemeCSS();
                 
                 if (typeof showMessage === 'function') {
-                    showMessage(`主题已切换为: ${themeName}`, 'success');
+                    window.ComponentManager.getComponent('message').success(`主题已切换为: ${themeName}`);
                 }
                 
                 // 刷新页面以应用新主题
@@ -243,7 +243,7 @@ class ThemeLoader {
         } catch (error) {
             console.error('主题切换失败:', error);
             if (typeof showMessage === 'function') {
-                showMessage('主题切换失败: ' + error.message, 'error');
+                window.ComponentManager.getComponent('message').error('主题切换失败: ' + error.message);
             }
         }
     }

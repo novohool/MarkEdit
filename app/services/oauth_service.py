@@ -798,11 +798,10 @@ class OAuthService:
             # 定义需要登录的页面路径
             protected_paths = {
                 "/",  # 主页
-                "/dashboard",  # 仪表板
-                "/admin",  # 管理页面
                 "/myaccount",  # 我的账户
                 "/epub-viewer.html",  # EPUB查看器
             }
+            # 注意：所有 /admin/* 路径都有自己的认证逻辑，不需要中间件保护
             
             # 定义需要登录的API路径前缀
             protected_api_prefixes = [

@@ -1,0 +1,46 @@
+<!-- 标准模态框组件模板 -->
+<!-- 使用方式：{% include 'components/standard-modal.html' with context %} -->
+
+{% set modal_id = modal_id or 'standard-modal' %}
+{% set modal_title = modal_title or '提示' %}
+{% set modal_size = modal_size or 'medium' %}
+
+<div id="{{ modal_id }}" class="modal">
+    <div class="modal-content modal-{{ modal_size }}">
+        {% if modal_title or not modal_hide_header %}
+        <div class="modal-header">
+            <h3>{{ modal_title }}</h3>
+            <button class="modal-close" data-modal-close aria-label="关闭">×</button>
+        </div>
+        {% endif %}
+        
+        <div class="modal-body">
+            {% if modal_content %}
+                {{ modal_content | safe }}
+            {% else %}
+                <!-- 默认内容 -->
+                <p>这是一个标准模态框组件。</p>
+            {% endif %}
+        </div>
+        
+        {% if modal_footer or modal_buttons %}
+        <div class="modal-footer">
+            {% if modal_buttons %}
+                {% for button in modal_buttons %}
+                <button type="{{ button.type or 'button' }}" 
+                        class="{{ button.class or 'btn-secondary' }}"
+                        {% if button.onclick %}onclick="{{ button.onclick }}"{% endif %}
+                        {% if button.data_modal_close %}data-modal-close{% endif %}>
+                    {{ button.text }}
+                </button>
+                {% endfor %}
+            {% elif modal_footer %}
+                {{ modal_footer | safe }}
+            {% else %}
+                <!-- 默认按钮 -->
+                <button type="button" class="btn-secondary" data-modal-close>关闭</button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>

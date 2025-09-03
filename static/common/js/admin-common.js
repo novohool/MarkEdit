@@ -75,23 +75,6 @@ function setupPermissionBasedUI() {
         });
     }, 100); // 延迟执行，确保DOM元素已生成
     
-    // 在菜单中根据权限显示或隐藏链接
-    const adminDrawerLinks = document.querySelectorAll('#admin-drawer a');
-    adminDrawerLinks.forEach(link => {
-        const href = link.getAttribute('href');
-        if (href && href.includes('user') && !hasUserManagement) {
-            link.style.display = 'none';
-        }
-        if (href && href.includes('role') && !hasRoleManagement) {
-            link.style.display = 'none';
-        }
-        if (href && href.includes('permission') && !hasPermissionManagement) {
-            link.style.display = 'none';
-        }
-        if (href && href.includes('backup') && !hasSystemManagement) {
-            link.style.display = 'none';
-        }
-    });
     
     console.log('根据用户权限设置UI完成，用户权限:', permissions);
 }
@@ -108,7 +91,7 @@ async function loadConfigData() {
         }
     } catch (error) {
         console.error('加载配置数据失败:', error);
-        showMessage('加载配置数据失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载配置数据失败: ' + error.message);
     }
     
     // 加载备份文件列表
@@ -123,13 +106,21 @@ async function loadUsers() {
         
         if (response.ok) {
             users = result.users;
-            renderUserList(users);
+            
+            // 尝试使用适当的渲染函数
+            if (document.getElementById('admin-user-list') && window.adminDataLoader && typeof window.adminDataLoader.renderUserTable === 'function') {
+                // 如果存在 admin-user-list 元素和 adminDataLoader，使用它的渲染方法
+                window.adminDataLoader.renderUserTable(users);
+            } else {
+                // 否则使用传统的 renderUserList（已经有空值检查）
+                renderUserList(users);
+            }
         } else {
             throw new Error(result.detail || '获取用户列表失败');
         }
     } catch (error) {
         console.error('加载用户列表失败:', error);
-        showMessage('加载用户列表失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载用户列表失败: ' + error.message);
     }
 }
 
@@ -156,6 +147,10 @@ function returnToUserManagement() {
 // 渲染用户列表
 function renderUserList(users) {
     const userList = document.getElementById('user-list');
+    if (!userList) {
+        console.warn('Element with id "user-list" not found. Skipping user list rendering.');
+        return;
+    }
     userList.innerHTML = '';
     
     users.forEach(user => {
@@ -181,7 +176,18 @@ function renderUserList(users) {
         button.addEventListener('click', function() {
             const userId = this.getAttribute('data-id');
             const username = this.getAttribute('data-username');
-            showUserRoles(userId, username, { useSectionView: true, useModal: false });
+            
+            // 检查是否有showUserRoles函数，如果没有则跳转到角色权限管理页面
+            if (typeof showUserRoles === 'function') {
+                showUserRoles(userId, username, { useSectionView: true, useModal: false });
+            } else {
+                // 如果没有showUserRoles函数，显示权限管理区域
+                if (typeof toggleSection === 'function') {
+                    toggleSection('role-permission');
+                } else {
+                    window.location.href = '/admin';
+                }
+            }
         });
     });
     
@@ -221,22 +227,8 @@ function initializeAdminPage() {
             loadUsers();
             
             // 绑定事件监听器
-            bindDrawerEvents();  // 绑定抽屉菜单事件
             bindAdminEventListeners();
             
-            // 为抽屉菜单中的链接添加事件监听器，点击时关闭抽屉菜单
-            const drawerLinks = document.querySelectorAll('#admin-drawer a');
-            drawerLinks.forEach(link => {
-                // 为登出链接添加确认对话框
-                if (link.getAttribute('href') === '/logout') {
-                    link.addEventListener('click', function(e) {
-                        if (!confirm('确定要登出吗？')) {
-                            e.preventDefault();
-                        }
-                    });
-                }
-                link.addEventListener('click', closeAdminDrawer);
-            });
             
             // 绑定角色管理事件
             bindRoleEventListeners();
@@ -458,7 +450,7 @@ async function loadBackupFiles() {
         }
     } catch (error) {
         console.error('加载备份文件列表失败:', error);
-        showMessage('加载备份文件列表失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载备份文件列表失败: ' + error.message);
     }
 }
 
@@ -626,7 +618,7 @@ async function saveUser() {
         const theme = themeSelect ? themeSelect.value : 'default';
         
         if (!username) {
-            showMessage('用户名不能为空', 'error');
+            window.ComponentManager.getComponent('message').error('用户名不能为空');
             return;
         }
         
@@ -652,7 +644,7 @@ async function saveUser() {
         } else {
             // 创建用户
             if (!password) {
-                showMessage('新建用户时密码不能为空', 'error');
+                window.ComponentManager.getComponent('message').error('新建用户时密码不能为空');
                 return;
             }
             response = await fetch('/api/admin/users', {
@@ -667,7 +659,7 @@ async function saveUser() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage(userId ? '用户更新成功' : '用户创建成功', 'success');
+            window.ComponentManager.getComponent('message').success(userId ? '用户更新成功' : '用户创建成功');
             hideUserForm();
             // 重新加载用户列表
             loadUsers();
@@ -676,7 +668,7 @@ async function saveUser() {
         }
     } catch (error) {
         console.error('保存用户失败:', error);
-        showMessage('保存用户失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存用户失败: ' + error.message);
     }
 }
 
@@ -694,7 +686,7 @@ async function deleteUser(userId) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('用户删除成功', 'success');
+            window.ComponentManager.getComponent('message').success('用户删除成功');
             // 重新加载用户列表
             loadUsers();
         } else {
@@ -702,7 +694,7 @@ async function deleteUser(userId) {
         }
     } catch (error) {
         console.error('删除用户失败:', error);
-        showMessage('删除用户失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('删除用户失败: ' + error.message);
     }
 }
 
@@ -725,13 +717,13 @@ async function resetPassword(userId) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('密码重置成功', 'success');
+            window.ComponentManager.getComponent('message').success('密码重置成功');
         } else {
             throw new Error(result.detail || '密码重置失败');
         }
     } catch (error) {
         console.error('密码重置失败:', error);
-        showMessage('密码重置失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('密码重置失败: ' + error.message);
     }
 }
 
@@ -748,7 +740,7 @@ async function loadRoles() {
         }
     } catch (error) {
         console.error('加载角色列表失败:', error);
-        showMessage('加载角色列表失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载角色列表失败: ' + error.message);
     }
 }
 
@@ -828,7 +820,7 @@ async function saveRole() {
         const roleDescription = roleDescriptionInput ? roleDescriptionInput.value : '';
         
         if (!roleName) {
-            showMessage('角色名称不能为空', 'error');
+            window.ComponentManager.getComponent('message').error('角色名称不能为空');
             return;
         }
         
@@ -861,7 +853,7 @@ async function saveRole() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage(roleId ? '角色更新成功' : '角色创建成功', 'success');
+            window.ComponentManager.getComponent('message').success(roleId ? '角色更新成功' : '角色创建成功');
             hideRoleForm();
             // 重新加载角色列表
             loadRoles();
@@ -870,7 +862,7 @@ async function saveRole() {
         }
     } catch (error) {
         console.error('保存角色失败:', error);
-        showMessage('保存角色失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存角色失败: ' + error.message);
     }
 }
 
@@ -888,7 +880,7 @@ async function deleteRole(roleId) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('角色删除成功', 'success');
+            window.ComponentManager.getComponent('message').success('角色删除成功');
             // 重新加载角色列表
             loadRoles();
         } else {
@@ -896,7 +888,7 @@ async function deleteRole(roleId) {
         }
     } catch (error) {
         console.error('删除角色失败:', error);
-        showMessage('删除角色失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('删除角色失败: ' + error.message);
     }
 }
 
@@ -913,7 +905,7 @@ async function loadPermissions() {
         }
     } catch (error) {
         console.error('加载权限列表失败:', error);
-        showMessage('加载权限列表失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载权限列表失败: ' + error.message);
     }
 }
 
@@ -987,7 +979,7 @@ async function savePermission() {
         const permissionDescription = permissionDescriptionInput ? permissionDescriptionInput.value : '';
         
         if (!permissionName) {
-            showMessage('权限名称不能为空', 'error');
+            window.ComponentManager.getComponent('message').error('权限名称不能为空');
             return;
         }
         
@@ -1020,7 +1012,7 @@ async function savePermission() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage(permissionId ? '权限更新成功' : '权限创建成功', 'success');
+            window.ComponentManager.getComponent('message').success(permissionId ? '权限更新成功' : '权限创建成功');
             hidePermissionForm();
             // 重新加载权限列表
             loadPermissions();
@@ -1029,7 +1021,7 @@ async function savePermission() {
         }
     } catch (error) {
         console.error('保存权限失败:', error);
-        showMessage('保存权限失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存权限失败: ' + error.message);
     }
 }
 
@@ -1047,7 +1039,7 @@ async function deletePermission(permissionId) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('权限删除成功', 'success');
+            window.ComponentManager.getComponent('message').success('权限删除成功');
             // 重新加载权限列表
             loadPermissions();
         } else {
@@ -1055,7 +1047,7 @@ async function deletePermission(permissionId) {
         }
     } catch (error) {
         console.error('删除权限失败:', error);
-        showMessage('删除权限失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('删除权限失败: ' + error.message);
     }
 }
 
@@ -1066,14 +1058,14 @@ async function checkUserPermissions() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('权限检查完成', 'success');
+            window.ComponentManager.getComponent('message').success('权限检查完成');
             console.log('权限检查结果:', result);
         } else {
             throw new Error(result.detail || '权限检查失败');
         }
     } catch (error) {
         console.error('权限检查失败:', error);
-        showMessage('权限检查失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('权限检查失败: ' + error.message);
     }
 }
 
@@ -1111,7 +1103,7 @@ async function assignRoleToUser() {
     const roleId = roleSelect ? roleSelect.value : null;
     
     if (!userId || !roleId) {
-        showMessage('请选择角色', 'warning');
+        window.ComponentManager.getComponent('message').warning('请选择角色');
         return;
     }
     
@@ -1127,14 +1119,14 @@ async function assignRoleToUser() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('角色分配成功', 'success');
+            window.ComponentManager.getComponent('message').success('角色分配成功');
             loadUserRoles(userId);
         } else {
             throw new Error(result.detail || '角色分配失败');
         }
     } catch (error) {
         console.error('角色分配失败:', error);
-        showMessage('角色分配失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('角色分配失败: ' + error.message);
     }
 }
 
@@ -1226,7 +1218,7 @@ async function loadRolePermissions(roleId) {
         }
     } catch (error) {
         console.error('加载角色权限失败:', error);
-        showMessage('加载角色权限失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载角色权限失败: ' + error.message);
     }
 }
 
@@ -1252,7 +1244,7 @@ async function loadAvailablePermissions() {
         }
     } catch (error) {
         console.error('加载可用权限列表失败:', error);
-        showMessage('加载可用权限列表失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载可用权限列表失败: ' + error.message);
     }
 }
 
@@ -1293,7 +1285,7 @@ async function assignPermissionToRole() {
     const permissionId = permissionSelect ? permissionSelect.value : null;
     
     if (!roleId || !permissionId) {
-        showMessage('请选择权限', 'warning');
+        window.ComponentManager.getComponent('message').warning('请选择权限');
         return;
     }
     
@@ -1309,14 +1301,14 @@ async function assignPermissionToRole() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('权限分配成功', 'success');
+            window.ComponentManager.getComponent('message').success('权限分配成功');
             loadRolePermissions(roleId);
         } else {
             throw new Error(result.detail || '权限分配失败');
         }
     } catch (error) {
         console.error('权限分配失败:', error);
-        showMessage('权限分配失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('权限分配失败: ' + error.message);
     }
 }
 
@@ -1367,22 +1359,18 @@ function bindAdminPanelEvents() {
         resetSrcBtn.addEventListener('click', resetSrc);
     }
     
-    // EPUB转换事件
-    const convertEpubBtn = document.getElementById('convert-epub-btn');
-    const downloadConvertedBtn = document.getElementById('download-converted-btn');
-    
-    if (convertEpubBtn) {
-        convertEpubBtn.addEventListener('click', convertEpubToMarkdown);
-    }
-    if (downloadConvertedBtn) {
-        downloadConvertedBtn.addEventListener('click', downloadConvertedFiles);
-    }
+    // EPUB转换事件 - 由 admin_panel.js 处理
     
     // 手动备份事件
     const manualBackupBtn = document.getElementById('manual-backup-btn');
     if (manualBackupBtn) {
         manualBackupBtn.addEventListener('click', createManualBackup);
     }
+    
+    // 绑定表单事件
+    bindFileUploadEvents();
+    bindModalFormEvents();
+    bindUserPanelFormEvents();
     
     // 全局事件委托
     document.addEventListener('click', function(e) {
@@ -1427,17 +1415,20 @@ function bindAdminPanelEvents() {
 }
 
 // EPUB转换为Markdown
-async function convertEpubToMarkdown() {
-    const fileInput = document.getElementById('epub-upload');
-    const file = fileInput.files[0];
+async function convertEpubToMarkdown(file) {
+    // 如果没有传入文件参数，从DOM获取
+    if (!file) {
+        const fileInput = document.getElementById('epub-upload');
+        file = fileInput ? fileInput.files[0] : null;
+    }
     
     if (!file) {
-        showMessage('请选择一个EPUB文件', 'warning');
+        window.ComponentManager.getComponent('message').warning('请选择一个EPUB文件');
         return;
     }
     
     if (!file.name.endsWith('.epub')) {
-        showMessage('只允许上传.epub文件', 'error');
+        window.ComponentManager.getComponent('message').error('只允许上传.epub文件');
         return;
     }
     
@@ -1445,7 +1436,7 @@ async function convertEpubToMarkdown() {
         const formData = new FormData();
         formData.append('file', file);
         
-        showMessage('正在转换EPUB文件...', 'info');
+        window.ComponentManager.getComponent('message').info('正在转换EPUB文件...');
         
         const response = await fetch('/api/admin/epub/convert', {
             method: 'POST',
@@ -1455,7 +1446,7 @@ async function convertEpubToMarkdown() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('EPUB转换成功', 'success');
+            window.ComponentManager.getComponent('message').success('EPUB转换成功');
             // 显示转换结果
             const conversionResult = document.getElementById('conversion-result');
             if (conversionResult) {
@@ -1467,14 +1458,14 @@ async function convertEpubToMarkdown() {
         }
     } catch (error) {
         console.error('EPUB转换失败:', error);
-        showMessage('EPUB转换失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('EPUB转换失败: ' + error.message);
     }
 }
 
 // 下载转换后的文件
 async function downloadConvertedFiles() {
     try {
-        showMessage('正在准备下载转换结果...', 'info');
+        window.ComponentManager.getComponent('message').info('正在准备下载转换结果...');
         
         // 创建一个隐藏的iframe来触发下载
         const iframe = document.createElement('iframe');
@@ -1488,7 +1479,7 @@ async function downloadConvertedFiles() {
         }, 1000);
     } catch (error) {
         console.error('下载转换文件失败:', error);
-        showMessage('下载转换文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('下载转换文件失败: ' + error.message);
     }
 }
 
@@ -1499,7 +1490,7 @@ async function createManualBackup() {
     }
     
     try {
-        showMessage('正在创建备份...', 'info');
+        window.ComponentManager.getComponent('message').info('正在创建备份...');
         
         const response = await fetch('/api/admin/backup', {
             method: 'POST'
@@ -1508,7 +1499,7 @@ async function createManualBackup() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('备份创建成功', 'success');
+            window.ComponentManager.getComponent('message').success('备份创建成功');
             // 重新加载备份列表
             loadBackupFiles();
         } else {
@@ -1516,14 +1507,14 @@ async function createManualBackup() {
         }
     } catch (error) {
         console.error('创建备份失败:', error);
-        showMessage('创建备份失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('创建备份失败: ' + error.message);
     }
 }
 
 // 下载备份文件
 async function downloadBackupFile(filename) {
     try {
-        showMessage('正在准备下载备份文件...', 'info');
+        window.ComponentManager.getComponent('message').info('正在准备下载备份文件...');
         
         // 创建一个隐藏的iframe来触发下载
         const iframe = document.createElement('iframe');
@@ -1537,7 +1528,7 @@ async function downloadBackupFile(filename) {
         }, 1000);
     } catch (error) {
         console.error('下载备份文件失败:', error);
-        showMessage('下载备份文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('下载备份文件失败: ' + error.message);
     }
 }
 
@@ -1548,7 +1539,7 @@ async function deleteBackupFile(filename) {
     }
     
     try {
-        showMessage('正在删除备份文件...', 'info');
+        window.ComponentManager.getComponent('message').info('正在删除备份文件...');
         
         const response = await fetch(`/api/admin/backup/${encodeURIComponent(filename)}`, {
             method: 'DELETE'
@@ -1557,7 +1548,7 @@ async function deleteBackupFile(filename) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('备份文件删除成功', 'success');
+            window.ComponentManager.getComponent('message').success('备份文件删除成功');
             // 重新加载备份列表
             loadBackupFiles();
         } else {
@@ -1565,7 +1556,7 @@ async function deleteBackupFile(filename) {
         }
     } catch (error) {
         console.error('删除备份文件失败:', error);
-        showMessage('删除备份文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('删除备份文件失败: ' + error.message);
     }
 }
 
@@ -1576,7 +1567,7 @@ async function checkUserPermissions() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('权限检查完成', 'success');
+            window.ComponentManager.getComponent('message').success('权限检查完成');
             
             // 显示权限信息
             const permissionsContainer = document.getElementById('permissions-container');
@@ -1610,7 +1601,7 @@ async function checkUserPermissions() {
         }
     } catch (error) {
         console.error('权限检查失败:', error);
-        showMessage('权限检查失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('权限检查失败: ' + error.message);
     }
 }
 
@@ -1618,7 +1609,7 @@ async function checkUserPermissions() {
 async function downloadSrc() {
     try {
         console.log('开始下载Src目录');
-        showMessage('正在准备下载Src目录...', 'info');
+        window.ComponentManager.getComponent('message').info('正在准备下载Src目录...');
         
         // 创建一个隐藏的iframe来触发下载
         const iframe = document.createElement('iframe');
@@ -1635,7 +1626,7 @@ async function downloadSrc() {
         }, 1000);
     } catch (error) {
         console.error('下载Src目录失败:', error);
-        showMessage('下载Src目录失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('下载Src目录失败: ' + error.message);
     }
 }
 
@@ -1671,7 +1662,7 @@ async function buildBook(buildType) {
                 buildUrl = `/api/admin/build/${buildType}`;
         }
         
-        showMessage(buildMessage, 'info');
+        window.ComponentManager.getComponent('message').info(buildMessage);
         
         const response = await fetch(buildUrl, {
             method: 'POST'
@@ -1700,9 +1691,9 @@ async function buildBook(buildType) {
                     }
                     
                     const detailMessage = `构建成功！生成的格式：${successDetails.join(', ')}`;
-                    showMessage(detailMessage, 'success');
+                    window.ComponentManager.getComponent('message').success(detailMessage);
                 } else {
-                    showMessage(`${buildType === 'build' ? '所有格式' : buildType.toUpperCase()}构建成功${method}`, 'success');
+                    window.ComponentManager.getComponent('message').success(`${buildType === 'build' ? '所有格式' : buildType.toUpperCase()}构建成功${method}`);
                 }
             } else if (result.status === 'partial') {
                 // 显示部分成功的详细信息
@@ -1738,19 +1729,19 @@ async function buildBook(buildType) {
                         detailMessage += `\n失败：${failedDetails.join(', ')}`;
                     }
                     
-                    showMessage(detailMessage, 'warning');
+                    window.ComponentManager.getComponent('message').warning(detailMessage);
                 } else {
-                    showMessage(result.message || '部分格式构建成功', 'warning');
+                    window.ComponentManager.getComponent('message').warning(result.message || '部分格式构建成功');
                 }
             } else {
-                showMessage(result.message || '构建完成', 'info');
+                window.ComponentManager.getComponent('message').info(result.message || '构建完成');
             }
         } else {
             throw new Error(result.detail || '构建失败');
         }
     } catch (error) {
         console.error(`${buildType}构建失败:`, error);
-        showMessage(`${buildType}构建失败: ` + error.message, 'error');
+        window.ComponentManager.getComponent('message').error(`${buildType}构建失败: ` + error.message);
     }
 }
 
@@ -1760,12 +1751,12 @@ async function uploadSrc() {
     const file = fileInput.files[0];
     
     if (!file) {
-        showMessage('请选择一个文件', 'warning');
+        window.ComponentManager.getComponent('message').warning('请选择一个文件');
         return;
     }
     
     if (!file.name.endsWith('.zip')) {
-        showMessage('只允许上传.zip文件', 'error');
+        window.ComponentManager.getComponent('message').error('只允许上传.zip文件');
         return;
     }
     
@@ -1778,7 +1769,7 @@ async function uploadSrc() {
         const formData = new FormData();
         formData.append('file', file);
         
-        showMessage('正在上传Src目录...', 'info');
+        window.ComponentManager.getComponent('message').info('正在上传Src目录...');
         
         const response = await fetch('/api/admin/upload-src', {
             method: 'POST',
@@ -1788,7 +1779,7 @@ async function uploadSrc() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('Src目录上传成功', 'success');
+            window.ComponentManager.getComponent('message').success('Src目录上传成功');
             // 清空文件选择
             fileInput.value = '';
             
@@ -1797,7 +1788,7 @@ async function uploadSrc() {
                 const stats = result.statistics;
                 const detailMessage = `上传完成！复制了 ${stats.files_copied} 个文件，创建了 ${stats.directories_created} 个目录`;
                 setTimeout(() => {
-                    showMessage(detailMessage, 'success');
+                    window.ComponentManager.getComponent('message').success(detailMessage);
                 }, 1000);
             }
         } else {
@@ -1805,7 +1796,7 @@ async function uploadSrc() {
         }
     } catch (error) {
         console.error('上传Src目录失败:', error);
-        showMessage('上传Src目录失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('上传Src目录失败: ' + error.message);
     }
 }
 
@@ -1819,7 +1810,7 @@ async function resetSrc() {
     
     try {
         console.log('开始重置Src目录');
-        showMessage('正在重置Src目录...', 'info');
+        window.ComponentManager.getComponent('message').info('正在重置Src目录...');
         
         const response = await fetch('/api/admin/reset-src', {
             method: 'POST'
@@ -1829,7 +1820,7 @@ async function resetSrc() {
         
         if (response.ok) {
             const result = await response.json();
-            showMessage('Src目录重置成功', 'success');
+            window.ComponentManager.getComponent('message').success('Src目录重置成功');
             console.log('Src目录重置成功:', result);
             
             // 显示详细的重置结果信息
@@ -1837,7 +1828,7 @@ async function resetSrc() {
                 const stats = result.statistics;
                 const detailMessage = `重置完成！复制了 ${stats.files_copied} 个文件，创建了 ${stats.directories_created} 个目录`;
                 setTimeout(() => {
-                    showMessage(detailMessage, 'success');
+                    window.ComponentManager.getComponent('message').success(detailMessage);
                 }, 1000);
             }
         } else {
@@ -1847,7 +1838,7 @@ async function resetSrc() {
         }
     } catch (error) {
         console.error('重置Src目录失败:', error);
-        showMessage('重置Src目录失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('重置Src目录失败: ' + error.message);
     }
 }
 
@@ -1898,9 +1889,9 @@ function editChapter(chapterItem) {
             titleElement.textContent = newTitle;
             fileElement.textContent = newFile;
             dialog.remove();
-            showMessage('章节信息已更新，请点击保存按钮保存更改', 'info');
+            window.ComponentManager.getComponent('message').info('章节信息已更新，请点击保存按钮保存更改');
         } else {
-            showMessage('章节标题和文件名不能为空', 'error');
+            window.ComponentManager.getComponent('message').error('章节标题和文件名不能为空');
         }
     });
     
@@ -1909,4 +1900,141 @@ function editChapter(chapterItem) {
     overlay.addEventListener('click', () => {
         dialog.remove();
     });
+}
+
+// 绑定文件上传表单事件
+function bindFileUploadEvents() {
+    // 防止重复绑定
+    if (document.body.dataset.fileUploadEventsBound === 'true') {
+        return;
+    }
+    
+    // 绑定Src目录上传表单
+    const srcUploadForm = document.getElementById('src-upload');
+    if (srcUploadForm && !srcUploadForm.dataset.eventBound) {
+        srcUploadForm.addEventListener('change', function() {
+            // 当选择文件时，显示文件信息
+            const file = this.files[0];
+            if (file) {
+                console.log('选择了Src文件:', file.name);
+                // 可以在这里添加文件验证逻辑
+                if (!file.name.endsWith('.zip')) {
+                    window.ComponentManager.getComponent('message').warning('请选择.zip文件');
+                    this.value = '';
+                }
+            }
+        });
+        srcUploadForm.dataset.eventBound = 'true';
+    }
+    
+    // 绑定EPUB上传表单
+    const epubUploadForm = document.getElementById('epub-upload');
+    if (epubUploadForm && !epubUploadForm.dataset.eventBound) {
+        epubUploadForm.addEventListener('change', function() {
+            // 当选择文件时，显示文件信息
+            const file = this.files[0];
+            if (file) {
+                console.log('选择了EPUB文件:', file.name);
+                // 可以在这里添加文件验证逻辑
+                if (!file.name.endsWith('.epub')) {
+                    window.ComponentManager.getComponent('message').warning('请选择.epub文件');
+                    this.value = '';
+                }
+            }
+        });
+        epubUploadForm.dataset.eventBound = 'true';
+    }
+    
+    // 标记为已绑定
+    document.body.dataset.fileUploadEventsBound = 'true';
+}
+
+// 绑定模态框表单事件
+function bindModalFormEvents() {
+    // 防止重复绑定
+    if (document.body.dataset.modalFormEventsBound === 'true') {
+        return;
+    }
+    
+    // 绑定通用表单模态框
+    const formModal = document.getElementById('form-modal');
+    const formModalForm = document.getElementById('form-modal-form');
+    
+    if (formModalForm && !formModalForm.dataset.eventBound) {
+        formModalForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 获取表单数据
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            console.log('通用表单模态框提交:', data);
+            
+            // 这里可以添加具体的表单处理逻辑
+            // 或者触发自定义事件让其他代码处理
+            const submitEvent = new CustomEvent('form-modal-submit', {
+                detail: { formData: data, form: this }
+            });
+            document.dispatchEvent(submitEvent);
+        });
+        formModalForm.dataset.eventBound = 'true';
+    }
+    
+    // 绑定表单模态框的提交按钮
+    const formModalSubmitBtn = document.getElementById('form-modal-submit');
+    if (formModalSubmitBtn && !formModalSubmitBtn.dataset.eventBound) {
+        formModalSubmitBtn.addEventListener('click', function() {
+            // 触发表单提交
+            if (formModalForm) {
+                formModalForm.dispatchEvent(new Event('submit'));
+            }
+        });
+        formModalSubmitBtn.dataset.eventBound = 'true';
+    }
+    
+    // 标记为已绑定
+    document.body.dataset.modalFormEventsBound = 'true';
+}
+
+// 绑定用户面板表单事件
+function bindUserPanelFormEvents() {
+    // 防止重复绑定
+    if (document.body.dataset.userPanelFormEventsBound === 'true') {
+        return;
+    }
+    
+    // 绑定用户面板主题选择器
+    const userThemeSelector = document.getElementById('user-panel-theme-selector');
+    if (userThemeSelector && !userThemeSelector.dataset.eventBound) {
+        userThemeSelector.addEventListener('change', function() {
+            const selectedTheme = this.value;
+            console.log('用户面板主题切换:', selectedTheme);
+            
+            // 触发主题切换事件
+            const themeEvent = new CustomEvent('user-panel-theme-change', {
+                detail: { theme: selectedTheme }
+            });
+            document.dispatchEvent(themeEvent);
+        });
+        userThemeSelector.dataset.eventBound = 'true';
+    }
+    
+    // 绑定用户面板LLM配置
+    const userLlmConfig = document.getElementById('user-panel-llm-config');
+    if (userLlmConfig && !userLlmConfig.dataset.eventBound) {
+        userLlmConfig.addEventListener('change', function() {
+            const config = this.value;
+            console.log('用户面板LLM配置更改:', config);
+            
+            // 触发LLM配置更改事件
+            const configEvent = new CustomEvent('user-panel-llm-config-change', {
+                detail: { config: config }
+            });
+            document.dispatchEvent(configEvent);
+        });
+        userLlmConfig.dataset.eventBound = 'true';
+    }
+    
+    // 标记为已绑定
+    document.body.dataset.userPanelFormEventsBound = 'true';
 }

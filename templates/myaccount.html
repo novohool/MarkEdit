@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的账户</title>
     <link rel="stylesheet" href="/static/{{ theme }}/css/style.css" id="theme-link">
-    <link rel="stylesheet" href="/static/{{ theme }}/css/admin.css">
+    <link rel="stylesheet" href="/static/{{ theme }}/css/myaccount.css">
+    <!-- 统一组件样式 -->
+    <link rel="stylesheet" href="/static/common/css/unified-components.css">
+    <link rel="stylesheet" href="/static/{{ theme }}/css/enhanced-ui-components.css">
+    <link rel="stylesheet" href="/static/{{ theme }}/css/integrated-components.css">
 </head>
 <body>
     <div class="container">
@@ -23,67 +27,142 @@
             </div>
         </header>
         
-        <div class="admin-container">
-            <!-- 用户信息 -->
-            <div class="section">
-                <h2>用户信息</h2>
-                <div class="user-info">
-                    <div class="user-info-item">
-                        <div class="user-info-label">用户名:</div>
-                        <div class="user-info-value" id="username">-</div>
+        <div class="account-container">
+            <!-- 用户信息卡片 -->
+            <div class="info-card">
+                <div class="card-header">
+                    <div class="user-avatar">
+                        <i class="avatar-icon">👤</i>
                     </div>
-                    <div class="user-info-item">
-                        <div class="user-info-label">注册时间:</div>
-                        <div class="user-info-value" id="created-at">-</div>
+                    <div class="user-basic-info">
+                        <h2 class="user-name" id="username" data-bind="user.username || '加载中...'">加载中...</h2>
+                        <p class="user-role-badge" id="user-role" data-bind="user.primaryRole || '用户'">用户</p>
                     </div>
-                    <div class="user-info-item">
-                        <div class="user-info-label">最后登录:</div>
-                        <div class="user-info-value" id="login-time">-</div>
-                    </div>
-                    <div class="user-info-item">
-                        <div class="user-info-label">当前主题:</div>
-                        <div class="user-info-value" id="current-theme">-</div>
-                    </div>
-                    <div class="user-info-item">
-                        <div class="user-info-label">用户角色:</div>
-                        <div class="user-info-value" id="user-role">-</div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="info-icon">📅</i>
+                                注册时间
+                            </div>
+                            <div class="info-value" id="created-at" data-bind="user.createdAt || '-'">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="info-icon">🕒</i>
+                                最后登录
+                            </div>
+                            <div class="info-value" id="login-time" data-bind="user.lastLogin || '-'">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="info-icon">🎨</i>
+                                当前主题
+                            </div>
+                            <div class="info-value" id="current-theme" data-bind="user.currentTheme || '-'">-</div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <!-- 主题设置 -->
-            <div class="section">
-                <h2>主题设置</h2>
-                <div class="form-group">
-                    <label for="user-theme-selector">选择主题:</label>
-                    <select id="user-theme-selector">
-                        <option value="default">默认主题</option>
-                        <option value="wooden">木质主题</option>
-                    </select>
+            <!-- 设置面板 -->
+            <div class="settings-panel">
+                <!-- 主题设置 -->
+                <div class="setting-card">
+                    <div class="setting-header">
+                        <h3>
+                            <i class="setting-icon">🎨</i>
+                            主题设置
+                        </h3>
+                        <p class="setting-desc">选择您喜欢的界面主题</p>
+                    </div>
+                    <div class="setting-body">
+                        <div class="theme-options">
+                            <div class="theme-option" data-theme="default">
+                                <div class="theme-preview default-preview">
+                                    <div class="preview-header"></div>
+                                    <div class="preview-content"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <h4>默认主题</h4>
+                                    <p>简洁现代的设计风格</p>
+                                </div>
+                                <input type="radio" name="theme" value="default" id="theme-default">
+                            </div>
+                            <div class="theme-option" data-theme="wooden">
+                                <div class="theme-preview wooden-preview">
+                                    <div class="preview-header"></div>
+                                    <div class="preview-content"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <h4>木质主题</h4>
+                                    <p>温暖自然的木质风格</p>
+                                </div>
+                                <input type="radio" name="theme" value="wooden" id="theme-wooden">
+                            </div>
+                        </div>
+                        <button type="button" id="save-theme-btn" class="btn-primary">
+                            <i class="btn-icon">💾</i>
+                            保存主题设置
+                        </button>
+                    </div>
                 </div>
-                <div class="btn-group">
-                    <button type="button" id="save-theme-btn" class="btn-primary">保存主题设置</button>
+                
+                <!-- LLM配置 -->
+                <div class="setting-card">
+                    <div class="setting-header">
+                        <h3>
+                            <i class="setting-icon">🤖</i>
+                            LLM 配置
+                        </h3>
+                        <p class="setting-desc">配置您的AI助手参数</p>
+                    </div>
+                    <div class="setting-body">
+                        <div class="form-group">
+                            <label for="llm-config" class="form-label">
+                                配置参数 (JSON格式)
+                            </label>
+                            <textarea id="llm-config" class="config-textarea" 
+                                      placeholder='{"model": "gpt-4", "api_key": "your-api-key", "temperature": 0.7}'></textarea>
+                            <div class="form-help">
+                                <i class="help-icon">💡</i>
+                                支持配置模型、API密钥、温度等参数
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="button" id="save-llm-config-btn" class="btn-primary">
+                                <i class="btn-icon">💾</i>
+                                保存配置
+                            </button>
+                            <button type="button" id="reset-llm-config-btn" class="btn-secondary">
+                                <i class="btn-icon">🔄</i>
+                                重置
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- LLM配置 -->
-            <div class="section">
-                <h2>自定义LLM配置</h2>
-                <div class="form-group">
-                    <label for="llm-config">LLM配置 (JSON格式):</label>
-                    <textarea id="llm-config" placeholder='{"model": "gpt-4", "api_key": "your-api-key"}'></textarea>
-                </div>
-                <div class="btn-group">
-                    <button type="button" id="save-llm-config-btn" class="btn-primary">保存LLM配置</button>
-                    <button type="button" id="reset-llm-config-btn" class="btn-secondary">重置</button>
-                </div>
-            </div>
-            
-            <!-- 操作日志 -->
-            <div class="section">
-                <h2>最近操作</h2>
-                <div id="recent-activities">
-                    <p>暂无操作记录</p>
+                
+                <!-- 活动记录 -->
+                <div class="setting-card">
+                    <div class="setting-header">
+                        <h3>
+                            <i class="setting-icon">📊</i>
+                            最近活动
+                        </h3>
+                        <p class="setting-desc">查看您的操作记录</p>
+                    </div>
+                    <div class="setting-body">
+                        <div id="recent-activities" class="activity-list">
+                            <div class="activity-item loading">
+                                <div class="activity-icon">⏳</div>
+                                <div class="activity-content">
+                                    <div class="activity-title">正在加载活动记录...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -91,115 +170,8 @@
     
     <!-- 引入公共JavaScript函数库 -->
     <script src="/static/common/js/common.js"></script>
+    <script src="/static/common/js/enhanced-component-manager.js"></script>
     <script src="/static/{{ theme }}/js/admin.js"></script>
-    <script>
-        // 页面加载完成后，获取用户信息
-        document.addEventListener('DOMContentLoaded', function() {
-            loadUserInfo();
-            setupThemeSelector();
-            setupFormHandlers();
-        });
-        
-        function loadUserInfo() {
-            fetch('/api/user/info')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('username').textContent = data.username || '-';
-                    document.getElementById('created-at').textContent = data.created_at ? new Date(data.created_at).toLocaleString() : '-';
-                    document.getElementById('login-time').textContent = data.login_time ? new Date(data.login_time).toLocaleString() : '-';
-                    document.getElementById('current-theme').textContent = data.theme || 'default';
-                    document.getElementById('user-role').textContent = data.role || 'user';
-                    
-                    // 设置主题选择器的当前值
-                    document.getElementById('user-theme-selector').value = data.theme || 'default';
-                    
-                    // 设置LLM配置
-                    const llmConfig = document.getElementById('llm-config');
-                    try {
-                        const config = JSON.parse(data.llm_config || '{}');
-                        llmConfig.value = JSON.stringify(config, null, 2);
-                    } catch (e) {
-                        llmConfig.value = data.llm_config || '{}';
-                    }
-                })
-                .catch(error => {
-                    console.error('获取用户信息失败:', error);
-                });
-        }
-        
-        function setupThemeSelector() {
-            const themeSelector = document.getElementById('user-theme-selector');
-            themeSelector.addEventListener('change', function() {
-                // 立即切换主题预览
-                const selectedTheme = this.value;
-                document.getElementById('theme-link').href = `/static/${selectedTheme}/css/style.css`;
-            });
-        }
-        
-        function setupFormHandlers() {
-            // 保存主题设置
-            document.getElementById('save-theme-btn').addEventListener('click', function() {
-                const selectedTheme = document.getElementById('user-theme-selector').value;
-                fetch('/api/user/theme', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({theme: selectedTheme})
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.message) {
-                        alert('主题设置保存成功！');
-                        document.getElementById('current-theme').textContent = selectedTheme;
-                    }
-                })
-                .catch(error => {
-                    console.error('保存主题设置失败:', error);
-                    alert('保存主题设置失败！');
-                });
-            });
-            
-            // 保存LLM配置
-            document.getElementById('save-llm-config-btn').addEventListener('click', function() {
-                const llmConfig = document.getElementById('llm-config').value;
-                
-                // 验证JSON格式
-                try {
-                    JSON.parse(llmConfig);
-                } catch (e) {
-                    alert('请输入有效的JSON格式配置！');
-                    return;
-                }
-                
-                fetch('/api/user/llm-config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({llm_config: llmConfig})
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.message) {
-                        alert('LLM配置保存成功！');
-                    }
-                })
-                .catch(error => {
-                    console.error('保存LLM配置失败:', error);
-                    alert('保存LLM配置失败！');
-                });
-            });
-            
-            // 重置LLM配置
-            document.getElementById('reset-llm-config-btn').addEventListener('click', function() {
-                if (confirm('确定要重置LLM配置吗？')) {
-                    document.getElementById('llm-config').value = '{}';
-                }
-            });
-        }
-        
-        function handleLogout() {
-            if (confirm('确定要登出吗？')) {
-                window.location.href = '/logout';
-            }
-        }
-    </script>
+    <script src="/static/{{ theme }}/js/myaccount.js"></script>
 </body>
 </html>

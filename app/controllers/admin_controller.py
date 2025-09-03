@@ -3,6 +3,7 @@ Admin controller for MarkEdit application.
 
 This module contains route handlers for admin operations.
 """
+import json
 import logging
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Depends
 from fastapi.responses import FileResponse
@@ -14,7 +15,14 @@ from app.common import (
     SessionData, get_admin_service, get_build_service, get_epub_service,
     get_session_service, require_permission, require_role, require_auth_session,
     check_user_permission, get_session, hash_password, verify_password,
-    admin_table, database, get_user_src_directory, get_user_directory
+    admin_table, database, get_user_src_directory, get_user_directory,
+    user_table, role_table, user_role_table, permission_table,
+    role_permission_table, audit_log_table, log_user_operation_async
+)
+
+from app.utils.error_handler import (
+    error_handler, ErrorCategory, ErrorLevel, 
+    handle_controller_error, create_recovery_suggestions
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +35,18 @@ def get_admin_service_instance():
     return get_admin_service()
 
 def get_build_service_instance():
-    return get_build_service()
+    try:
+        logger.debug("开始获取构建服务实例")
+        service = get_build_service()
+        logger.debug(f"get_build_service() 返回: {type(service)}")
+        if service is None:
+            logger.error("get_build_service() returned None")
+            raise HTTPException(status_code=500, detail="构建服务初始化失败")
+        logger.debug("成功获取构建服务实例")
+        return service
+    except Exception as e:
+        logger.error(f"获取构建服务实例时出错: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取构建服务实例时出错: {str(e)}")
 
 def get_epub_service_instance():
     return get_epub_service()
@@ -72,54 +91,39 @@ async def check_backup_permission(session: SessionData = Depends(get_user_sessio
 # 文件管理相关路由
 @admin_router.get("/file/{file_name}")
 @require_permission("system.config")
+@handle_controller_error("读取管理文件")
 async def read_admin_file(file_name: str, request: Request):
     """读取管理文件的内容"""
-    try:
-        admin_service = get_admin_service_instance()
-        result = await admin_service.read_admin_file(file_name)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"读取管理文件失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"读取文件失败: {str(e)}")
+    admin_service = get_admin_service_instance()
+    result = await admin_service.read_admin_file(file_name)
+    return result
 
 @admin_router.post("/file/{file_name}")
 @require_permission("system.config")
+@handle_controller_error("保存管理文件")
 async def save_admin_file(file_name: str, request: Request):
     """保存管理文件的内容"""
-    try:
-        # 获取请求体中的内容
-        body = await request.body()
-        content_type = request.headers.get('content-type', '')
-        
-        if 'application/json' in content_type:
-            content = body.decode('utf-8')
-        else:
-            content = body.decode('utf-8')
-        
-        admin_service = get_admin_service_instance()
-        result = await admin_service.save_admin_file(file_name, content, content_type)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"保存管理文件失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"保存文件失败: {str(e)}")
+    # 获取请求体中的内容
+    body = await request.body()
+    content_type = request.headers.get('content-type', '')
+    
+    if 'application/json' in content_type:
+        content = body.decode('utf-8')
+    else:
+        content = body.decode('utf-8')
+    
+    admin_service = get_admin_service_instance()
+    result = await admin_service.save_admin_file(file_name, content, content_type)
+    return result
 
 # 备份管理相关路由
 @admin_router.post("/backup")
+@handle_controller_error("创建备份")
 async def create_backup(session: SessionData = Depends(check_backup_permission)):
     """创建备份"""
-    try:
-        admin_service = get_admin_service_instance()
-        result = await admin_service.create_backup(session.username)
-        return result
-    except Exception as e:
-        logger.error(f"创建备份失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    admin_service = get_admin_service_instance()
+    result = await admin_service.create_backup(session.username)
+    return result
 
 @admin_router.get("/backups")
 @require_permission("manual_backup")
@@ -418,6 +422,7 @@ async def build_epub_endpoint(session: SessionData = Depends(check_epub_permissi
 async def build_pdf_endpoint(request: Request):
     """构建PDF文件"""
     try:
+        logger.debug("开始处理PDF构建请求")
         from app.common import get_user_src_directory, get_user_directory
         from pathlib import Path
         
@@ -431,11 +436,14 @@ async def build_pdf_endpoint(request: Request):
         user_build_dir = get_user_directory(session.username) / "build"
         user_build_dir.mkdir(parents=True, exist_ok=True)
         
+        logger.debug("获取构建服务实例")
         build_service = get_build_service_instance()
+        logger.debug(f"构建服务实例类型: {type(build_service)}")
         result = await build_service.build_pdf(src_dir=user_src_dir, build_dir=user_build_dir)
+        logger.debug("PDF构建完成")
         return result
     except Exception as e:
-        logger.error(f"构建PDF失败: {str(e)}")
+        logger.error(f"构建PDF失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"构建PDF失败: {str(e)}")
 
 @admin_router.post("/build/pdf-wkhtmltopdf")
@@ -443,6 +451,7 @@ async def build_pdf_endpoint(request: Request):
 async def build_pdf_wkhtmltopdf_endpoint(request: Request):
     """使用wkhtmltopdf构建PDF文件"""
     try:
+        logger.debug("开始处理wkhtmltopdf PDF构建请求")
         from app.common import get_user_src_directory, get_user_directory
         from pathlib import Path
         
@@ -456,11 +465,14 @@ async def build_pdf_wkhtmltopdf_endpoint(request: Request):
         user_build_dir = get_user_directory(session.username) / "build"
         user_build_dir.mkdir(parents=True, exist_ok=True)
         
+        logger.debug("获取构建服务实例")
         build_service = get_build_service_instance()
+        logger.debug(f"构建服务实例类型: {type(build_service)}")
         result = await build_service.build_pdf_with_wkhtmltopdf(src_dir=user_src_dir, build_dir=user_build_dir)
+        logger.debug("wkhtmltopdf PDF构建完成")
         return result
     except Exception as e:
-        logger.error(f"wkhtmltopdf构建PDF失败: {str(e)}")
+        logger.error(f"wkhtmltopdf构建PDF失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"wkhtmltopdf构建PDF失败: {str(e)}")
 
 @admin_router.post("/build/html")
@@ -573,11 +585,266 @@ async def download_build_file(filename: str, request: Request):
         logger.error(f"下载构建文件失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"下载构建文件失败: {str(e)}")
 
+# 章节管理相关路由
+@admin_router.get("/chapter-config")
+@require_permission("content.edit")
+async def get_chapter_config(request: Request):
+    """获取章节配置"""
+    try:
+        import json
+        from app.common import get_user_src_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取用户特定的src目录
+        user_src_dir = get_user_src_directory(session.username)
+        config_path = user_src_dir / "chapter-config.json"
+        
+        if not config_path.exists():
+            # 如果配置文件不存在，创建默认配置
+            default_config = {"chapters": []}
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f, indent=2, ensure_ascii=False)
+            return default_config
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        return config
+        
+    except Exception as e:
+        logger.error(f"获取章节配置失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取章节配置失败: {str(e)}")
+
+@admin_router.post("/chapter-config")
+@require_permission("content.edit")
+async def save_chapter_config(request: Request):
+    """保存章节配置"""
+    try:
+        import json
+        from app.common import get_user_src_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取请求体
+        body = await request.json()
+        
+        # 获取用户特定的src目录
+        user_src_dir = get_user_src_directory(session.username)
+        config_path = user_src_dir / "chapter-config.json"
+        
+        # 确保src目录存在
+        user_src_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 保存配置
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(body, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"用户 {session.username} 保存章节配置成功")
+        
+        return {
+            "status": "success",
+            "message": "章节配置保存成功"
+        }
+        
+    except Exception as e:
+        logger.error(f"保存章节配置失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"保存章节配置失败: {str(e)}")
+
+@admin_router.post("/chapter-config/add")
+@require_permission("content.edit")
+async def add_chapter(request: Request):
+    """添加新章节"""
+    try:
+        import json
+        from app.common import get_user_src_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取请求体
+        body = await request.json()
+        title = body.get('title', '').strip()
+        file = body.get('file', '').strip()
+        
+        if not title:
+            raise HTTPException(status_code=400, detail="章节标题不能为空")
+        
+        if not file:
+            raise HTTPException(status_code=400, detail="章节文件不能为空")
+        
+        # 获取用户特定的src目录
+        user_src_dir = get_user_src_directory(session.username)
+        config_path = user_src_dir / "chapter-config.json"
+        
+        # 读取现有配置
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        else:
+            config = {"chapters": []}
+        
+        # 检查文件是否已存在
+        for chapter in config["chapters"]:
+            if chapter.get("file") == file:
+                raise HTTPException(status_code=400, detail="该文件已被其他章节使用")
+        
+        # 添加新章节
+        new_chapter = {
+            "title": title,
+            "file": file,
+            "order": len(config["chapters"]) + 1
+        }
+        config["chapters"].append(new_chapter)
+        
+        # 保存配置
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"用户 {session.username} 添加章节成功: {title}")
+        
+        return {
+            "status": "success",
+            "message": "章节添加成功",
+            "chapter": new_chapter
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"添加章节失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"添加章节失败: {str(e)}")
+
+@admin_router.put("/chapter-config/{index}")
+@require_permission("content.edit")
+async def update_chapter(index: int, request: Request):
+    """更新章节信息"""
+    try:
+        import json
+        from app.common import get_user_src_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取请求体
+        body = await request.json()
+        title = body.get('title', '').strip()
+        file = body.get('file', '').strip()
+        
+        if not title:
+            raise HTTPException(status_code=400, detail="章节标题不能为空")
+        
+        if not file:
+            raise HTTPException(status_code=400, detail="章节文件不能为空")
+        
+        # 获取用户特定的src目录
+        user_src_dir = get_user_src_directory(session.username)
+        config_path = user_src_dir / "chapter-config.json"
+        
+        if not config_path.exists():
+            raise HTTPException(status_code=404, detail="章节配置文件不存在")
+        
+        # 读取现有配置
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        if index < 0 or index >= len(config["chapters"]):
+            raise HTTPException(status_code=404, detail="章节索引无效")
+        
+        # 检查文件是否被其他章节使用
+        for i, chapter in enumerate(config["chapters"]):
+            if i != index and chapter.get("file") == file:
+                raise HTTPException(status_code=400, detail="该文件已被其他章节使用")
+        
+        # 更新章节
+        config["chapters"][index]["title"] = title
+        config["chapters"][index]["file"] = file
+        
+        # 保存配置
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"用户 {session.username} 更新章节成功: {title}")
+        
+        return {
+            "status": "success",
+            "message": "章节更新成功",
+            "chapter": config["chapters"][index]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新章节失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"更新章节失败: {str(e)}")
+
+@admin_router.delete("/chapter-config/{index}")
+@require_permission("content.edit")
+async def delete_chapter(index: int, request: Request):
+    """删除章节"""
+    try:
+        import json
+        from app.common import get_user_src_directory
+        
+        # 获取会话信息
+        session = get_session(request)
+        if not session.username:
+            raise HTTPException(status_code=401, detail="用户未登录")
+        
+        # 获取用户特定的src目录
+        user_src_dir = get_user_src_directory(session.username)
+        config_path = user_src_dir / "chapter-config.json"
+        
+        if not config_path.exists():
+            raise HTTPException(status_code=404, detail="章节配置文件不存在")
+        
+        # 读取现有配置
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        if index < 0 or index >= len(config["chapters"]):
+            raise HTTPException(status_code=404, detail="章节索引无效")
+        
+        # 删除章节
+        deleted_chapter = config["chapters"].pop(index)
+        
+        # 重新排序
+        for i, chapter in enumerate(config["chapters"]):
+            chapter["order"] = i + 1
+        
+        # 保存配置
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"用户 {session.username} 删除章节成功: {deleted_chapter.get('title', '')}")
+        
+        return {
+            "status": "success",
+            "message": "章节删除成功"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除章节失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"删除章节失败: {str(e)}")
+
 # 兼容前端的构建 API 调用
 @admin_router.post("/build/{script_name}")
 async def run_build_script(script_name: str, request: Request):
     """运行构建脚本（兼容前端调用）"""
     try:
+        logger.debug(f"开始处理构建脚本请求: {script_name}")
         from app.common import get_user_src_directory, get_user_directory
         from pathlib import Path
         
@@ -592,7 +859,9 @@ async def run_build_script(script_name: str, request: Request):
         user_build_dir.mkdir(parents=True, exist_ok=True)
         
         # 根据 script_name 检查对应权限并执行构建
+        logger.debug("获取构建服务实例")
         build_service = get_build_service_instance()
+        logger.debug(f"构建服务实例类型: {type(build_service)}")
         
         if script_name == "epub" or script_name == "build-epub.js" or script_name == "build":
             # 检查EPUB构建权限
@@ -605,28 +874,37 @@ async def run_build_script(script_name: str, request: Request):
                 results = {}
                 
                 # 构建 EPUB
+                logger.debug("开始构建EPUB")
                 epub_result = await build_service.build_epub(src_dir=user_src_dir, build_dir=user_build_dir)
                 results["epub"] = epub_result
+                logger.debug("EPUB构建完成")
                 
                 # 检查是否有PDF构建权限
                 has_pdf_permission = await check_user_permission(session.username, "build.pdf")
                 if has_pdf_permission:
                     # 生成Pandoc版本的PDF
+                    logger.debug("开始构建Pandoc PDF")
                     pdf_pandoc_result = await build_service.build_pdf(src_dir=user_src_dir, build_dir=user_build_dir)
                     results["pdf_pandoc"] = pdf_pandoc_result
+                    logger.debug("Pandoc PDF构建完成")
                     
                     # 生成wkhtmltopdf版本的PDF
+                    logger.debug("开始构建wkhtmltopdf PDF")
                     pdf_wkhtmltopdf_result = await build_service.build_pdf_with_wkhtmltopdf(src_dir=user_src_dir, build_dir=user_build_dir)
                     results["pdf_wkhtmltopdf"] = pdf_wkhtmltopdf_result
+                    logger.debug("wkhtmltopdf PDF构建完成")
                 
                 # 构建 HTML（使用EPUB权限）
+                logger.debug("开始构建HTML")
                 html_result = await build_service.build_html(src_dir=user_src_dir, build_dir=user_build_dir)
                 results["html"] = html_result
+                logger.debug("HTML构建完成")
                 
                 # 返回所有结果
                 success_count = sum(1 for r in results.values() if r.get("status") == "success")
                 total_count = len(results)
                 
+                logger.debug(f"构建完成: {success_count}/{total_count} 成功")
                 if success_count == total_count:
                     return {
                         "status": "success",
@@ -640,27 +918,42 @@ async def run_build_script(script_name: str, request: Request):
                         "results": results
                     }
             else:
+                logger.debug("开始构建EPUB")
                 result = await build_service.build_epub(src_dir=user_src_dir, build_dir=user_build_dir)
+                logger.debug("EPUB构建完成")
         elif script_name == "pdf" or script_name == "build-pdf.js":
             # 检查PDF构建权限
             has_permission = await check_user_permission(session.username, "build.pdf")
             if not has_permission:
                 raise HTTPException(status_code=403, detail="权限不足，无法执行PDF构建")
+            logger.debug("开始构建PDF")
             result = await build_service.build_pdf(src_dir=user_src_dir, build_dir=user_build_dir)
+            logger.debug("PDF构建完成")
         elif script_name == "html" or script_name == "build-html.js":
             # 检查HTML构建权限（使用EPUB权限）
             has_permission = await check_user_permission(session.username, "build.epub")
             if not has_permission:
                 raise HTTPException(status_code=403, detail="权限不足，无法执行HTML构建")
+            logger.debug("开始构建HTML")
             result = await build_service.build_html(src_dir=user_src_dir, build_dir=user_build_dir)
+            logger.debug("HTML构建完成")
+        elif script_name == "pdf-wkhtmltopdf":
+            # 检查PDF构建权限
+            has_permission = await check_user_permission(session.username, "build.pdf")
+            if not has_permission:
+                raise HTTPException(status_code=403, detail="权限不足，无法执行PDF构建")
+            logger.debug("开始构建wkhtmltopdf PDF")
+            result = await build_service.build_pdf_with_wkhtmltopdf(src_dir=user_src_dir, build_dir=user_build_dir)
+            logger.debug("wkhtmltopdf PDF构建完成")
         else:
             raise HTTPException(status_code=400, detail=f"不支持的构建类型: {script_name}")
         
+        logger.debug("构建脚本执行完成")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"执行构建脚本失败: {str(e)}")
+        logger.error(f"执行构建脚本失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"构建失败: {str(e)}")
 
 # EPUB相关路由
@@ -968,6 +1261,20 @@ async def assign_user_roles(user_id: int, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"分配用户角色失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.delete("/users/{user_id}")
+@require_permission("user.delete")
+async def delete_user(user_id: int, request: Request):
+    """删除用户"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.delete_user(user_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"删除用户失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @admin_router.delete("/users/{user_id}/roles/{role_name}")
@@ -1297,6 +1604,19 @@ async def reset_admin_password(request: Request):
         logger.error(f"重置管理员密码失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# 统计信息相关路由
+@admin_router.get("/stats")
+@require_permission("admin_access")
+async def get_admin_stats(request: Request):
+    """获取管理面板统计信息"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_admin_stats()
+        return result
+    except Exception as e:
+        logger.error(f"获取统计信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @admin_router.post("/users/{user_id}/reset-password")
 @require_permission("user.edit")
 async def reset_user_password(user_id: int, request: Request):
@@ -1433,54 +1753,9 @@ async def get_role_info(request: Request):
             }
         }
 
-# 章节配置相关路由
-@admin_router.get("/chapter-config")
-async def get_chapter_config(request: Request):
-    """获取章节配置"""
-    try:
-        from pathlib import Path
-        import json
-        
-        # 章节配置文件路径
-        config_path = Path("src/chapter-config.json")
-        
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
-            return config_data
-        else:
-            # 如果配置文件不存在，返回默认配置
-            return {"chapters": []}
-    except Exception as e:
-        logger.error(f"获取章节配置失败: {str(e)}")
-        # 返回默认配置而不是抛出异常
-        return {"chapters": []}
+# 章节配置相关路由已在上面定义
 
-@admin_router.post("/chapter-config")
-@require_permission("content.edit")
-async def save_chapter_config(request: Request):
-    """保存章节配置"""
-    try:
-        from pathlib import Path
-        import json
-        
-        # 获取请求体
-        config_data = await request.json()
-        
-        # 章节配置文件路径
-        config_path = Path("src/chapter-config.json")
-        
-        # 确保目录存在
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 保存配置
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_data, f, ensure_ascii=False, indent=2)
-        
-        return {"status": "success", "message": "章节配置保存成功"}
-    except Exception as e:
-        logger.error(f"保存章节配置失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"保存章节配置失败: {str(e)}")
+# Duplicate save_chapter_config function removed
 
 # 权限检查相关路由
 @admin_router.get("/check-permissions")
@@ -1516,3 +1791,475 @@ async def check_permissions(request: Request):
     except Exception as e:
         logger.error(f"检查权限失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"检查权限失败: {str(e)}")
+
+# 角色管理相关路由
+@admin_router.get("/roles")
+@require_permission("role.list")
+async def get_roles_list(request: Request):
+    """获取角色列表"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_role_list()
+        return {"roles": result}
+    except Exception as e:
+        logger.error(f"获取角色列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取角色列表失败: {str(e)}")
+
+@admin_router.get("/permissions")
+@require_permission("permission.list")
+async def get_permissions_list(request: Request):
+    """获取权限列表"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_permission_list()
+        return {"permissions": result}
+    except Exception as e:
+        logger.error(f"获取权限列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取权限列表失败: {str(e)}")
+
+@admin_router.get("/assignable-permissions")
+@require_permission("permission.list")
+async def get_assignable_permissions(request: Request):
+    """获取可分配的权限列表（按分组）"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.get_assignable_permissions()
+        return result
+    except Exception as e:
+        logger.error(f"获取可分配权限失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取可分配权限失败: {str(e)}")
+
+@admin_router.get("/audit-log/permissions")
+@require_permission("permission.list")
+async def get_audit_logs(request: Request):
+    """获取权限相关的审计日志"""
+    try:
+        # 获取最近的审计日志
+        query = audit_log_table.select().order_by(audit_log_table.c.timestamp.desc()).limit(100)
+        logs = await database.fetch_all(query)
+        
+        # 格式化日志数据
+        formatted_logs = []
+        for log in logs:
+            log_dict = dict(log)
+            # 构建目标对象描述
+            log_dict["target_object"] = f"{log['target_type']}:{log['target_name']}" if log['target_name'] else log['target_type']
+            formatted_logs.append(log_dict)
+        
+        return {"logs": formatted_logs}
+        
+    except Exception as e:
+        logger.error(f"获取审计日志失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.post("/initialize-default-roles")
+@require_permission("super_admin")
+async def initialize_default_roles(request: Request):
+    """初始化默认角色和权限"""
+    try:
+        admin_service = get_admin_service_instance()
+        result = await admin_service.initialize_default_roles()
+        return result
+    except Exception as e:
+        logger.error(f"初始化默认角色失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"初始化默认角色失败: {str(e)}")
+
+@admin_router.get("/check-permission")
+async def check_permission_endpoint(permission: str, request: Request):
+    """检查当前用户权限（诊断用）"""
+    try:
+        session_service = get_session_service()
+        session = session_service.get_session(request)
+        
+        if not session.username:
+            return {"has_permission": False, "error": "用户未登录"}
+        
+        has_permission = await check_user_permission(session.username, permission)
+        return {
+            "username": session.username,
+            "permission": permission,
+            "has_permission": has_permission
+        }
+        
+    except Exception as e:
+        logger.error(f"检查权限失败: {str(e)}")
+        return {"has_permission": False, "error": str(e)}
+# ==================== 超级管理员专用API ====================
+
+@admin_router.get("/users")
+@require_permission("user.view")
+async def get_users(request: Request):
+    """获取用户列表"""
+    try:
+        # 查询所有用户
+        query = """
+        SELECT u.id, u.username, u.email, u.is_active, u.created_at, u.last_login,
+               GROUP_CONCAT(r.name) as roles
+        FROM users u
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
+        GROUP BY u.id, u.username, u.email, u.is_active, u.created_at, u.last_login
+        ORDER BY u.created_at DESC
+        """
+        
+        result = await database.fetch_all(query)
+        
+        users = []
+        for row in result:
+            user_data = dict(row)
+            user_data['roles'] = user_data['roles'].split(',') if user_data['roles'] else []
+            users.append(user_data)
+        
+        return {"users": users}
+        
+    except Exception as e:
+        logger.error(f"获取用户列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取用户列表失败: {str(e)}")
+
+@admin_router.get("/roles")
+@require_permission("role.view")
+async def get_roles(request: Request):
+    """获取角色列表"""
+    try:
+        # 查询所有角色及其权限数量
+        query = """
+        SELECT r.id, r.name, r.description, r.is_default,
+               COUNT(rp.permission_id) as permission_count,
+               COUNT(ur.user_id) as user_count
+        FROM roles r
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        LEFT JOIN user_roles ur ON r.id = ur.role_id
+        GROUP BY r.id, r.name, r.description, r.is_default
+        ORDER BY r.created_at DESC
+        """
+        
+        result = await database.fetch_all(query)
+        
+        roles = []
+        for row in result:
+            role_data = dict(row)
+            
+            # 获取角色的权限列表
+            permissions_query = """
+            SELECT p.id, p.name, p.description
+            FROM permissions p
+            JOIN role_permissions rp ON p.id = rp.permission_id
+            WHERE rp.role_id = :role_id
+            """
+            permissions = await database.fetch_all(permissions_query, {"role_id": role_data['id']})
+            role_data['permissions'] = [dict(p) for p in permissions]
+            
+            roles.append(role_data)
+        
+        return {"roles": roles}
+        
+    except Exception as e:
+        logger.error(f"获取角色列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取角色列表失败: {str(e)}")
+
+@admin_router.get("/permissions")
+@require_permission("permission.view")
+async def get_permissions(request: Request):
+    """获取权限列表"""
+    try:
+        query = """
+        SELECT id, name, description, is_default, created_at
+        FROM permissions
+        ORDER BY name
+        """
+        
+        result = await database.fetch_all(query)
+        permissions = [dict(row) for row in result]
+        
+        return {"permissions": permissions}
+        
+    except Exception as e:
+        logger.error(f"获取权限列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取权限列表失败: {str(e)}")
+
+@admin_router.get("/roles/{role_id}/permissions")
+@require_permission("role.view")
+async def get_role_permissions(role_id: str, request: Request):
+    """获取角色的权限"""
+    try:
+        query = """
+        SELECT p.id, p.name, p.description
+        FROM permissions p
+        JOIN role_permissions rp ON p.id = rp.permission_id
+        WHERE rp.role_id = :role_id
+        """
+        
+        result = await database.fetch_all(query, {"role_id": role_id})
+        permissions = [dict(row) for row in result]
+        
+        return {"permissions": permissions}
+        
+    except Exception as e:
+        logger.error(f"获取角色权限失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取角色权限失败: {str(e)}")
+
+@admin_router.post("/roles/{role_id}/permissions")
+@require_permission("role.edit")
+async def update_role_permissions(role_id: str, request: Request):
+    """更新角色权限"""
+    try:
+        body = await request.json()
+        permission_ids = body.get('permission_ids', [])
+        
+        # 删除现有权限
+        delete_query = "DELETE FROM role_permissions WHERE role_id = :role_id"
+        await database.execute(delete_query, {"role_id": role_id})
+        
+        # 添加新权限
+        if permission_ids:
+            insert_query = "INSERT INTO role_permissions (role_id, permission_id) VALUES (:role_id, :permission_id)"
+            for permission_id in permission_ids:
+                await database.execute(insert_query, {
+                    "role_id": role_id,
+                    "permission_id": permission_id
+                })
+        
+        # 记录审计日志
+        session = get_session(request)
+        await log_admin_action(
+            session.username,
+            "update_role_permissions",
+            f"更新角色 {role_id} 的权限",
+            request.client.host if request.client else "unknown"
+        )
+        
+        return {"status": "success", "message": "角色权限更新成功"}
+        
+    except Exception as e:
+        logger.error(f"更新角色权限失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"更新角色权限失败: {str(e)}")
+
+@admin_router.delete("/users/{user_id}")
+@require_permission("user.delete")
+async def delete_user(user_id: str, request: Request):
+    """删除用户"""
+    try:
+        # 检查用户是否存在
+        user_query = "SELECT username FROM users WHERE id = :user_id"
+        user = await database.fetch_one(user_query, {"user_id": user_id})
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="用户不存在")
+        
+        # 删除用户角色关联
+        await database.execute("DELETE FROM user_roles WHERE user_id = :user_id", {"user_id": user_id})
+        
+        # 删除用户
+        await database.execute("DELETE FROM users WHERE id = :user_id", {"user_id": user_id})
+        
+        # 记录审计日志
+        session = get_session(request)
+        await log_admin_action(
+            session.username,
+            "delete_user",
+            f"删除用户 {user['username']}",
+            request.client.host if request.client else "unknown"
+        )
+        
+        return {"status": "success", "message": "用户删除成功"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除用户失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"删除用户失败: {str(e)}")
+
+@admin_router.post("/users/{user_id}/reset-password")
+@require_permission("user.edit")
+async def reset_user_password(user_id: str, request: Request):
+    """重置用户密码"""
+    try:
+        import secrets
+        import string
+        
+        # 生成随机密码
+        alphabet = string.ascii_letters + string.digits
+        new_password = ''.join(secrets.choice(alphabet) for _ in range(12))
+        
+        # 更新密码
+        hashed_password = hash_password(new_password)
+        update_query = "UPDATE users SET password_hash = :password_hash WHERE id = :user_id"
+        await database.execute(update_query, {
+            "password_hash": hashed_password,
+            "user_id": user_id
+        })
+        
+        # 记录审计日志
+        session = get_session(request)
+        await log_admin_action(
+            session.username,
+            "reset_password",
+            f"重置用户 {user_id} 的密码",
+            request.client.host if request.client else "unknown"
+        )
+        
+        return {"status": "success", "new_password": new_password}
+        
+    except Exception as e:
+        logger.error(f"重置密码失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"重置密码失败: {str(e)}")
+
+@admin_router.get("/audit-logs")
+@require_permission("system.audit")
+async def get_audit_logs(request: Request, limit: int = 100, offset: int = 0):
+    """获取审计日志"""
+    try:
+        query = """
+        SELECT id, username, action, description, ip_address, created_at
+        FROM audit_logs
+        ORDER BY created_at DESC
+        LIMIT :limit OFFSET :offset
+        """
+        
+        result = await database.fetch_all(query, {"limit": limit, "offset": offset})
+        logs = [dict(row) for row in result]
+        
+        # 获取总数
+        count_query = "SELECT COUNT(*) as total FROM audit_logs"
+        total_result = await database.fetch_one(count_query)
+        total = total_result['total'] if total_result else 0
+        
+        return {"logs": logs, "total": total}
+        
+    except Exception as e:
+        logger.error(f"获取审计日志失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取审计日志失败: {str(e)}")
+
+@admin_router.get("/system-status")
+@require_permission("system.monitor")
+async def get_system_status(request: Request):
+    """获取系统状态"""
+    try:
+        import psutil
+        import time
+        
+        # 获取系统资源使用情况
+        cpu_usage = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # 计算运行时间
+        boot_time = psutil.boot_time()
+        uptime_seconds = time.time() - boot_time
+        uptime_hours = int(uptime_seconds // 3600)
+        uptime_days = uptime_hours // 24
+        uptime_hours = uptime_hours % 24
+        
+        uptime_str = f"{uptime_days}天 {uptime_hours}小时" if uptime_days > 0 else f"{uptime_hours}小时"
+        
+        # 计算系统健康度
+        health = 100
+        if cpu_usage > 80:
+            health -= 20
+        if memory.percent > 80:
+            health -= 20
+        if disk.percent > 80:
+            health -= 20
+        
+        return {
+            "cpu_usage": round(cpu_usage, 1),
+            "memory_usage": round(memory.percent, 1),
+            "disk_usage": round(disk.percent, 1),
+            "health": max(health, 0),
+            "uptime": uptime_str
+        }
+        
+    except Exception as e:
+        logger.error(f"获取系统状态失败: {str(e)}")
+        # 返回默认值而不是抛出异常
+        return {
+            "cpu_usage": 0,
+            "memory_usage": 0,
+            "disk_usage": 0,
+            "health": 100,
+            "uptime": "未知"
+        }
+
+@admin_router.get("/users/export")
+@require_permission("user.export")
+async def export_users(request: Request):
+    """导出用户数据"""
+    try:
+        import csv
+        import io
+        from fastapi.responses import StreamingResponse
+        
+        # 查询用户数据
+        query = """
+        SELECT u.username, u.email, u.is_active, u.created_at, u.last_login,
+               GROUP_CONCAT(r.name) as roles
+        FROM users u
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
+        GROUP BY u.id, u.username, u.email, u.is_active, u.created_at, u.last_login
+        ORDER BY u.created_at DESC
+        """
+        
+        result = await database.fetch_all(query)
+        
+        # 创建CSV内容
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # 写入标题行
+        writer.writerow(['用户名', '邮箱', '状态', '注册时间', '最后登录', '角色'])
+        
+        # 写入数据行
+        for row in result:
+            writer.writerow([
+                row['username'],
+                row['email'] or '',
+                '活跃' if row['is_active'] else '非活跃',
+                row['created_at'] or '',
+                row['last_login'] or '从未登录',
+                row['roles'] or ''
+            ])
+        
+        # 记录审计日志
+        session = get_session(request)
+        await log_admin_action(
+            session.username,
+            "export_users",
+            "导出用户数据",
+            request.client.host if request.client else "unknown"
+        )
+        
+        # 返回CSV文件
+        output.seek(0)
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode('utf-8-sig')),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=users_export.csv"}
+        )
+        
+    except Exception as e:
+        logger.error(f"导出用户数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"导出用户数据失败: {str(e)}")
+
+# 辅助函数：记录管理员操作日志
+async def log_admin_action(username: str, action: str, description: str, ip_address: str):
+    """记录管理员操作到审计日志"""
+    try:
+        from datetime import datetime
+        
+        insert_query = """
+        INSERT INTO audit_logs (username, action, description, ip_address, created_at)
+        VALUES (:username, :action, :description, :ip_address, :created_at)
+        """
+        
+        await database.execute(insert_query, {
+            "username": username,
+            "action": action,
+            "description": description,
+            "ip_address": ip_address,
+            "created_at": datetime.now()
+        })
+        
+    except Exception as e:
+        logger.error(f"记录审计日志失败: {str(e)}")
+        # 不抛出异常，避免影响主要操作

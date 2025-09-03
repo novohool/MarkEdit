@@ -3,27 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理员登录</title>
+    <title>管理员登录 - MarkEdit</title>
+    <link rel="stylesheet" href="/static/{{ theme }}/css/style.css">
     <link rel="stylesheet" href="/static/{{ theme }}/css/admin_login.css">
+    <!-- 统一组件样式 -->
+    <link rel="stylesheet" href="/static/common/css/unified-components.css">
 </head>
-<body>
-    <div class="login-container">
-        <h1><a href="/" style="text-decoration: none; color: inherit;">管理员登录</a></h1>
-        <form id="admin-login-form">
-            <div class="form-group">
-                <label for="username">用户名:</label>
-                <input type="text" id="username" name="username" required>
+<body class="login-page">
+    <div class="login-wrapper">
+        <!-- 背景装饰 -->
+        <div class="login-background">
+            <div class="bg-shape shape-1"></div>
+            <div class="bg-shape shape-2"></div>
+            <div class="bg-shape shape-3"></div>
+        </div>
+        
+        <!-- 登录卡片 -->
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo-section">
+                    <h1><a href="/" class="logo-link">MarkEdit</a></h1>
+                    <p class="login-subtitle">管理员登录</p>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="password">密码:</label>
-                <input type="password" id="password" name="password" required>
+            
+            <div class="login-body">
+                <form id="admin-login-form" class="login-form">
+                    <div class="form-group">
+                        <label for="username" class="form-label">
+                            <i class="form-icon">👤</i>
+                            用户名
+                        </label>
+                        <input type="text" id="username" name="username" class="form-input" required 
+                               placeholder="请输入管理员用户名" autocomplete="username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password" class="form-label">
+                            <i class="form-icon">🔒</i>
+                            密码
+                        </label>
+                        <input type="password" id="password" name="password" class="form-input" required 
+                               placeholder="请输入密码" autocomplete="current-password">
+                    </div>
+                    
+                    <button type="submit" class="btn-login">
+                        <span class="btn-text">登录</span>
+                        <span class="btn-loading" style="display: none;">
+                            <i class="loading-spinner"></i>
+                            登录中...
+                        </span>
+                    </button>
+                </form>
+                
+                <!-- 错误消息 -->
+                <div id="error-message" class="error-message" style="display: none;">
+                    <i class="error-icon">⚠️</i>
+                    <span class="error-text"></span>
+                </div>
             </div>
-            <button type="submit" class="btn-login">登录</button>
-        </form>
-        <div id="error-message" class="error-message" style="display: none;"></div>
-        <a href="/login" class="back-link">返回用户登录</a>
+            
+            <div class="login-footer">
+                <a href="/login" class="back-link">
+                    <i class="link-icon">←</i>
+                    返回用户登录
+                </a>
+            </div>
+        </div>
     </div>
 
+    <!-- JavaScript -->
+    <script src="/static/common/js/common.js"></script>
     <script src="/static/{{ theme }}/js/admin_login.js"></script>
 </body>
 </html>

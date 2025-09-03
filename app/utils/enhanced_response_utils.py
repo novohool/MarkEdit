@@ -166,15 +166,17 @@ class FileResponseHandler:
     
     @classmethod
     @ExceptionHandler.handle_file_error("静态文件响应创建")
-    def create_static_file_response(cls, file_path: Path, 
+    def create_static_file_response(cls, file_path: Path,
                                    cache_control: str = None) -> Response:
         """创建静态文件响应（改进版）"""
-        response = cls.create_file_response(file_path, raw=True)
+        # 对于图片文件，不使用raw模式以确保正确的MIME类型
+        is_image = cls._get_mime_type(file_path).startswith('image/')
+        response = cls.create_file_response(file_path, raw=not is_image)
         
         # 添加缓存控制头
         if cache_control:
             response.headers["Cache-Control"] = cache_control
-        elif file_path.suffix.lower() in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif']:
+        elif file_path.suffix.lower() in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg']:
             # 对于静态资源，设置较长的缓存时间
             response.headers["Cache-Control"] = "public, max-age=31536000"  # 1年
         

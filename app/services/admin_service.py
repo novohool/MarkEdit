@@ -71,6 +71,12 @@ class AdminService:
         
         # 注意：is_text_file函数已移至app.utils.file_utils中统一管理
     
+    def _get_display_username(self, db_username: str) -> str:
+        """获取用于显示的用户名"""
+        if db_username == "super_admin_markedit":
+            return "markedit"
+        return db_username
+    
     async def read_admin_file(self, file_name: str) -> Dict[str, Any]:
         """读取管理文件的内容"""
         # 检查文件是否在允许列表中
@@ -366,7 +372,30 @@ class AdminService:
     async def get_user_list(self) -> List[Dict[str, Any]]:
         """获取用户列表"""
         try:
-            # 查询所有用户及其角色信息
+            users = []
+            
+            # 首先获取admin表中的用户
+            admin_query = "SELECT username, created_at FROM admin ORDER BY created_at DESC"
+            admin_results = await database.fetch_all(admin_query)
+            
+            for row in admin_results:
+                # 映射用户名显示
+                display_username = self._get_display_username(row["username"])
+                user_data = {
+                    "id": f"admin_{row['username']}",  # 使用特殊ID标识admin用户
+                    "username": display_username,
+                    "user_type": "super_admin" if display_username == "markedit" else "admin",
+                    "login_time": None,  # admin表没有login_time字段
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "theme": "default",
+                    "roles": ["super_admin"] if display_username == "markedit" else ["admin"],
+                    "is_default": display_username in self.default_users,
+                    "is_active": True,
+                    "source": "admin"  # 标识来源
+                }
+                users.append(user_data)
+            
+            # 然后获取user表中的用户及其角色信息
             query = """
                 SELECT 
                     u.id, u.username, u.user_type, u.login_time, u.created_at, u.theme,
@@ -380,19 +409,25 @@ class AdminService:
             
             results = await database.fetch_all(query)
             
-            users = []
             for row in results:
-                user_data = {
-                    "id": row["id"],
-                    "username": row["username"],
-                    "user_type": row["user_type"] or "user",
-                    "login_time": row["login_time"].isoformat() if row["login_time"] else None,
-                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-                    "theme": row["theme"] or "default",
-                    "roles": row["roles"].split(',') if row["roles"] else [],
-                    "is_default": row["username"] in self.default_users  # 标识默认用户
-                }
-                users.append(user_data)
+                # 避免重复添加已在admin表中的用户
+                if not any(u["username"] == row["username"] and u.get("source") == "admin" for u in users):
+                    user_data = {
+                        "id": row["id"],
+                        "username": row["username"],
+                        "user_type": row["user_type"] or "user",
+                        "login_time": row["login_time"].isoformat() if row["login_time"] else None,
+                        "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                        "theme": row["theme"] or "default",
+                        "roles": row["roles"].split(',') if row["roles"] else ["user"],
+                        "is_default": row["username"] in self.default_users,
+                        "is_active": True,
+                        "source": "user"  # 标识来源
+                    }
+                    users.append(user_data)
+            
+            # 按创建时间排序
+            users.sort(key=lambda x: x["created_at"] or "", reverse=True)
             
             return users
             
@@ -793,6 +828,43 @@ class AdminService:
             logger.error(f"获取角色列表失败: {str(e)}")
             raise Exception(f"获取角色列表失败: {str(e)}")
     
+    async def get_role_list(self) -> List[Dict[str, Any]]:
+        """获取角色列表（带统计信息）"""
+        try:
+            # 查询所有角色及其统计信息
+            query = """
+                SELECT 
+                    r.id, r.name, r.description, r.created_at,
+                    COUNT(DISTINCT ur.user_id) as user_count,
+                    COUNT(DISTINCT rp.permission_id) as permission_count
+                FROM role r
+                LEFT JOIN user_role ur ON r.id = ur.role_id
+                LEFT JOIN role_permission rp ON r.id = rp.role_id
+                GROUP BY r.id, r.name, r.description, r.created_at
+                ORDER BY r.created_at DESC
+            """
+            
+            results = await database.fetch_all(query)
+            
+            roles = []
+            for row in results:
+                role_data = {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "description": row["description"] or "",
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "user_count": row["user_count"] or 0,
+                    "permission_count": row["permission_count"] or 0,
+                    "is_default": row["name"] in self.default_roles  # 标识默认角色
+                }
+                roles.append(role_data)
+            
+            return roles
+            
+        except Exception as e:
+            logger.error(f"获取角色列表失败: {str(e)}")
+            raise Exception(f"获取角色列表失败: {str(e)}")
+    
     async def create_role(self, name: str, description: str = "") -> Dict[str, Any]:
         """创建新角色"""
         try:
@@ -943,6 +1015,40 @@ class AdminService:
                 permission_list.append(permission_dict)
             
             return permission_list
+            
+        except Exception as e:
+            logger.error(f"获取权限列表失败: {str(e)}")
+            raise Exception(f"获取权限列表失败: {str(e)}")
+    
+    async def get_permission_list(self) -> List[Dict[str, Any]]:
+        """获取权限列表（带统计信息）"""
+        try:
+            # 查询所有权限及其统计信息
+            query = """
+                SELECT 
+                    p.id, p.name, p.description, p.created_at,
+                    COUNT(DISTINCT rp.role_id) as role_count
+                FROM permission p
+                LEFT JOIN role_permission rp ON p.id = rp.permission_id
+                GROUP BY p.id, p.name, p.description, p.created_at
+                ORDER BY p.name
+            """
+            
+            results = await database.fetch_all(query)
+            
+            permissions = []
+            for row in results:
+                permission_data = {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "description": row["description"] or "",
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "role_count": row["role_count"] or 0,
+                    "is_default": row["name"] in self.default_permissions  # 标识默认权限
+                }
+                permissions.append(permission_data)
+            
+            return permissions
             
         except Exception as e:
             logger.error(f"获取权限列表失败: {str(e)}")
@@ -1404,6 +1510,14 @@ class AdminService:
             logger.error(f"初始化默认角色和权限失败: {str(e)}")
             raise Exception(f"初始化默认角色和权限失败: {str(e)}")
     
+    async def initialize_default_roles(self) -> Dict[str, Any]:
+        """初始化默认角色（简化版本，用于快速初始化）"""
+        try:
+            return await self.initialize_default_roles_and_permissions()
+        except Exception as e:
+            logger.error(f"初始化默认角色失败: {str(e)}")
+            raise Exception(f"初始化默认角色失败: {str(e)}")
+    
     async def _assign_default_role_permissions(self):
         """为默认角色分配权限"""
         try:
@@ -1597,6 +1711,44 @@ class AdminService:
         except Exception as e:
             logger.error(f"获取审计日志统计失败: {str(e)}")
             return {"error": str(e)}
+    
+    async def get_admin_stats(self) -> Dict[str, Any]:
+        """获取管理面板统计信息"""
+        try:
+            # 获取用户总数
+            users_query = "SELECT COUNT(*) as count FROM users"
+            users_result = await database.fetch_one(users_query)
+            total_users = users_result["count"] if users_result else 0
+            
+            # 获取角色总数
+            roles_query = "SELECT COUNT(*) as count FROM roles"
+            roles_result = await database.fetch_one(roles_query)
+            total_roles = roles_result["count"] if roles_result else 0
+            
+            # 获取权限总数
+            permissions_query = "SELECT COUNT(*) as count FROM permissions"
+            permissions_result = await database.fetch_one(permissions_query)
+            total_permissions = permissions_result["count"] if permissions_result else 0
+            
+            # 计算默认数据数量
+            default_data_count = len(self.default_users) + len(self.default_roles) + len(self.default_permissions)
+            
+            return {
+                "totalUsers": total_users,
+                "totalRoles": total_roles,
+                "totalPermissions": total_permissions,
+                "defaultDataCount": default_data_count
+            }
+            
+        except Exception as e:
+            logger.error(f"获取统计信息失败: {str(e)}")
+            return {
+                "totalUsers": 0,
+                "totalRoles": 0,
+                "totalPermissions": 0,
+                "defaultDataCount": 0,
+                "error": str(e)
+            }
     
     # ==========================================
     # 批量操作方法

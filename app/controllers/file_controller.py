@@ -44,6 +44,7 @@ async def list_files(request: Request, session: SessionData = Depends(require_au
     return file_ctrl.create_success_response(result)
 
 @file_router.get("/file/{file_type}/{file_path:path}")
+@file_router.head("/file/{file_type}/{file_path:path}")
 @controller_exception_handler("读取文件")
 async def read_file(file_type: str, file_path: str, request: Request, raw: bool = False, session: SessionData = Depends(require_auth_session)):
     """读取指定文件的内容"""
@@ -66,21 +67,12 @@ async def save_file(file_type: str, file_path: str, request: Request, session: S
 @controller_exception_handler("删除文件")
 async def delete_file(file_type: str, file_path: str, request: Request, session: SessionData = Depends(require_auth_session)):
     """删除指定文件"""
-    from app.common import check_user_permission
-    
     # 验证文件类型和路径
     file_ctrl.validate_file_type(file_type)
     file_ctrl.validate_file_path(file_path)
     
-    # 检查权限：src文件需要content.edit权限，build文件需要file.manage权限
-    if file_type == "src":
-        has_permission = await check_user_permission(session.username, "content.edit")
-        if not has_permission:
-            raise HTTPException(status_code=403, detail="权限不足，无法删除src目录下的文件")
-    elif file_type == "build":
-        has_permission = await check_user_permission(session.username, "file.manage")
-        if not has_permission:
-            raise HTTPException(status_code=403, detail="权限不足，无法删除build目录下的文件")
+    # 使用统一的权限检查
+    await file_ctrl._check_file_type_permission(session, file_type)
     
     result = file_service.delete_file(file_type, file_path, request)
     return file_ctrl.create_success_response(result, "文件删除成功")
@@ -216,6 +208,11 @@ async def serve_user_illustrations_file_with_username(username: str, file_path: 
     """为指定用户提供插图文件（支持用户名前缀）"""
     return file_service.serve_user_illustrations_file_with_username(username, file_path, request)
 
+@static_router.get("/illustrations/{username}/{file_path:path}")
+async def serve_public_user_illustrations_file(username: str, file_path: str, request: Request) -> Response:
+    """为指定用户提供插图文件（公开访问，无需认证）"""
+    return file_service.serve_user_illustrations_file_with_username(username, file_path, request)
+
 @static_router.get("/user-illustrations/{file_path:path}")
 async def serve_user_illustrations_file(file_path: str, request: Request, session: SessionData = Depends(require_auth_session)) -> Response:
     """动态提供用户特定的illustrations目录下的文件（向后兼容）"""
@@ -230,3 +227,10 @@ async def serve_epub_illustrations_file(file_path: str, request: Request, sessio
 async def serve_epub_resource_file(resource_path: str, request: Request, session: SessionData = Depends(require_auth_session)) -> Response:
     """动态提供EPUB内部资源文件（用于EPUB.js预览）"""
     return file_service.serve_epub_resource_file(resource_path, request)
+
+@file_router.post("/reset-src")
+@controller_exception_handler("重置Src目录")
+async def reset_src_directory(request: Request, session: SessionData = Depends(require_auth_session)):
+    """重置用户的src目录为初始状态"""
+    result = file_service.reset_src_directory(request)
+    return file_ctrl.create_success_response(result, "Src目录重置成功")

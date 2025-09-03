@@ -173,66 +173,96 @@ function showMessage(message, type) {
     addToBody();
 }
 
-// 抽屉菜单控制函数
-function toggleAdminDrawer() {
-    console.log('toggleAdminDrawer 被调用');
-    const drawer = document.getElementById('admin-drawer');
-    const overlay = document.getElementById('drawer-overlay');
-    
-    console.log('drawer 元素:', drawer);
-    console.log('overlay 元素:', overlay);
-    
-    if (drawer) {
-        const isOpen = drawer.classList.contains('open');
-        drawer.classList.toggle('open');
-        
-        // 切换body类来调整容器布局 - 使用管理抽屉专用类名
+// 管理面板下拉菜单控制函数 - 完全模仿用户面板
+function toggleAdminPanelDropdown() {
+    const dropdown = document.getElementById('admin-panel-dropdown');
+    if (dropdown) {
+        const isOpen = dropdown.classList.contains('open');
         if (isOpen) {
-            document.body.classList.remove('admin-drawer-open');
+            closeAdminPanelDropdown();
         } else {
-            document.body.classList.add('admin-drawer-open');
+            openAdminPanelDropdown();
         }
+    }
+}
+
+// 打开管理面板下拉菜单
+function openAdminPanelDropdown() {
+    const dropdown = document.getElementById('admin-panel-dropdown');
+    console.log('common.js openAdminPanelDropdown 被调用，dropdown:', dropdown);
+    
+    if (dropdown) {
+        console.log('common.js dropdown 存在，添加 open 类');
         
-        console.log('drawer 添加/移除 open 类后的 classList:', drawer.classList.toString());
-    }
-    if (overlay) {
-        overlay.classList.toggle('open');
-        console.log('overlay 添加/移除 open 类后的 classList:', overlay.classList.toString());
+        // 关闭其他下拉菜单
+        document.querySelectorAll('.dropdown.open').forEach(otherDropdown => {
+            if (otherDropdown !== dropdown) {
+                otherDropdown.classList.remove('open');
+            }
+        });
+
+        dropdown.classList.add('open');
+        console.log('common.js dropdown 类名:', dropdown.className);
+        
+        // 检查dropdown-content元素
+        const dropdownContent = dropdown.querySelector('.dropdown-content');
+        console.log('common.js dropdown-content:', dropdownContent);
+        if (dropdownContent) {
+            console.log('common.js dropdown-content 样式:', window.getComputedStyle(dropdownContent).display);
+            console.log('common.js dropdown-content 可见性:', window.getComputedStyle(dropdownContent).visibility);
+            console.log('common.js dropdown-content 透明度:', window.getComputedStyle(dropdownContent).opacity);
+        }
+    } else {
+        console.error('common.js admin-panel-dropdown 元素未找到');
     }
 }
 
-function closeAdminDrawer() {
-    const drawer = document.getElementById('admin-drawer');
-    const overlay = document.getElementById('drawer-overlay');
-    
-    if (drawer) {
-        drawer.classList.remove('open');
+// 关闭管理面板下拉菜单
+function closeAdminPanelDropdown() {
+    const dropdown = document.getElementById('admin-panel-dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('open');
     }
-    if (overlay) {
-        overlay.classList.remove('open');
-    }
-    
-    // 移除body类来恢复容器布局 - 使用管理抽屉专用类名
-    document.body.classList.remove('admin-drawer-open');
 }
 
-// 初始化编辑器状态
+// 初始化编辑器状态 - 现在由统一编辑器管理器处理
 function initializeEditor() {
+    // 检查统一编辑器管理器是否可用
+    if (window.unifiedEditorManager && window.unifiedEditorManager.isInitialized) {
+        console.log('Using UnifiedEditorManager for editor initialization');
+        return;
+    }
+    
+    // 向后兼容：如果统一管理器不可用，使用原有逻辑
+    console.log('Falling back to legacy editor initialization');
+    
     // 隐藏所有视图
-    document.getElementById('editor').style.display = 'none';
-    document.getElementById('image-viewer').style.display = 'none';
-    document.getElementById('binary-viewer').style.display = 'none';
-    document.getElementById('preview-container').style.display = 'none';
+    const elements = ['editor', 'image-viewer', 'binary-viewer', 'preview-container'];
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.style.display = 'none';
+    });
     
     // 隐藏预览按钮
-    document.getElementById('preview-btn').style.display = 'none';
+    const previewBtn = document.getElementById('preview-btn');
+    if (previewBtn) previewBtn.style.display = 'none';
     
     // 禁用删除按钮
-    document.getElementById('delete-btn').disabled = true;
+    const deleteBtn = document.getElementById('delete-btn');
+    if (deleteBtn) deleteBtn.disabled = true;
 }
 
-// 初始化CodeMirror编辑器
+// 初始化CodeMirror编辑器 - 现在由统一编辑器管理器处理
 function initializeCodeMirror() {
+    // 检查统一编辑器管理器是否可用
+    if (window.unifiedEditorManager && window.unifiedEditorManager.codeMirrorEditor) {
+        console.log('CodeMirror already initialized by UnifiedEditorManager');
+        return;
+    }
+    
+    // 向后兼容：如果统一管理器不可用，使用原有逻辑
+    console.log('Falling back to legacy CodeMirror initialization');
+    
     const editorElement = document.getElementById('codemirror-editor');
     if (!editorElement) return;
     
@@ -423,14 +453,14 @@ async function loadFileTree() {
         initializeDragAndDropUpload();
     } catch (error) {
         console.error('加载文件树失败:', error);
-        showMessage('加载文件树失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载文件树失败: ' + error.message);
     }
 }
 
 // 保存文件
 async function saveFile() {
     if (!currentFilePath || currentFileType !== 'text' || currentFileArea !== 'src') {
-        showMessage('请选择一个src目录下的文本文件进行保存', 'warning');
+        window.ComponentManager.getComponent('message').warning('请选择一个src目录下的文本文件进行保存');
         return;
     }
     
@@ -449,13 +479,13 @@ async function saveFile() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('文件保存成功', 'success');
+            window.ComponentManager.getComponent('message').success('文件保存成功');
         } else {
             throw new Error(result.detail || '保存失败');
         }
     } catch (error) {
         console.error('保存文件失败:', error);
-        showMessage('保存文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存文件失败: ' + error.message);
     }
 }
 
@@ -474,7 +504,7 @@ async function deleteFileAtPath(filePath) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('文件删除成功', 'success');
+            window.ComponentManager.getComponent('message').success('文件删除成功');
             // 清空当前文件
             currentFilePath = null;
             currentFileType = null;
@@ -498,7 +528,7 @@ async function deleteFileAtPath(filePath) {
         }
     } catch (error) {
         console.error('删除文件失败:', error);
-        showMessage('删除文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('删除文件失败: ' + error.message);
     }
 }
 
@@ -506,7 +536,7 @@ async function deleteFileAtPath(filePath) {
 async function downloadSrc() {
     try {
         console.log('开始下载Src目录');
-        showMessage('正在准备下载Src目录...', 'info');
+        window.ComponentManager.getComponent('message').info('正在准备下载Src目录...');
         
         // 创建一个隐藏的iframe来触发下载
         const iframe = document.createElement('iframe');
@@ -523,7 +553,7 @@ async function downloadSrc() {
         }, 1000);
     } catch (error) {
         console.error('下载Src目录失败:', error);
-        showMessage('下载Src目录失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('下载Src目录失败: ' + error.message);
     }
 }
 
@@ -531,7 +561,7 @@ async function downloadSrc() {
 async function downloadBuildFile(filePath) {
     try {
         console.log('开始下载文件:', filePath);
-        showMessage(`正在下载 ${filePath}...`, 'info');
+        window.ComponentManager.getComponent('message').info(`正在下载 ${filePath}...`);
         
         // 创建一个隐藏的a标签来触发下载
         const link = document.createElement('a');
@@ -545,10 +575,10 @@ async function downloadBuildFile(filePath) {
         document.body.removeChild(link);
         
         console.log('已触发下载');
-        showMessage('下载已开始', 'success');
+        window.ComponentManager.getComponent('message').success('下载已开始');
     } catch (error) {
         console.error('下载文件失败:', error);
-        showMessage('下载文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('下载文件失败: ' + error.message);
     }
 }
 
@@ -556,7 +586,7 @@ async function downloadBuildFile(filePath) {
 async function deleteBuildFile(filePath) {
     try {
         console.log('开始删除build文件:', filePath);
-        showMessage(`正在删除 ${filePath}...`, 'info');
+        window.ComponentManager.getComponent('message').info(`正在删除 ${filePath}...`);
         
         const response = await fetch(`/api/file/build/${filePath}`, {
             method: 'DELETE'
@@ -565,7 +595,7 @@ async function deleteBuildFile(filePath) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('文件删除成功', 'success');
+            window.ComponentManager.getComponent('message').success('文件删除成功');
             
             // 如果当前正在查看被删除的文件，清空显示
             if (currentFilePath === filePath && currentFileArea === 'build') {
@@ -607,7 +637,7 @@ async function deleteBuildFile(filePath) {
             errorMessage = '文件不存在或已被删除。';
         }
         
-        showMessage(errorMessage, 'error');
+        window.ComponentManager.getComponent('message').error(errorMessage);
     }
 }
 
@@ -660,10 +690,10 @@ async function switchTheme(themeOrEvent) {
             document.head.appendChild(newLinkElement);
         }
         
-        showMessage('主题切换成功', 'success');
+        window.ComponentManager.getComponent('message').success('主题切换成功');
     } catch (error) {
         console.error('切换主题失败:', error);
-        showMessage('切换主题失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('切换主题失败: ' + error.message);
     }
 }
 
@@ -1108,7 +1138,7 @@ async function uploadFileToArea(area, file) {
                 }
             }
             
-            showMessage(message, 'success');
+            window.ComponentManager.getComponent('message').success(message);
             uploadProgressManager.completeUpload(uploadId, true);
             
             // 刷新文件树
@@ -1141,14 +1171,14 @@ async function uploadFileToArea(area, file) {
     } catch (error) {
         uploadProgressManager.completeUpload(uploadId, false);
         console.error('上传文件失败:', error);
-        showMessage('上传文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('上传文件失败: ' + error.message);
     }
 }
 
 // 批量上传文件到指定区域
 async function uploadMultipleFilesToArea(area, files) {
     if (!files || files.length === 0) {
-        showMessage('未选择文件', 'warning');
+        window.ComponentManager.getComponent('message').warning('未选择文件');
         return;
     }
     
@@ -1228,7 +1258,7 @@ async function uploadMultipleFilesToArea(area, files) {
     uploadProgressManager.completeUpload(uploadId, failCount === 0);
     
     if (failCount === 0) {
-        showMessage(`批量上传完成! 成功上传 ${successCount} 个文件`, 'success');
+        window.ComponentManager.getComponent('message').success(`批量上传完成! 成功上传 ${successCount} 个文件`);
     } else {
         showMessage(`批量上传完成! 成功: ${successCount}, 失败: ${failCount}`, 'warning');
     }
@@ -1342,7 +1372,7 @@ async function uploadFileToAreaWithOverwrite(area, file) {
                 }
             }
             
-            showMessage(message, 'success');
+            window.ComponentManager.getComponent('message').success(message);
             // 刷新文件树
             await loadFileTree();
         } else {
@@ -1350,7 +1380,7 @@ async function uploadFileToAreaWithOverwrite(area, file) {
         }
     } catch (error) {
         console.error('替换文件失败:', error);
-        showMessage('替换文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('替换文件失败: ' + error.message);
     }
 }
 
@@ -1386,7 +1416,7 @@ async function uploadFileToDirectory(directoryPath, file, overwrite = false) {
         const targetArea = currentFileArea || 'src';
         
         // 显示上传进度
-        showMessage(`正在上传文件 "${fileName}" 到 ${targetArea} 目录...`, 'info');
+        window.ComponentManager.getComponent('message').info(`正在上传文件 "${fileName}" 到 ${targetArea} 目录...`);
         
         // 创建 FormData
         const formData = new FormData();
@@ -1421,7 +1451,7 @@ async function uploadFileToDirectory(directoryPath, file, overwrite = false) {
                 }
             }
             
-            showMessage(message, 'success');
+            window.ComponentManager.getComponent('message').success(message);
             // 刷新文件树
             await loadFileTree();
         } else {
@@ -1434,7 +1464,7 @@ async function uploadFileToDirectory(directoryPath, file, overwrite = false) {
         }
     } catch (error) {
         console.error('上传文件失败:', error);
-        showMessage('上传文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('上传文件失败: ' + error.message);
     }
 }
 
@@ -1495,43 +1525,35 @@ function addDragAndDropHandlers(container) {
 // 抽屉菜单事件绑定函数
 function bindDrawerEvents() {
     console.log('bindDrawerEvents 函数开始执行');
-    const adminMenuBtn = document.getElementById('admin-menu-btn');
+    const adminPanelBtn = document.getElementById('admin-panel-btn');
     const closeDrawerBtn = document.getElementById('close-drawer-btn');
     const closeUserPanelBtn = document.getElementById('close-user-panel-btn');
     const drawerOverlay = document.getElementById('drawer-overlay');
-    const adminDrawer = document.getElementById('admin-drawer');
+    const adminDropdown = document.getElementById('admin-dropdown'); // 改为下拉菜单
     const userPanelDropdown = document.getElementById('user-panel-dropdown'); // 修改为下拉菜单
     
     console.log('按钮状态检查:', {
-        adminMenuBtn: !!adminMenuBtn,
+        adminPanelBtn: !!adminPanelBtn,
         closeDrawerBtn: !!closeDrawerBtn,
         drawerOverlay: !!drawerOverlay,
-        adminDrawer: !!adminDrawer,
-        adminMenuBtnListenerAdded: adminMenuBtn ? adminMenuBtn.dataset.listenerAdded : 'N/A'
+        adminDropdown: !!adminDropdown,
+        adminPanelBtnListenerAdded: adminPanelBtn ? adminPanelBtn.dataset.listenerAdded : 'N/A'
     });
     
-    // 确保只绑定一次事件监听器
-    if (adminMenuBtn && adminDrawer && !adminMenuBtn.dataset.listenerAdded) {
-        adminMenuBtn.addEventListener('click', function(e) {
+    // 确保只绑定一次事件监听器 - 现在使用管理面板下拉菜单
+    const adminPanelDropdown = document.getElementById('admin-panel-dropdown');
+    if (adminPanelBtn && adminPanelDropdown && !adminPanelBtn.dataset.listenerAdded && !adminPanelBtn.dataset.mainSharedListenerAdded) {
+        adminPanelBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('admin-menu-btn 被点击，调用 toggleAdminDrawer');
-            toggleAdminDrawer();
+            console.log('admin-panel-btn 被点击，调用 toggleAdminPanelDropdown');
+            toggleAdminPanelDropdown();
         });
-        adminMenuBtn.dataset.listenerAdded = 'true';
-        console.log('管理菜单按钮事件已绑定');
+        adminPanelBtn.dataset.listenerAdded = 'true';
+        console.log('管理面板按钮事件已绑定');
     }
     
-    if (closeDrawerBtn && adminDrawer && !closeDrawerBtn.dataset.listenerAdded) {
-        closeDrawerBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('close-drawer-btn 被点击，调用 closeAdminDrawer');
-            closeAdminDrawer();
-        });
-        closeDrawerBtn.dataset.listenerAdded = 'true';
-        console.log('管理抽屉关闭按钮事件已绑定');
-    }
+    // 下拉菜单不需要关闭按钮，通过点击外部区域关闭
     
     if (closeUserPanelBtn && userPanelDropdown && !closeUserPanelBtn.dataset.listenerAdded) {
         closeUserPanelBtn.addEventListener('click', function(e) {
@@ -1548,8 +1570,8 @@ function bindDrawerEvents() {
         drawerOverlay.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('drawer-overlay 被点击，关闭所有抽屉');
-            closeAdminDrawer();
+            console.log('drawer-overlay 被点击，关闭所有抽屉和下拉菜单');
+            closeAdminPanelDropdown();
             if (typeof closeUserPanelDropdown === 'function') {
                 closeUserPanelDropdown();
             }
@@ -1557,47 +1579,15 @@ function bindDrawerEvents() {
                 closeChapterDrawer();
             }
             // 清除所有可能的body类
-            document.body.classList.remove('drawer-right-open', 'drawer-left-open', 'admin-drawer-open');
+            document.body.classList.remove('drawer-right-open', 'drawer-left-open');
         });
         drawerOverlay.dataset.listenerAdded = 'true';
         console.log('抽屉遮罩层事件已绑定');
     }
     
-    // 为抽屉菜单中的链接添加事件监听器（只在管理抽屉存在时）
-    if (adminDrawer) {
-        const drawerLinks = document.querySelectorAll('#admin-drawer a');
-        drawerLinks.forEach(link => {
-            if (!link.dataset.listenerAdded) {
-                // 为登出链接添加确认对话框
-                if (link.getAttribute('href') === '/logout') {
-                    link.addEventListener('click', function(e) {
-                        if (!confirm('确定要登出吗？')) {
-                            e.preventDefault();
-                        }
-                    });
-                }
-                
-                // 点击链接时关闭抽屉菜单
-                link.addEventListener('click', function() {
-                    closeAdminDrawer();
-                });
-                
-                link.dataset.listenerAdded = 'true';
-            }
-        });
-        
-        // 为用户面板链接添加事件监听器
-        const drawerMyAccountLink = document.getElementById('drawer-myaccount-link');
-        if (drawerMyAccountLink && !drawerMyAccountLink.dataset.listenerAdded) {
-            drawerMyAccountLink.addEventListener('click', function(e) {
-                e.preventDefault();
-                // 显示用户面板下拉菜单
-                if (typeof toggleUserPanelDropdown === 'function') {
-                    toggleUserPanelDropdown();
-                }
-            });
-            drawerMyAccountLink.dataset.listenerAdded = 'true';
-        }
+    // 为下拉菜单中的链接添加事件监听器（只在管理下拉菜单存在时）
+    if (adminDropdown) {
+        bindDropdownLinkEvents();
     }
     
     // 绑定章节管理抽屉菜单事件
@@ -1610,7 +1600,7 @@ function bindDrawerEvents() {
 async function buildBook(scriptName) {
     try {
         // 显示正在处理的消息
-        showMessage(`正在执行 ${scriptName}...`, 'info');
+        window.ComponentManager.getComponent('message').info(`正在执行 ${scriptName}...`);
         
         // 调用API
         const response = await fetch(`/api/admin/build/${scriptName}`, {
@@ -1620,20 +1610,20 @@ async function buildBook(scriptName) {
         const result = await response.json();
         
         if (response.ok && result.status === 'success') {
-            showMessage(`${scriptName} 执行成功`, 'success');
+            window.ComponentManager.getComponent('message').success(`${scriptName} 执行成功`);
             console.log('stdout:', result.stdout);
             console.log('stderr:', result.stderr);
             
             // 构建成功后刷新文件树
             await loadFileTree();
         } else {
-            showMessage(`${scriptName} 执行失败: ${result.message}`, 'error');
+            window.ComponentManager.getComponent('message').error(`${scriptName} 执行失败: ${result.message}`);
             console.error('stdout:', result.stdout);
             console.error('stderr:', result.stderr);
         }
     } catch (error) {
         console.error('执行图书生成失败:', error);
-        showMessage(`执行图书生成失败: ${error.message}`, 'error');
+        window.ComponentManager.getComponent('message').error(`执行图书生成失败: ${error.message}`);
     }
 }
 
@@ -1651,7 +1641,10 @@ function handleBookConverterChange(event) {
                 convertTypeName = 'EPUB格式';
                 break;
             case 'pdf':
-                convertTypeName = 'PDF格式';
+                convertTypeName = 'PDF格式(Pandoc)';
+                break;
+            case 'pdf-wkhtmltopdf':
+                convertTypeName = 'PDF格式(wkhtmltopdf)';
                 break;
             case 'html':
                 convertTypeName = 'HTML格式';
@@ -1699,7 +1692,7 @@ async function saveUserTheme() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('主题设置保存成功', 'success');
+            window.ComponentManager.getComponent('message').success('主题设置保存成功');
             // 更新页面上的主题显示
             document.getElementById('user-panel-current-theme').textContent = theme;
             
@@ -1719,7 +1712,7 @@ async function saveUserTheme() {
         }
     } catch (error) {
         console.error('保存主题设置失败:', error);
-        showMessage('保存主题设置失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存主题设置失败: ' + error.message);
     }
 }
 
@@ -1732,7 +1725,7 @@ async function saveUserLlmConfig() {
         try {
             JSON.parse(llmConfig);
         } catch (e) {
-            showMessage('LLM配置必须是有效的JSON格式', 'warning');
+            window.ComponentManager.getComponent('message').warning('LLM配置必须是有效的JSON格式');
             return;
         }
         
@@ -1747,13 +1740,13 @@ async function saveUserLlmConfig() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('LLM配置保存成功', 'success');
+            window.ComponentManager.getComponent('message').success('LLM配置保存成功');
         } else {
             throw new Error(result.detail || '保存LLM配置失败');
         }
     } catch (error) {
         console.error('保存LLM配置失败:', error);
-        showMessage('保存LLM配置失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存LLM配置失败: ' + error.message);
     }
 }
 
@@ -1765,13 +1758,13 @@ async function resetUserLlmConfig() {
         
         if (response.ok) {
             document.getElementById('user-panel-llm-config').value = result.llm_config;
-            showMessage('LLM配置已重置', 'success');
+            window.ComponentManager.getComponent('message').success('LLM配置已重置');
         } else {
             throw new Error(result.detail || '重置LLM配置失败');
         }
     } catch (error) {
         console.error('重置LLM配置失败:', error);
-        showMessage('重置LLM配置失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('重置LLM配置失败: ' + error.message);
     }
 }
 
@@ -1799,14 +1792,14 @@ async function loadUserInfo() {
         }
     } catch (error) {
         console.error('加载用户信息失败:', error);
-        showMessage('加载用户信息失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('加载用户信息失败: ' + error.message);
     }
 }
 
 // 创建文件函数
 async function createFile(directoryPath, fileName) {
     if (!fileName) {
-        showMessage('文件名不能为空', 'warning');
+        window.ComponentManager.getComponent('message').warning('文件名不能为空');
         return;
     }
     
@@ -1824,7 +1817,7 @@ async function createFile(directoryPath, fileName) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('文件创建成功', 'success');
+            window.ComponentManager.getComponent('message').success('文件创建成功');
             // 刷新文件树
             loadFileTree();
         } else {
@@ -1832,14 +1825,14 @@ async function createFile(directoryPath, fileName) {
         }
     } catch (error) {
         console.error('创建文件失败:', error);
-        showMessage('创建文件失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('创建文件失败: ' + error.message);
     }
 }
 
 // 创建目录函数
 async function createDirectory(directoryPath, dirName) {
     if (!dirName) {
-        showMessage('目录名不能为空', 'warning');
+        window.ComponentManager.getComponent('message').warning('目录名不能为空');
         return;
     }
     
@@ -1853,7 +1846,7 @@ async function createDirectory(directoryPath, dirName) {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('目录创建成功', 'success');
+            window.ComponentManager.getComponent('message').success('目录创建成功');
             // 刷新文件树
             loadFileTree();
         } else {
@@ -1861,7 +1854,7 @@ async function createDirectory(directoryPath, dirName) {
         }
     } catch (error) {
         console.error('创建目录失败:', error);
-        showMessage('创建目录失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('创建目录失败: ' + error.message);
     }
 }
 
@@ -1908,6 +1901,13 @@ function closeUserPanelDrawer() {
 
 // 处理用户面板登出
 function handleUserPanelLogout() {
+    if (confirm('确定要登出吗？')) {
+        window.location.href = '/logout';
+    }
+}
+
+// 处理管理员面板登出
+function handleAdminPanelLogout() {
     if (confirm('确定要登出吗？')) {
         window.location.href = '/logout';
     }
@@ -1966,18 +1966,18 @@ async function processWithLLM() {
     const content = codeMirrorEditor ? codeMirrorEditor.getValue() : document.getElementById('editor').value;
     
     if (!prompt.trim()) {
-        showMessage('请输入处理指令', 'warning');
+        window.ComponentManager.getComponent('message').warning('请输入处理指令');
         return;
     }
     
     if (!content.trim()) {
-        showMessage('编辑器内容为空', 'warning');
+        window.ComponentManager.getComponent('message').warning('编辑器内容为空');
         return;
     }
     
     try {
         // 显示处理中消息
-        showMessage('正在处理中...', 'info');
+        window.ComponentManager.getComponent('message').info('正在处理中...');
         
         // 调用LLM API
         const response = await fetch('/api/admin/llm/process', {
@@ -2001,7 +2001,7 @@ async function processWithLLM() {
             } else {
                 document.getElementById('editor').value = result.processed_content;
             }
-            showMessage('处理完成', 'success');
+            window.ComponentManager.getComponent('message').success('处理完成');
             
             // 关闭对话框
             const dialog = document.querySelector('.llm-dialog');
@@ -2013,7 +2013,7 @@ async function processWithLLM() {
         }
     } catch (error) {
         console.error('LLM处理失败:', error);
-        showMessage('处理失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('处理失败: ' + error.message);
     } finally {
         // 确保在任何情况下都关闭对话框
         const dialog = document.querySelector('.llm-dialog');
@@ -2044,13 +2044,13 @@ async function saveChapterOrder() {
         const result = await response.json();
         
         if (response.ok) {
-            showMessage('章节顺序保存成功', 'success');
+            window.ComponentManager.getComponent('message').success('章节顺序保存成功');
         } else {
             throw new Error(result.detail || '保存章节顺序失败');
         }
     } catch (error) {
         console.error('保存章节顺序失败:', error);
-        showMessage('保存章节顺序失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存章节顺序失败: ' + error.message);
     }
 }
 
@@ -2069,12 +2069,12 @@ async function uploadSrc() {
     const file = fileInput.files[0];
     
     if (!file) {
-        showMessage('请选择一个文件', 'warning');
+        window.ComponentManager.getComponent('message').warning('请选择一个文件');
         return;
     }
     
     if (!file.name.endsWith('.zip')) {
-        showMessage('只允许上传.zip文件', 'error');
+        window.ComponentManager.getComponent('message').error('只允许上传.zip文件');
         return;
     }
     
@@ -2087,7 +2087,7 @@ async function uploadSrc() {
         const formData = new FormData();
         formData.append('file', file);
         
-        showMessage('正在上传Src目录...', 'info');
+        window.ComponentManager.getComponent('message').info('正在上传Src目录...');
         
         const response = await fetch('/api/admin/upload-src', {
             method: 'POST',
@@ -2095,7 +2095,7 @@ async function uploadSrc() {
         });
         
         if (response.ok) {
-            showMessage('Src目录上传成功', 'success');
+            window.ComponentManager.getComponent('message').success('Src目录上传成功');
             // 刷新文件树
             await loadFileTree();
         } else {
@@ -2104,7 +2104,7 @@ async function uploadSrc() {
         }
     } catch (error) {
         console.error('上传Src目录失败:', error);
-        showMessage('上传Src目录失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('上传Src目录失败: ' + error.message);
     }
 }
 
@@ -2118,7 +2118,7 @@ async function resetSrc() {
     
     try {
         console.log('开始重置Src目录');
-        showMessage('正在重置Src目录...', 'info');
+        window.ComponentManager.getComponent('message').info('正在重置Src目录...');
         
         const response = await fetch('/api/admin/reset-src', {
             method: 'POST'
@@ -2128,7 +2128,7 @@ async function resetSrc() {
         
         if (response.ok) {
             const result = await response.json();
-            showMessage('Src目录重置成功', 'success');
+            window.ComponentManager.getComponent('message').success('Src目录重置成功');
             console.log('Src目录重置成功:', result);
             
             // 显示详细的重置结果信息
@@ -2136,7 +2136,7 @@ async function resetSrc() {
                 const stats = result.statistics;
                 const detailMessage = `重置完成！\n复制了 ${stats.files_copied} 个文件，创建了 ${stats.directories_created} 个目录`;
                 setTimeout(() => {
-                    showMessage(detailMessage, 'success');
+                    window.ComponentManager.getComponent('message').success(detailMessage);
                 }, 1000);
             }
             
@@ -2149,7 +2149,7 @@ async function resetSrc() {
         }
     } catch (error) {
         console.error('重置Src目录失败:', error);
-        showMessage('重置Src目录失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('重置Src目录失败: ' + error.message);
     }
 }
 
@@ -2195,7 +2195,7 @@ function toggleSidebar() {
             mainContent.style.width = '';
         }
         
-        showMessage('文件浏览器已显示', 'info');
+        window.ComponentManager.getComponent('message').info('文件浏览器已显示');
         // 保存状态到sessionStorage
         sessionStorage.setItem('sidebar-visible', 'true');
     } else {
@@ -2216,7 +2216,7 @@ function toggleSidebar() {
             mainContent.style.width = '100%';
         }
         
-        showMessage('文件浏览器已隐藏', 'info');
+        window.ComponentManager.getComponent('message').info('文件浏览器已隐藏');
         // 保存状态到sessionStorage
         sessionStorage.setItem('sidebar-visible', 'false');
     }
@@ -2386,7 +2386,7 @@ function initializeResizer() {
     resizer.addEventListener('dblclick', () => {
         const defaultWidth = 320; // 默认宽度
         updateLayout(defaultWidth);
-        showMessage('已重置文件浏览器宽度', 'info');
+        window.ComponentManager.getComponent('message').info('已重置文件浏览器宽度');
     });
     
     console.log('可调整分隔符初始化成功');
@@ -2568,21 +2568,21 @@ function updateChapterOrder() {
 // 编辑章节（在抽屉中）
 function editChapterInDrawer(index) {
     console.log('编辑章节:', index);
-    showMessage('章节编辑功能待实现', 'info');
+    window.ComponentManager.getComponent('message').info('章节编辑功能待实现');
 }
 
 // 删除章节（在抽屉中）
 function deleteChapterInDrawer(index) {
     if (confirm('确定要删除这个章节吗？')) {
         console.log('删除章节:', index);
-        showMessage('章节删除功能待实现', 'info');
+        window.ComponentManager.getComponent('message').info('章节删除功能待实现');
     }
 }
 
 // 保存章节顺序（抽屉版本）
 async function saveChapterOrderInDrawer() {
     try {
-        showMessage('正在保存章节顺序...', 'info');
+        window.ComponentManager.getComponent('message').info('正在保存章节顺序...');
         
         const chapterItems = document.querySelectorAll('#drawer-chapters .chapter-item');
         const chapters = Array.from(chapterItems).map((item, index) => {
@@ -2605,7 +2605,7 @@ async function saveChapterOrderInDrawer() {
         });
         
         if (response.ok) {
-            showMessage('章节顺序保存成功', 'success');
+            window.ComponentManager.getComponent('message').success('章节顺序保存成功');
             // 刷新文件树以反映更改
             if (typeof loadFileTree === 'function') {
                 loadFileTree();
@@ -2615,7 +2615,7 @@ async function saveChapterOrderInDrawer() {
         }
     } catch (error) {
         console.error('保存章节顺序失败:', error);
-        showMessage('保存章节顺序失败: ' + error.message, 'error');
+        window.ComponentManager.getComponent('message').error('保存章节顺序失败: ' + error.message);
     }
 }
 
@@ -2623,14 +2623,14 @@ async function saveChapterOrderInDrawer() {
 async function resetChapterOrderInDrawer() {
     if (confirm('确定要重置章节顺序吗？这将会恢复到默认排序。')) {
         try {
-            showMessage('正在重置章节顺序...', 'info');
+            window.ComponentManager.getComponent('message').info('正在重置章节顺序...');
             
             const response = await fetch('/api/admin/reset-chapters', {
                 method: 'POST'
             });
             
             if (response.ok) {
-                showMessage('章节顺序重置成功', 'success');
+                window.ComponentManager.getComponent('message').success('章节顺序重置成功');
                 // 重新加载章节数据
                 loadChapterManagementData();
                 // 刷新文件树
@@ -2642,7 +2642,7 @@ async function resetChapterOrderInDrawer() {
             }
         } catch (error) {
             console.error('重置章节顺序失败:', error);
-            showMessage('重置章节顺序失败: ' + error.message, 'error');
+            window.ComponentManager.getComponent('message').error('重置章节顺序失败: ' + error.message);
         }
     }
 }
@@ -2717,7 +2717,7 @@ function bindChapterDrawerEvents() {
         createChapterBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            showMessage('新建章节功能待实现', 'info');
+            window.ComponentManager.getComponent('message').info('新建章节功能待实现');
         });
         createChapterBtn.dataset.listenerAdded = 'true';
         console.log('新建章节按钮事件已绑定');
@@ -2728,9 +2728,187 @@ function bindChapterDrawerEvents() {
         importChaptersBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            showMessage('导入章节功能待实现', 'info');
+            window.ComponentManager.getComponent('message').info('导入章节功能待实现');
         });
         importChaptersBtn.dataset.listenerAdded = 'true';
         console.log('导入章节按钮事件已绑定');
     }
+}
+
+// ============================================================================
+// 全局函数导出 - 确保关键函数在全局作用域中可用
+// ============================================================================
+
+// 将loadFileTree函数导出到全局作用域
+window.loadFileTree = loadFileTree;
+
+console.log('Common.js: loadFileTree函数已导出到全局作用域');
+
+// 全局点击事件处理 - 关闭下拉菜单
+document.addEventListener('click', function(e) {
+    // 检查点击是否在管理面板下拉菜单外部
+    const adminPanelDropdown = document.getElementById('admin-panel-dropdown');
+    const adminPanelBtn = document.getElementById('admin-panel-btn');
+    
+    if (adminPanelDropdown && adminPanelBtn) {
+        const isClickInsideDropdown = adminPanelDropdown.contains(e.target);
+        const isClickOnButton = adminPanelBtn.contains(e.target);
+        
+        if (!isClickInsideDropdown && !isClickOnButton) {
+            closeAdminPanelDropdown();
+        }
+    }
+    
+    // 检查点击是否在用户面板下拉菜单外部
+    const userPanelDropdown = document.getElementById('user-panel-dropdown');
+    const myAccountBtn = document.getElementById('myaccount-btn');
+    
+    if (userPanelDropdown && myAccountBtn) {
+        const isClickInsideUserDropdown = userPanelDropdown.contains(e.target);
+        const isClickOnUserButton = myAccountBtn.contains(e.target);
+        
+        if (!isClickInsideUserDropdown && !isClickOnUserButton) {
+            if (typeof closeUserPanelDropdown === 'function') {
+                closeUserPanelDropdown();
+            }
+        }
+    }
+});
+
+// 为下拉菜单中的链接添加点击关闭功能
+function bindDropdownLinkEvents() {
+    const adminPanelDropdown = document.getElementById('admin-panel-dropdown');
+    if (adminPanelDropdown) {
+        const dropdownLinks = adminPanelDropdown.querySelectorAll('a');
+        dropdownLinks.forEach(link => {
+            if (!link.dataset.dropdownListenerAdded) {
+                // 为登出链接添加确认对话框
+                if (link.getAttribute('href') === '/logout') {
+                    link.addEventListener('click', function(e) {
+                        if (!confirm('确定要登出吗？')) {
+                            e.preventDefault();
+                        } else {
+                            closeAdminPanelDropdown();
+                        }
+                    });
+                } else {
+                    // 点击其他链接时关闭下拉菜单
+                    link.addEventListener('click', function() {
+                        closeAdminPanelDropdown();
+                    });
+                }
+                link.dataset.dropdownListenerAdded = 'true';
+            }
+        });
+    }
+}
+
+// 在页面加载完成后绑定下拉菜单链接事件
+document.addEventListener('DOMContentLoaded', function() {
+    bindDropdownLinkEvents();
+});
+
+// 将管理面板下拉菜单函数暴露到全局作用域
+window.toggleAdminPanelDropdown = toggleAdminPanelDropdown;
+window.openAdminPanelDropdown = openAdminPanelDropdown;
+window.closeAdminPanelDropdown = closeAdminPanelDropdown;
+window.handleAdminPanelLogout = handleAdminPanelLogout;
+
+// === 章节抽屉管理功能 ===
+
+// 显示章节管理抽屉
+function showChapterManagement() {
+    console.log('显示章节管理抽屉');
+    
+    const chapterDrawer = document.getElementById('chapter-drawer');
+    if (!chapterDrawer) {
+        console.error('章节抽屉元素不存在');
+        return;
+    }
+    
+    // 打开章节抽屉
+    chapterDrawer.classList.add('open');
+    
+    // 添加body类来调整布局
+    document.body.classList.add('drawer-left-open');
+    
+    // 创建并显示遮罩层
+    let overlay = document.getElementById('chapter-drawer-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'chapter-drawer-overlay';
+        overlay.className = 'drawer-overlay';
+        document.body.appendChild(overlay);
+        
+        // 点击遮罩层关闭抽屉
+        overlay.addEventListener('click', hideChapterManagement);
+    }
+    overlay.classList.add('open');
+    
+    // 绑定关闭按钮事件
+    const closeBtn = chapterDrawer.querySelector('[data-drawer-close]');
+    if (closeBtn && !closeBtn.dataset.listenerAdded) {
+        closeBtn.addEventListener('click', hideChapterManagement);
+        closeBtn.dataset.listenerAdded = 'true';
+    }
+    
+    console.log('章节管理抽屉已打开');
+}
+
+// 隐藏章节管理抽屉
+function hideChapterManagement() {
+    console.log('隐藏章节管理抽屉');
+    
+    const chapterDrawer = document.getElementById('chapter-drawer');
+    const overlay = document.getElementById('chapter-drawer-overlay');
+    
+    if (chapterDrawer) {
+        chapterDrawer.classList.remove('open');
+    }
+    
+    if (overlay) {
+        overlay.classList.remove('open');
+    }
+    
+    // 移除body类来恢复布局
+    document.body.classList.remove('drawer-left-open');
+    
+    console.log('章节管理抽屉已关闭');
+}
+
+// 切换章节管理抽屉
+function toggleChapterManagement() {
+    const chapterDrawer = document.getElementById('chapter-drawer');
+    if (chapterDrawer && chapterDrawer.classList.contains('open')) {
+        hideChapterManagement();
+    } else {
+        showChapterManagement();
+    }
+}
+
+// 初始化章节抽屉
+function initializeChapterDrawer() {
+    // 确保章节抽屉默认关闭
+    const chapterDrawer = document.getElementById('chapter-drawer');
+    if (chapterDrawer) {
+        chapterDrawer.classList.remove('open');
+    }
+    
+    // 确保body没有抽屉打开的类
+    document.body.classList.remove('drawer-left-open');
+    
+    // 移除可能存在的遮罩层
+    const overlay = document.getElementById('chapter-drawer-overlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+    }
+    
+    console.log('章节抽屉已初始化为关闭状态');
+}
+
+// 页面加载时初始化章节抽屉
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeChapterDrawer);
+} else {
+    initializeChapterDrawer();
 }

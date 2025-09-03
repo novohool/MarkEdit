@@ -72,6 +72,9 @@ from app.common.utils import (
     validate_json_and_parse, validate_theme_name
 )
 
+# Error logging functions
+from app.services.error_logging_service import log_user_operation_async
+
 # ==========================================
 # GitHub OAuth 配置（向后兼容）
 # ==========================================
@@ -89,7 +92,7 @@ __all__ = [
     'SessionData', 'OAuthConfig', 'AuthContext',
     # Database
     'database', 'metadata', 'DATABASE_URL',
-    'user_table', 'role_table', 'permission_table', 
+    'user_table', 'role_table', 'permission_table',
     'user_role_table', 'role_permission_table', 'admin_table', 'audit_log_table',
     # Service getters
     'get_session_service', 'get_oauth_service', 'get_startup_service',
@@ -103,7 +106,7 @@ __all__ = [
     'assign_default_user_role', 'update_session_permissions',
     'load_user_permissions_and_roles',
     # Authentication decorators
-    'require_permission', 'require_role', 'require_admin', 
+    'require_permission', 'require_role', 'require_admin',
     'require_super_admin', 'optional_auth',
     # Session management
     'sessions',
@@ -121,6 +124,8 @@ __all__ = [
     'create_file_response', 'create_static_file_response',
     'generate_random_password', 'hash_password', 'verify_password',
     'validate_json_and_parse', 'validate_theme_name',
+    # Error logging functions
+    'log_user_operation_async',
     # OAuth config (backward compatibility)
     'CLIENT_ID', 'CLIENT_SECRET', 'REDIRECT_URI'
 ]

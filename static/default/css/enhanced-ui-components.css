@@ -1,0 +1,672 @@
+/**
+ * 增强UI组件样式
+ * 提供现代化的视觉效果和交互体验
+ */
+
+/* === 全局变量 === */
+:root {
+    --primary-color: #667eea;
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --error-color: #ef4444;
+    --info-color: #3b82f6;
+    
+    --surface-color: #ffffff;
+    --surface-hover: #f8fafc;
+    --surface-active: #f1f5f9;
+    
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    
+    --border-color: #e5e7eb;
+    --border-hover: #d1d5db;
+    --border-focus: #667eea;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* === 增强的卡片组件 === */
+.enhanced-card {
+    background: var(--surface-color);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: all var(--transition-normal);
+    position: relative;
+}
+
+.enhanced-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    border-color: var(--border-hover);
+}
+
+.enhanced-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.enhanced-card:hover::before {
+    opacity: 1;
+}
+
+.enhanced-card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.enhanced-card-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.enhanced-card-subtitle {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.enhanced-card-body {
+    padding: 1.5rem;
+}
+
+.enhanced-card-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--surface-hover);
+}
+
+/* === 增强的按钮组件 === */
+.enhanced-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.enhanced-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.enhanced-btn:hover::before {
+    left: 100%;
+}
+
+.enhanced-btn-primary {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+.enhanced-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.enhanced-btn-secondary {
+    background: var(--surface-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.enhanced-btn-secondary:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+}
+
+.enhanced-btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.enhanced-btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+.enhanced-btn-error {
+    background: var(--error-color);
+    color: white;
+}
+
+.enhanced-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.enhanced-btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+}
+
+.enhanced-btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+}
+
+/* === 增强的表单组件 === */
+.enhanced-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.enhanced-form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.enhanced-form-input,
+.enhanced-form-select,
+.enhanced-form-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: var(--surface-color);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    box-sizing: border-box;
+}
+
+.enhanced-form-input:focus,
+.enhanced-form-select:focus,
+.enhanced-form-textarea:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.enhanced-form-input.error,
+.enhanced-form-select.error,
+.enhanced-form-textarea.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.enhanced-form-help {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.enhanced-form-error {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--error-color);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* === 增强的数据表格 === */
+.enhanced-table-container {
+    background: var(--surface-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.enhanced-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.enhanced-table th {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+    font-size: 0.875rem;
+}
+
+.enhanced-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.enhanced-table tbody tr {
+    transition: background-color var(--transition-fast);
+}
+
+.enhanced-table tbody tr:hover {
+    background: var(--surface-hover);
+}
+
+.enhanced-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* === 增强的标签页 === */
+.enhanced-tabs {
+    background: var(--surface-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.enhanced-tab-nav {
+    display: flex;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+}
+
+.enhanced-tab-button {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    position: relative;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.enhanced-tab-button::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-gradient);
+    transform: scaleX(0);
+    transition: transform var(--transition-normal);
+}
+
+.enhanced-tab-button:hover {
+    background: rgba(102, 126, 234, 0.05);
+    color: var(--text-primary);
+}
+
+.enhanced-tab-button.active {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.enhanced-tab-button.active::after {
+    transform: scaleX(1);
+}
+
+.enhanced-tab-content {
+    padding: 1.5rem;
+    display: none;
+}
+
+.enhanced-tab-content.active {
+    display: block;
+    animation: fadeInUp 0.3s ease;
+}
+
+/* === 增强的统计卡片 === */
+.enhanced-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.enhanced-stat-card {
+    background: var(--surface-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.enhanced-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+}
+
+.enhanced-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.enhanced-stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.enhanced-stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.enhanced-stat-change {
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.enhanced-stat-change.positive {
+    color: var(--success-color);
+}
+
+.enhanced-stat-change.negative {
+    color: var(--error-color);
+}
+
+/* === 增强的消息组件 === */
+.enhanced-message {
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: var(--shadow-md);
+    animation: slideInRight 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.enhanced-message::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+}
+
+.enhanced-message-success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: var(--success-color);
+}
+
+.enhanced-message-success::before {
+    background: var(--success-color);
+}
+
+.enhanced-message-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--error-color);
+}
+
+.enhanced-message-error::before {
+    background: var(--error-color);
+}
+
+.enhanced-message-warning {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    color: var(--warning-color);
+}
+
+.enhanced-message-warning::before {
+    background: var(--warning-color);
+}
+
+.enhanced-message-info {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    color: var(--info-color);
+}
+
+.enhanced-message-info::before {
+    background: var(--info-color);
+}
+
+.enhanced-message-icon {
+    font-size: 1.25rem;
+}
+
+.enhanced-message-content {
+    flex: 1;
+}
+
+.enhanced-message-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+}
+
+.enhanced-message-close:hover {
+    opacity: 1;
+}
+
+/* === 增强的加载状态 === */
+.enhanced-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.enhanced-loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.enhanced-loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid rgba(102, 126, 234, 0.2);
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* === 动画效果 === */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* === 响应式设计 === */
+@media (max-width: 768px) {
+    .enhanced-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .enhanced-tab-nav {
+        flex-direction: column;
+    }
+    
+    .enhanced-tab-button {
+        flex: none;
+    }
+    
+    .enhanced-card-header,
+    .enhanced-card-body,
+    .enhanced-card-footer {
+        padding: 1rem;
+    }
+    
+    .enhanced-stat-number {
+        font-size: 1.5rem;
+    }
+}
+
+/* === 深色模式支持 === */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --surface-color: #1f2937;
+        --surface-hover: #374151;
+        --surface-active: #4b5563;
+        
+        --text-primary: #f9fafb;
+        --text-secondary: #d1d5db;
+        --text-muted: #9ca3af;
+        
+        --border-color: #374151;
+        --border-hover: #4b5563;
+    }
+    
+    .enhanced-card-header,
+    .enhanced-tab-nav {
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+    }
+}
+
+/* === 工具类 === */
+.enhanced-fade-in {
+    animation: fadeInUp 0.6s ease;
+}
+
+.enhanced-slide-in {
+    animation: slideInRight 0.3s ease;
+}
+
+.enhanced-pulse {
+    animation: pulse 2s infinite;
+}
+
+.enhanced-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.enhanced-loading-overlay .enhanced-loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border-width: 4px;
+}

@@ -89,7 +89,8 @@ body.role-permission-page .role-permission-container {
 /* === Header组件样式 === */
 header {
     background-color: var(--color-white);
-    box-shadow: none; /* 移除阴影避免影响下方文件浏览器 */
+    box-shadow: none;
+    /* 移除阴影避免影响下方文件浏览器 */
     border-bottom: 1px solid var(--color-gray-200);
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.95);
@@ -100,8 +101,10 @@ header {
     gap: var(--spacing-3);
     flex-wrap: wrap;
     position: relative;
-    z-index: 100 !important; /* 提高z-index确保header及其内部元素不被覆盖 */
-    overflow: visible; /* 让下拉框能显示 */
+    z-index: 100 !important;
+    /* 提高z-index确保header及其内部元素不被覆盖 */
+    overflow: visible;
+    /* 让下拉框能显示 */
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -137,12 +140,13 @@ header h1 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    z-index: 10 !important; /* 确保用户面板区域在顶层 */
+    z-index: 10 !important;
+    /* 确保用户面板区域在顶层 */
 }
 
 .user-panel-btn {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     border-radius: 4px;
     border: 1px solid var(--color-gray-300);
     background: var(--color-gray-600);
@@ -153,7 +157,8 @@ header h1 {
     cursor: pointer;
     transition: background-color 0.2s ease;
     outline: none;
-    z-index: 10 !important; /* 确保按钮在最上层，能够正常点击 */
+    z-index: 10 !important;
+    /* 确保按钮在最上层，能够正常点击 */
 }
 
 .user-panel-btn:hover {
@@ -206,91 +211,9 @@ header h1 {
     gap: var(--spacing-2);
 }
 
-/* 主要按钮 */
-.btn-primary {
-    padding: var(--spacing-2) var(--spacing-4);
-    background-color: var(--color-blue-600);
-    color: var(--color-white);
-    border-radius: 4px;
-    font-weight: 500;
-    border: 1px solid var(--color-blue-600);
-    cursor: pointer;
-    outline: none;
-    transition: background-color 0.2s ease;
-}
+/* 按钮样式继承自tailwind-style.css，这里只保留特定的增强样式 */
 
-.btn-primary:hover {
-    background-color: var(--color-blue-700);
-    border-color: var(--color-blue-700);
-}
-
-.btn-primary:active {
-    background-color: var(--color-blue-800);
-}
-
-.btn-primary:focus {
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-}
-
-/* 次要按钮 */
-.btn-secondary {
-    padding: var(--spacing-2) var(--spacing-4);
-    background-color: var(--color-gray-100);
-    color: var(--color-gray-700);
-    border-radius: 4px;
-    font-weight: 500;
-    border: 1px solid var(--color-gray-300);
-    cursor: pointer;
-    outline: none;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-
-.btn-secondary:hover {
-    background-color: var(--color-gray-200);
-    border-color: var(--color-gray-400);
-}
-
-.btn-secondary:active {
-    background-color: var(--color-gray-300);
-}
-
-.btn-secondary:focus {
-    box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.3);
-}
-
-/* 仪表板按钮特定样式 */
-#dashboard-btn {
-    z-index: 10 !important; /* 确保仪表板按钮能够正常响应点击 */
-    position: relative;
-}
-
-/* 危险按钮 */
-.btn-danger {
-    padding: var(--spacing-2) var(--spacing-4);
-    background-color: #ef4444;
-    color: var(--color-white);
-    border-radius: 4px;
-    font-weight: 500;
-    border: 1px solid #ef4444;
-    cursor: pointer;
-    outline: none;
-    transition: background-color 0.2s ease;
-}
-
-.btn-danger:hover {
-    background-color: #dc2626;
-    border-color: #dc2626;
-}
-
-.btn-danger:active {
-    background-color: #b91c1c;
-}
-
-.btn-danger:focus {
-    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
-}
-
-/* 按钮禁用状态 */
+/* 按钮禁用状态增强 */
 .btn-primary:disabled,
 .btn-secondary:disabled,
 .btn-danger:disabled {
@@ -333,9 +256,11 @@ header h1 {
     .btn-text {
         display: none;
     }
+
     .btn-text-short {
         display: inline;
     }
+
     .btn-icon {
         margin-right: 0;
     }
@@ -354,12 +279,13 @@ header h1 {
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-right: 1px solid var(--color-gray-200);
+    /* 确保默认状态为隐藏 */
 }
 
 /* 章节抽屉特殊样式（覆盖通用drawer样式）*/
 .drawer.drawer-left {
-    width: 75vw;
-    left: -75vw;
+    width: 100vw;
+    left: -100vw;
     transform: none;
     transition: left 0.3s ease;
 }
@@ -394,26 +320,31 @@ header h1 {
 
 /* 当章节抽屉打开时，主内容区域左边距调整 */
 body.drawer-left-open .main-content {
-    margin-left: 0; /* 在新布局中，main-content不需要额外的margin */
+    margin-left: 0;
+    /* 在新布局中，main-content不需要额外的margin */
 }
 
 /* 支持新的app-layout结构 */
 body.drawer-left-open .app-layout {
-    margin-left: calc(75vw + 320px); /* 考虑固定的文件浏览器宽度 */
+    margin-left: calc(100vw + 320px);
+    /* 考虑固定的文件浏览器宽度 */
 }
 
 /* 当管理抽屉(左侧)打开时支持app-layout结构 */
 body.admin-drawer-open .app-layout {
-    margin-left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
+    margin-left: calc(320px + 320px);
+    /* 管理抽屉宽度 + 文件浏览器宽度 */
 }
 
 /* 当管理抽屉打开时，移动文件浏览器和resizer */
 body.admin-drawer-open .file-browser {
-    left: 320px; /* 移动到管理抽屉右侧 */
+    left: 320px;
+    /* 移动到管理抽屉右侧 */
 }
 
 body.admin-drawer-open .resizer {
-    left: calc(320px + 320px); /* 管理抽屉宽度 + 文件浏览器宽度 */
+    left: calc(320px + 320px);
+    /* 管理抽屉宽度 + 文件浏览器宽度 */
 }
 
 /* 当右侧抽屉打开时，主内容区域右边距调整 */
@@ -423,32 +354,35 @@ body.drawer-right-open .main-content {
 
 /* 当右侧抽屉打开时，app-layout右边距调整 */
 body.drawer-right-open .app-layout {
-    margin-right: 320px;
-    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 320px;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当章节抽屉打开时，Header也要调整 */
 body.drawer-left-open header {
-    margin-left: 75vw;
+    margin-left: 100vw;
     width: 25vw;
-    min-width: 400px; /* 设置最小宽度确保内容可读 */
+    min-width: 400px;
+    /* 设置最小宽度确保内容可读 */
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当管理抽屉(左侧)打开时调整Header - 整个header都要移动 */
 body.admin-drawer-open header {
     margin-left: 320px;
-    width: calc(100% - 320px); /* 使用100%而不是100vw */
+    width: calc(100% - 320px);
+    /* 使用100%而不是100vw */
     min-width: 600px;
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 当右侧抽屉打开时，Header也要调整 */
 body.drawer-right-open header {
-    margin-right: 320px;
-    width: calc(100% - 320px); /* 使用100%而不是100vw */
+    margin-left: 320px;
+    width: calc(100% - 320px);
+    /* 使用100%而不是100vw */
     min-width: 600px;
-    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .drawer-overlay {
@@ -558,51 +492,12 @@ body.drawer-right-open header {
     margin-top: 0;
 }
 
-.form-group {
-    margin-bottom: var(--spacing-4);
-}
-
-.form-group label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-gray-700);
-    margin-bottom: var(--spacing-2);
-}
+/* 表单样式继承自tailwind-style.css，这里只保留特定的增强样式 */
 
 .form-group label.required::after {
     content: '*';
     color: #dc2626;
     margin-left: var(--spacing-1);
-}
-
-.form-group input,
-.form-group textarea,
-.form-group select {
-    width: 100%;
-    padding: var(--spacing-2) var(--spacing-3);
-    border: 1px solid var(--color-gray-300);
-    border-radius: var(--radius-lg);
-    outline: none;
-    transition: all 0.2s ease-in-out;
-}
-
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-    border-color: var(--color-blue-500);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-group input:hover,
-.form-group textarea:hover,
-.form-group select:hover {
-    border-color: var(--color-gray-400);
-}
-
-.form-group textarea {
-    resize: vertical;
-    min-height: 100px;
 }
 
 .form-help-text {
@@ -876,8 +771,13 @@ body.drawer-right-open header {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .loading-modal .modal-content {
@@ -987,32 +887,32 @@ body.admin-page .tab-content {
     .button-group {
         gap: var(--spacing-1);
     }
-    
+
     .btn-primary,
     .btn-secondary,
     .btn-danger {
         padding: var(--spacing-2) var(--spacing-3);
         font-size: 0.875rem;
     }
-    
+
     .section {
         padding: var(--spacing-4);
     }
-    
+
     .tab-nav {
         grid-template-columns: 1fr;
     }
-    
+
     .user-info {
         grid-template-columns: 1fr;
     }
-    
+
     .user-info-item {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--spacing-1);
     }
-    
+
     .admin-container {
         padding: var(--spacing-4);
     }
@@ -1049,18 +949,24 @@ body.admin-page .tab-content {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes slideIn {
-    from { 
-        opacity: 0; 
-        transform: translateY(-10px); 
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
     }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
@@ -1279,7 +1185,8 @@ body.admin-page .tab-content {
     font-size: 18px;
 }
 
-.roles-display, .roles-selector {
+.roles-display,
+.roles-selector {
     min-height: 120px;
     max-height: none;
     overflow-y: auto;
@@ -1302,11 +1209,38 @@ body.admin-page .tab-content {
     border-radius: 4px;
     font-size: 12px;
     font-weight: 500;
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+    white-space: nowrap;
 }
 
 .role-tag.default {
     background: #fef3c7;
     color: #92400e;
+}
+
+/* 用户编辑表单中的角色显示 */
+.current-roles {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.current-roles .text-muted {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.form-help {
+    display: block;
+    margin-top: 4px;
+    color: #6c757d;
+    font-size: 11px;
 }
 
 .available-roles {
@@ -1343,7 +1277,7 @@ body.admin-page .tab-content {
     margin: 0;
 }
 
-.role-checkbox > span {
+.role-checkbox>span {
     font-weight: 500;
     color: #374151;
 }

@@ -1,48 +1,377 @@
 <!-- 
-章节管理抽屉菜单组件
-参数：
-- drawer_id: 抽屉ID（默认'chapter-drawer'）
-- menu_title: 菜单标题（默认'章节管理'）
+章节管理抽屉组件
+用于管理src/chapter-config.json文件中的章节配置
 -->
-<div id="{{ drawer_id or 'chapter-drawer' }}" class="drawer drawer-left">
+<div id="chapter-drawer" class="drawer drawer-left chapter-drawer">
     <div class="drawer-header">
-        <h2><i class="icon-menu">📋</i> {{ menu_title or '章节管理' }}</h2>
-        <button id="close-chapter-drawer-btn" class="btn-secondary">✕</button>
+        <h2>
+            <i class="icon-menu">📚</i>
+            章节管理
+        </h2>
+        <button data-drawer-close aria-label="关闭">✕</button>
     </div>
     <div class="drawer-content">
-        <!-- 章节管理功能 -->
+        <!-- 章节操作区域 -->
         <div class="menu-section">
-            <h4 class="menu-section-title">内容管理</h4>
-            
-            <!-- 章节顺序配置 -->
-            <div class="chapter-management-section">
-                <div class="form-group">
-                    <label>章节顺序</label>
-                    <ul id="drawer-chapters" class="chapter-list">
-                        <!-- 章节将通过JavaScript动态添加 -->
-                        <li class="loading-item">正在加载章节列表...</li>
-                    </ul>
-                </div>
-                <div class="btn-group">
-                    <button type="button" id="drawer-save-chapters-btn" class="btn-primary">保存章节顺序</button>
-                    <button type="button" id="drawer-reset-chapters-btn" class="btn-secondary">重置</button>
-                    <button type="button" id="drawer-refresh-chapters-btn" class="btn-secondary">🔄 刷新</button>
-                </div>
+            <div class="chapter-actions-toolbar">
+                <button id="add-chapter-btn" class="btn btn-primary btn-sm">
+                    <i class="icon">➕</i>
+                    添加章节
+                </button>
+                <button id="save-chapter-order-btn" class="btn btn-secondary btn-sm">
+                    <i class="icon">💾</i>
+                    保存顺序
+                </button>
+                <button id="refresh-chapters-btn" class="btn btn-outline btn-sm">
+                    <i class="icon">🔄</i>
+                    刷新
+                </button>
             </div>
         </div>
         
-        <!-- 快速操作菜单 -->
+        <!-- 章节列表区域 -->
         <div class="menu-section">
-            <h4 class="menu-section-title">快速操作</h4>
-            <ul class="menu-list">
-                <li><a href="/dashboard" class="menu-item"><i class="icon">📊</i>工作面板</a></li>
-                <li><a href="/admin" class="menu-item"><i class="icon">⚙️</i>系统管理</a></li>
-                <li><a href="#" id="drawer-create-chapter" class="menu-item"><i class="icon">➕</i>新建章节</a></li>
-                <li><a href="#" id="drawer-import-chapters" class="menu-item"><i class="icon">📂</i>导入章节</a></li>
-            </ul>
+            <h3 class="menu-section-title">章节列表</h3>
+            <div class="chapter-list-container">
+                <ul id="drawer-chapters" class="chapter-list">
+                    <li class="no-chapters">暂无章节</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 章节编辑表单（隐藏） -->
+        <div id="chapter-edit-form" class="menu-section" style="display: none;">
+            <h3 class="menu-section-title">编辑章节</h3>
+            <form id="chapter-form">
+                <div class="form-group">
+                    <label for="chapter-title">章节标题</label>
+                    <input type="text" id="chapter-title" name="title" class="form-control" placeholder="输入章节标题" required>
+                </div>
+                <div class="form-group">
+                    <label for="chapter-file">章节文件</label>
+                    <input type="text" id="chapter-file" name="file" class="form-control" placeholder="例如: chapters/chapter1.md" required>
+                    <small class="form-text">相对于src目录的文件路径</small>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-sm">保存</button>
+                    <button type="button" id="cancel-edit-btn" class="btn btn-secondary btn-sm">取消</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 帮助信息 -->
+        <div class="menu-section">
+            <h3 class="menu-section-title">使用说明</h3>
+            <div class="help-content">
+                <ul class="help-list">
+                    <li>拖拽章节项目可以调整顺序</li>
+                    <li>点击编辑按钮修改章节信息</li>
+                    <li>章节文件路径相对于src目录</li>
+                    <li>保存顺序后会更新chapter-config.json</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- 章节抽屉菜单遮罩层 -->
-<div id="chapter-drawer-overlay" class="drawer-overlay"></div>
+<script>
+// 章节抽屉管理脚本
+(function() {
+    let currentEditIndex = -1;
+    let chaptersData = [];
+    
+    // 初始化章节抽屉
+    function initChapterDrawer() {
+        // 绑定按钮事件
+        document.getElementById('add-chapter-btn')?.addEventListener('click', showAddChapterForm);
+        document.getElementById('save-chapter-order-btn')?.addEventListener('click', saveChapterOrder);
+        document.getElementById('refresh-chapters-btn')?.addEventListener('click', loadChapterConfig);
+        document.getElementById('cancel-edit-btn')?.addEventListener('click', hideEditForm);
+        document.getElementById('chapter-form')?.addEventListener('submit', handleChapterFormSubmit);
+        
+        // 加载章节配置
+        loadChapterConfig();
+    }
+    
+    // 加载章节配置
+    async function loadChapterConfig() {
+        try {
+            const response = await fetch('/api/admin/chapter-config');
+            if (!response.ok) {
+                throw new Error('获取章节配置失败');
+            }
+            
+            const config = await response.json();
+            chaptersData = config.chapters || [];
+            renderChapterList();
+            
+        } catch (error) {
+            console.error('加载章节配置失败:', error);
+            showMessage('加载章节配置失败: ' + error.message, 'error');
+            renderChapterList([]);
+        }
+    }
+    
+    // 渲染章节列表
+    function renderChapterList() {
+        const chaptersList = document.getElementById('drawer-chapters');
+        if (!chaptersList) return;
+        
+        chaptersList.innerHTML = '';
+        
+        if (chaptersData.length === 0) {
+            chaptersList.innerHTML = '<li class="no-chapters">暂无章节</li>';
+            return;
+        }
+        
+        chaptersData.forEach((chapter, index) => {
+            const li = document.createElement('li');
+            li.className = 'chapter-item';
+            li.draggable = true;
+            li.dataset.index = index;
+            
+            li.innerHTML = `
+                <div class="chapter-info">
+                    <span class="chapter-handle" title="拖拽排序">⋮⋮</span>
+                    <div class="chapter-details">
+                        <div class="chapter-title">${escapeHtml(chapter.title || '未命名章节')}</div>
+                        <div class="chapter-file">${escapeHtml(chapter.file || '')}</div>
+                    </div>
+                </div>
+                <div class="chapter-actions">
+                    <button class="btn-action btn-edit" onclick="editChapter(${index})" title="编辑">
+                        ✏️
+                    </button>
+                    <button class="btn-action btn-delete" onclick="deleteChapter(${index})" title="删除">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            
+            chaptersList.appendChild(li);
+        });
+        
+        // 启用拖拽排序
+        enableChapterDragSort();
+    }
+    
+    // 启用章节拖拽排序
+    function enableChapterDragSort() {
+        const chaptersList = document.getElementById('drawer-chapters');
+        if (!chaptersList) return;
+        
+        let draggedElement = null;
+        
+        chaptersList.addEventListener('dragstart', function(e) {
+            draggedElement = e.target.closest('.chapter-item');
+            if (draggedElement) {
+                e.target.style.opacity = '0.5';
+            }
+        });
+        
+        chaptersList.addEventListener('dragend', function(e) {
+            e.target.style.opacity = '';
+            draggedElement = null;
+        });
+        
+        chaptersList.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+        
+        chaptersList.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const dropTarget = e.target.closest('.chapter-item');
+            
+            if (draggedElement && dropTarget && draggedElement !== dropTarget) {
+                const parent = dropTarget.parentNode;
+                const allItems = Array.from(parent.children);
+                const draggedIndex = allItems.indexOf(draggedElement);
+                const targetIndex = allItems.indexOf(dropTarget);
+                
+                if (draggedIndex < targetIndex) {
+                    parent.insertBefore(draggedElement, dropTarget.nextSibling);
+                } else {
+                    parent.insertBefore(draggedElement, dropTarget);
+                }
+                
+                // 更新数据顺序
+                updateChapterDataOrder();
+            }
+        });
+    }
+    
+    // 更新章节数据顺序
+    function updateChapterDataOrder() {
+        const chapterItems = document.querySelectorAll('#drawer-chapters .chapter-item');
+        const newOrder = [];
+        
+        chapterItems.forEach((item, index) => {
+            const originalIndex = parseInt(item.dataset.index);
+            if (chaptersData[originalIndex]) {
+                newOrder.push(chaptersData[originalIndex]);
+            }
+            item.dataset.index = index;
+        });
+        
+        chaptersData = newOrder;
+    }
+    
+    // 显示添加章节表单
+    function showAddChapterForm() {
+        currentEditIndex = -1;
+        document.getElementById('chapter-title').value = '';
+        document.getElementById('chapter-file').value = '';
+        document.getElementById('chapter-edit-form').style.display = 'block';
+        document.querySelector('#chapter-edit-form .menu-section-title').textContent = '添加章节';
+    }
+    
+    // 编辑章节
+    window.editChapter = function(index) {
+        if (index >= 0 && index < chaptersData.length) {
+            currentEditIndex = index;
+            const chapter = chaptersData[index];
+            document.getElementById('chapter-title').value = chapter.title || '';
+            document.getElementById('chapter-file').value = chapter.file || '';
+            document.getElementById('chapter-edit-form').style.display = 'block';
+            document.querySelector('#chapter-edit-form .menu-section-title').textContent = '编辑章节';
+        }
+    };
+    
+    // 删除章节
+    window.deleteChapter = async function(index) {
+        if (index >= 0 && index < chaptersData.length) {
+            const chapter = chaptersData[index];
+            if (confirm(`确定要删除章节"${chapter.title}"吗？`)) {
+                try {
+                    const response = await fetch(`/api/admin/chapter-config/${index}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('删除章节失败');
+                    }
+                    
+                    showMessage('章节删除成功', 'success');
+                    loadChapterConfig();
+                    
+                } catch (error) {
+                    console.error('删除章节失败:', error);
+                    showMessage('删除章节失败: ' + error.message, 'error');
+                }
+            }
+        }
+    };
+    
+    // 隐藏编辑表单
+    function hideEditForm() {
+        document.getElementById('chapter-edit-form').style.display = 'none';
+        currentEditIndex = -1;
+    }
+    
+    // 处理章节表单提交
+    async function handleChapterFormSubmit(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const chapterData = {
+            title: formData.get('title').trim(),
+            file: formData.get('file').trim()
+        };
+        
+        if (!chapterData.title || !chapterData.file) {
+            showMessage('请填写完整的章节信息', 'error');
+            return;
+        }
+        
+        try {
+            let response;
+            
+            if (currentEditIndex === -1) {
+                // 添加新章节
+                response = await fetch('/api/admin/chapter-config/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(chapterData)
+                });
+            } else {
+                // 更新现有章节
+                response = await fetch(`/api/admin/chapter-config/${currentEditIndex}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(chapterData)
+                });
+            }
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || '操作失败');
+            }
+            
+            const result = await response.json();
+            showMessage(result.message, 'success');
+            hideEditForm();
+            loadChapterConfig();
+            
+        } catch (error) {
+            console.error('保存章节失败:', error);
+            showMessage('保存章节失败: ' + error.message, 'error');
+        }
+    }
+    
+    // 保存章节顺序
+    async function saveChapterOrder() {
+        try {
+            const response = await fetch('/api/admin/chapter-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ chapters: chaptersData })
+            });
+            
+            if (!response.ok) {
+                throw new Error('保存章节顺序失败');
+            }
+            
+            showMessage('章节顺序保存成功', 'success');
+            
+        } catch (error) {
+            console.error('保存章节顺序失败:', error);
+            showMessage('保存章节顺序失败: ' + error.message, 'error');
+        }
+    }
+    
+    // 显示消息
+    function showMessage(message, type = 'info') {
+        if (window.ComponentManager && window.ComponentManager.getComponent) {
+            const messageComponent = window.ComponentManager.getComponent('message');
+            if (messageComponent) {
+                messageComponent[type](message);
+                return;
+            }
+        }
+        
+        // 备用消息显示
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        alert(message);
+    }
+    
+    // HTML转义
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // 页面加载完成后初始化
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initChapterDrawer);
+    } else {
+        initChapterDrawer();
+    }
+})();
+</script>

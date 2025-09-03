@@ -12,12 +12,7 @@
         <div class="dropdown-header">
             <h3>用户面板</h3>
         </div>
-        <div class="dropdown-body">
-            <!-- 用户信息 -->
-            {% if show_user_info != false %}
-            {% include 'components/user-info-section.html' %}
-            {% endif %}
-            
+        <div class="dropdown-body">          
             <!-- 主题设置 -->
             {% if show_theme_settings != false %}
             {% include 'components/theme-settings-section.html' %}
@@ -26,6 +21,11 @@
             <!-- LLM配置 -->
             {% if show_llm_config != false %}
             {% include 'components/llm-config-section.html' %}
+            {% endif %}
+            
+            <!-- 还原src为初始状态 -->
+            {% if show_reset_src is not defined or show_reset_src != false %}
+            {% include 'components/reset-src-section.html' %}
             {% endif %}
             
             <!-- 用户操作 -->

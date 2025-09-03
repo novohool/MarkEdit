@@ -24,27 +24,23 @@ Header组件 - 可配置的页面头部
         <div class="book-converter-container">
             <select id="book-converter-select" class="converter-select" title="选择转换格式">
                 <option value="">选择转换格式</option>
-                <option value="build">所有格式</option>
                 <option value="epub">EPUB格式</option>
-                <option value="pdf">PDF格式</option>
+                <option value="pdf">PDF格式(Pandoc)</option>
+                <option value="pdf-wkhtmltopdf">PDF格式(wkhtmltopdf)</option>
                 <option value="html">HTML格式</option>
             </select>
         </div>
         {% endif %}
         
-        <!-- 管理和其他功能按钮 -->
-        {% if show_dashboard != false %}
-        <button id="dashboard-btn" class="btn-secondary" title="仪表板">
-            <i class="btn-icon">📊</i>
-            <span class="btn-text">仪表板</span>
-        </button>
-        {% endif %}
         
         {% if (show_admin_menu != false) and (has_admin_access or permissions.has_admin_access) %}
-        <button id="admin-menu-btn" class="btn-secondary" title="管理">
-            <i class="btn-icon">⚙️</i>
-            <span class="btn-text">管理</span>
-        </button>
+        <div class="user-panel-area">
+            <button id="admin-panel-btn" class="user-panel-btn" title="管理面板">
+                <i class="user-avatar-icon">⚙️</i>
+            </button>
+            <!-- 管理面板下拉菜单（完全模仿用户面板结构） -->
+            {% include 'components/admin-panel-dropdown.html' %}
+        </div>
         {% endif %}
         
         <!-- 自定义按钮组 -->
@@ -63,7 +59,3 @@ Header组件 - 可配置的页面头部
     </div>
 </header>
 
-<!-- 管理员抽屉菜单（仅在需要时显示） -->
-{% if (show_admin_menu != false) and (has_admin_access or permissions.has_admin_access) %}
-{% include 'components/admin-drawer.html' %}
-{% endif %}

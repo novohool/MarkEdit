@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="/static/{{ theme or 'default' }}/css/integrated-components.css" id="components-style">
     <!-- JavaScript工具库样式 -->
     <link rel="stylesheet" href="/static/common/css/js-utils.css">
+    <!-- 统一组件管理器样式 -->
+    <link rel="stylesheet" href="/static/common/css/unified-components.css">
     {% block additional_css %}{% endblock %}
     
     <!-- 基础JavaScript库 -->
@@ -18,6 +20,10 @@
     <!-- 引入公共JavaScript工具库 -->
     <script src="/static/common/js/base-utils.js"></script>
     <script src="/static/common/js/ui-manager.js"></script>
+    <!-- 统一组件管理器 -->
+    <script src="/static/common/js/unified-component-manager.js"></script>
+    <!-- 统一主题切换组件 -->
+    <script src="/static/common/js/unified-theme-switch.js"></script>
     {% endblock %}
     
     <!-- 页面特定的head内容 -->

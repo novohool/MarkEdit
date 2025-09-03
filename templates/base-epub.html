@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MarkEdit{% endblock %}</title>
+    
+    <!-- 基础CSS -->
+    <link rel="stylesheet" href="/static/{{ theme or 'default' }}/css/style.css" id="theme-link">
+    {% block additional_css %}{% endblock %}
+    
+    <!-- 基础JavaScript库 -->
+    {% block head_scripts %}{% endblock %}
+    
+    <!-- 页面特定的head内容 -->
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <!-- 主要内容区域 - 专为EPUB阅读器设计 -->
+        {% block main_content %}
+        <div class="main-content">
+            {% block content %}{% endblock %}
+        </div>
+        {% endblock %}
+    </div>
+    
+    <!-- 页面特定的JavaScript -->
+    {% block page_scripts %}{% endblock %}
+    
+    <!-- 页面初始化脚本 -->
+    {% block init_scripts %}{% endblock %}
+</body>
+</html>

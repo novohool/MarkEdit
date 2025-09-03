@@ -201,304 +201,14 @@ class TableRenderer extends ListRenderer {
 }
 
 /**
- * 模态框管理器
- */
-class ModalManager {
-    constructor() {
-        this.modals = new Map();
-        this.currentModal = null;
-    }
-    
-    /**
-     * 创建模态框
-     */
-    create(id, options = {}) {
-        const modal = DOMUtils.createElement('div', {
-            id: id,
-            className: 'modal'
-        });
-        
-        const modalContent = DOMUtils.createElement('div', {
-            className: 'modal-content'
-        });
-        
-        // 创建头部
-        if (options.title) {
-            const header = DOMUtils.createElement('div', {
-                className: 'modal-header'
-            });
-            
-            const title = DOMUtils.createElement('h3', {}, options.title);
-            const closeBtn = DOMUtils.createElement('button', {
-                className: 'modal-close',
-                type: 'button'
-            }, '×');
-            
-            closeBtn.onclick = () => this.close(id);
-            
-            header.appendChild(title);
-            header.appendChild(closeBtn);
-            modalContent.appendChild(header);
-        }
-        
-        // 创建主体
-        const body = DOMUtils.createElement('div', {
-            className: 'modal-body'
-        });
-        
-        if (options.content) {
-            if (typeof options.content === 'string') {
-                body.innerHTML = options.content;
-            } else {
-                body.appendChild(options.content);
-            }
-        }
-        
-        modalContent.appendChild(body);
-        
-        // 创建底部
-        if (options.buttons) {
-            const footer = DOMUtils.createElement('div', {
-                className: 'modal-footer'
-            });
-            
-            options.buttons.forEach(button => {
-                const btn = DOMUtils.createElement('button', {
-                    className: button.className || 'btn',
-                    type: 'button'
-                }, button.text);
-                
-                if (button.onClick) {
-                    btn.onclick = button.onClick;
-                }
-                
-                footer.appendChild(btn);
-            });
-            
-            modalContent.appendChild(footer);
-        }
-        
-        modal.appendChild(modalContent);
-        
-        // 点击背景关闭
-        modal.onclick = (e) => {
-            if (e.target === modal) {
-                this.close(id);
-            }
-        };
-        
-        this.modals.set(id, modal);
-        return modal;
-    }
-    
-    /**
-     * 显示模态框
-     */
-    show(id) {
-        const modal = this.modals.get(id);
-        if (!modal) return;
-        
-        // 关闭当前模态框
-        if (this.currentModal) {
-            this.close(this.currentModal);
-        }
-        
-        document.body.appendChild(modal);
-        modal.classList.add('show');
-        this.currentModal = id;
-        
-        // 阻止页面滚动（除非是管理页面）
-        if (!document.body.classList.contains('admin-page') && !document.body.classList.contains('role-permission-page')) {
-            document.body.style.overflow = 'hidden';
-        }
-    }
-    
-    /**
-     * 关闭模态框
-     */
-    close(id) {
-        const modal = this.modals.get(id);
-        if (!modal) return;
-        
-        modal.classList.remove('show');
-        setTimeout(() => {
-            if (modal.parentNode) {
-                modal.parentNode.removeChild(modal);
-            }
-        }, 300);
-        
-        this.currentModal = null;
-        
-        // 恢复页面滚动（除非是管理页面）
-        if (!document.body.classList.contains('admin-page') && !document.body.classList.contains('role-permission-page')) {
-            document.body.style.overflow = '';
-        }
-    }
-    
-    /**
-     * 更新模态框内容
-     */
-    updateContent(id, content) {
-        const modal = this.modals.get(id);
-        if (!modal) return;
-        
-        const body = modal.querySelector('.modal-body');
-        if (body) {
-            if (typeof content === 'string') {
-                body.innerHTML = content;
-            } else {
-                DOMUtils.clear(body);
-                body.appendChild(content);
-            }
-        }
-    }
-    
-    /**
-     * 确认对话框
-     */
-    confirm(message, title = '确认', options = {}) {
-        return new Promise((resolve) => {
-            const modalId = 'confirm-modal';
-            
-            this.create(modalId, {
-                title: title,
-                content: `<p>${message}</p>`,
-                buttons: [
-                    {
-                        text: options.cancelText || '取消',
-                        className: 'btn btn-secondary',
-                        onClick: () => {
-                            this.close(modalId);
-                            resolve(false);
-                        }
-                    },
-                    {
-                        text: options.confirmText || '确定',
-                        className: 'btn btn-primary',
-                        onClick: () => {
-                            this.close(modalId);
-                            resolve(true);
-                        }
-                    }
-                ]
-            });
-            
-            this.show(modalId);
-        });
-    }
-    
-    /**
-     * 警告对话框
-     */
-    alert(message, title = '提示') {
-        return new Promise((resolve) => {
-            const modalId = 'alert-modal';
-            
-            this.create(modalId, {
-                title: title,
-                content: `<p>${message}</p>`,
-                buttons: [
-                    {
-                        text: '确定',
-                        className: 'btn btn-primary',
-                        onClick: () => {
-                            this.close(modalId);
-                            resolve();
-                        }
-                    }
-                ]
-            });
-            
-            this.show(modalId);
-        });
-    }
-}
-
-/**
  * 表单管理器
  */
-class FormManager {
-    constructor() {
-        this.forms = new Map();
-    }
-    
-    /**
-     * 注册表单
-     */
-    register(id, config) {
-        this.forms.set(id, config);
-        
-        const form = document.getElementById(id);
-        if (form) {
-            this.bindFormEvents(form, config);
-        }
-    }
-    
-    /**
-     * 绑定表单事件
-     */
-    bindFormEvents(form, config) {
-        // 提交事件
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            if (config.onSubmit) {
-                const formData = FormUtils.getFormData(form);
-                
-                // 表单验证
-                if (config.rules) {
-                    const validation = FormUtils.validate(form, config.rules);
-                    if (!validation.valid) {
-                        messageManager.error(validation.errors.join('<br>'));
-                        return;
-                    }
-                }
-                
-                try {
-                    await config.onSubmit(formData, form);
-                } catch (error) {
-                    messageManager.error(error.message || '操作失败');
-                }
-            }
-        });
-        
-        // 重置事件
-        if (config.onReset) {
-            form.addEventListener('reset', config.onReset);
-        }
-    }
-    
-    /**
-     * 显示表单
-     */
-    show(id, data = {}) {
-        const form = document.getElementById(id);
-        if (form) {
-            FormUtils.setFormData(form, data);
-            DOMUtils.show(form);
-        }
-    }
-    
-    /**
-     * 隐藏表单
-     */
-    hide(id) {
-        const form = document.getElementById(id);
-        if (form) {
-            DOMUtils.hide(form);
-            FormUtils.reset(form);
-        }
-    }
-}
-
 // ==========================================
 // 全局实例
 // ==========================================
 
 const listRenderer = new ListRenderer();
 const tableRenderer = new TableRenderer();
-const modalManager = new ModalManager();
-const formManager = new FormManager();
 
 // ==========================================
 // 注册通用列表渲染器
@@ -602,28 +312,20 @@ function renderBackupList(backups) {
 // 添加UI工具到全局MarkEditUtils
 if (window.MarkEditUtils) {
     Object.assign(window.MarkEditUtils, {
-        ListRenderer,
-        TableRenderer,
-        ModalManager,
-        FormManager,
-        
-        // 全局实例
-        listRenderer,
-        tableRenderer,
-        modalManager,
-        formManager
-    });
+            ListRenderer,
+            TableRenderer,
+            
+            // 全局实例
+            listRenderer,
+            tableRenderer
+        });
 } else {
     window.MarkEditUtils = {
-        ListRenderer,
-        TableRenderer,
-        ModalManager,
-        FormManager,
-        listRenderer,
-        tableRenderer,
-        modalManager,
-        formManager
-    };
+            ListRenderer,
+            TableRenderer,
+            listRenderer,
+            tableRenderer
+        };
 }
 
 // 向后兼容的全局函数

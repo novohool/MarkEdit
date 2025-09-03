@@ -1,0 +1,16 @@
+<!-- 管理信息部分组件 -->
+<div class="section">
+    <h3>管理信息</h3>
+    <div class="user-info-item">
+        <span class="user-info-label">管理员</span>
+        <span class="user-info-value">{{ username or '管理员' }}</span>
+    </div>
+    <div class="user-info-item">
+        <span class="user-info-label">权限级别</span>
+        <span class="user-info-value">{% if permissions.has_super_admin %}超级管理员{% elif permissions.has_admin_access %}管理员{% else %}普通用户{% endif %}</span>
+    </div>
+    <div class="user-info-item">
+        <span class="user-info-label">登录时间</span>
+        <span class="user-info-value">刚刚</span>
+    </div>
+</div>

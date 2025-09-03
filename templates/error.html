@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统错误 - MarkEdit</title>
+    <link rel="stylesheet" href="/static/{{ theme }}/css/style.css">
+    <link rel="stylesheet" href="/static/common/css/base-components.css">
+    <style>
+        .error-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: var(--bg-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: var(--error-color, #e74c3c);
+        }
+        
+        .error-title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 15px;
+        }
+        
+        .error-message {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .error-id {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-family: monospace;
+            background: var(--bg-secondary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        
+        .recovery-suggestions {
+            text-align: left;
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .recovery-suggestions h3 {
+            color: var(--text-color);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .recovery-suggestions ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .recovery-suggestions li {
+            padding: 8px 0;
+            color: var(--text-secondary);
+            position: relative;
+            padding-left: 25px;
+        }
+        
+        .recovery-suggestions li:before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+            top: 8px;
+        }
+        
+        .error-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .error-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .error-btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .error-btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+        
+        .error-btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        
+        .error-btn-secondary:hover {
+            background: var(--bg-hover);
+            transform: translateY(-2px);
+        }
+        
+        .error-details {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .error-details-toggle {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: underline;
+        }
+        
+        .error-details-content {
+            display: none;
+            margin-top: 15px;
+            text-align: left;
+            background: var(--bg-secondary);
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .error-timestamp {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .error-container {
+                margin: 20px;
+                padding: 20px;
+            }
+            
+            .error-title {
+                font-size: 1.5rem;
+            }
+            
+            .error-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .error-btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        
+        <h1 class="error-title">系统错误</h1>
+        
+        <p class="error-message">{{ error.user_message or error.message }}</p>
+        
+        <div class="error-id">
+            错误ID: {{ error.error_id }}
+        </div>
+        
+        {% if error.recovery_suggestions %}
+        <div class="recovery-suggestions">
+            <h3>解决建议</h3>
+            <ul>
+                {% for suggestion in error.recovery_suggestions %}
+                <li>{{ suggestion }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <div class="error-actions">
+            <a href="javascript:history.back()" class="error-btn error-btn-secondary">
+                ← 返回上一页
+            </a>
+            <a href="/" class="error-btn error-btn-primary">
+                🏠 返回首页
+            </a>
+            <button onclick="location.reload()" class="error-btn error-btn-secondary">
+                🔄 重新加载
+            </button>
+        </div>
+        
+        <div class="error-details">
+            <button class="error-details-toggle" onclick="toggleErrorDetails()">
+                显示技术详情
+            </button>
+            <div class="error-details-content" id="errorDetails">
+                <strong>错误类别:</strong> {{ error.category }}<br>
+                <strong>错误级别:</strong> {{ error.level }}<br>
+                {% if error.error_code %}
+                <strong>错误代码:</strong> {{ error.error_code }}<br>
+                {% endif %}
+                <strong>发生时间:</strong> {{ error.timestamp }}<br>
+                {% if error.debug_info %}
+                <strong>调试信息:</strong><br>
+                <pre>{{ error.debug_info | tojson(indent=2) }}</pre>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="error-timestamp">
+            发生时间: {{ error.timestamp }}
+        </div>
+    </div>
+    
+    <script>
+        function toggleErrorDetails() {
+            const details = document.getElementById('errorDetails');
+            const toggle = document.querySelector('.error-details-toggle');
+            
+            if (details.style.display === 'none' || details.style.display === '') {
+                details.style.display = 'block';
+                toggle.textContent = '隐藏技术详情';
+            } else {
+                details.style.display = 'none';
+                toggle.textContent = '显示技术详情';
+            }
+        }
+        
+        // 自动复制错误ID到剪贴板
+        document.querySelector('.error-id').addEventListener('click', function() {
+            const errorId = '{{ error.error_id }}';
+            navigator.clipboard.writeText(errorId).then(function() {
+                const originalText = this.textContent;
+                this.textContent = '错误ID已复制到剪贴板';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 2000);
+            }.bind(this));
+        });
+        
+        // 报告错误功能
+        function reportError() {
+            const errorData = {
+                error_id: '{{ error.error_id }}',
+                message: '{{ error.message }}',
+                timestamp: '{{ error.timestamp }}',
+                user_agent: navigator.userAgent,
+                url: window.location.href
+            };
+            
+            // 这里可以发送错误报告到服务器
+            console.log('Error report:', errorData);
+            alert('错误报告已记录，感谢您的反馈！');
+        }
+    </script>
+</body>
+</html>

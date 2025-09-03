@@ -29,8 +29,8 @@
 {% set show_theme_selector = false %}
 {% set show_admin_menu = true %}
 {% set show_user_panel = true %}
-{% set show_dashboard = true %}
 {% set show_book_converter = true %}
+{% set show_reset_src = true %}
 
 <!-- 自定义Header按钮 -->
 {% block custom_header_buttons %}
@@ -42,10 +42,6 @@
 
 <!-- 构建功能按钮组 -->
 <div class="button-group build-group">
-    <button id="build-all-btn" class="btn-primary" title="生成所有格式">
-        <i class="btn-icon">📚</i>
-        <span class="btn-text">生成所有格式</span>
-    </button>
     <button id="build-epub-btn" class="btn-secondary" title="生成 EPUB">
         <i class="btn-icon">📖</i>
         <span class="btn-text-short">EPUB</span>
@@ -100,7 +96,10 @@
 {% block page_scripts %}
 <!-- 引入主题相关的JavaScript -->
 <script src="/static/common/js/theme-loader.js"></script>
+<!-- 统一编辑器管理器，优先加载 -->
+<script src="/static/common/js/unified-editor-manager.js"></script>
 <script src="/static/common/js/main-shared.js"></script>
 <script src="/static/{{ theme }}/js/main.js" id="theme-script"></script>
 <script src="/static/{{ theme }}/js/index.js"></script>
+<script src="/static/{{ theme }}/js/admin_panel.js"></script>
 {% endblock %}

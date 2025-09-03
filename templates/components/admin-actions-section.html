@@ -1,0 +1,25 @@
+<!-- 管理操作部分组件 -->
+<div class="section">
+    <h3>管理操作</h3>
+    <div class="btn-group">
+        <a href="/myaccount" class="btn-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
+            <i>👤</i>个人设置
+        </a>
+        <button type="button" 
+                id="{{ logout_btn_id or 'admin-panel-logout-btn' }}" 
+                class="btn-secondary logout-btn logout-item" 
+                data-logout-handler="{{ logout_handler or 'handleAdminPanelLogout' }}"
+                style="display: flex; align-items: center; gap: 8px;">
+            <i>🚪</i>登出
+        </button>
+        
+        {% if show_back_button %}
+        <button type="button" class="btn-secondary back-btn" data-action="back" style="display: flex; align-items: center; gap: 8px;">
+            <i>↩️</i>返回
+        </button>
+        {% endif %}
+        
+        <!-- 自定义管理操作按钮 -->
+        {% block custom_admin_actions %}{% endblock %}
+    </div>
+</div>

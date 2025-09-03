@@ -56,9 +56,20 @@ def get_admin_service():
 def get_build_service():
     """获取构建服务实例（延迟加载）"""
     global _build_service
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"当前_build_service值: {type(_build_service)}")
     if _build_service is None:
-        from app.services.build_service import BuildService
-        _build_service = BuildService()
+        try:
+            logger.debug("开始初始化BuildService")
+            from app.services.build_service import BuildService
+            _build_service = BuildService()
+            logger.debug(f"BuildService初始化完成: {type(_build_service)}")
+        except Exception as e:
+            logger.error(f"初始化BuildService时出错: {str(e)}", exc_info=True)
+            raise
+    else:
+        logger.debug("使用已存在的BuildService实例")
     return _build_service
 
 def get_epub_service():

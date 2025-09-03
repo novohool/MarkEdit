@@ -15,7 +15,7 @@ from app.utils.file_utils import (
 )
 
 # Response utils
-from app.utils.response_utils import (
+from app.utils.enhanced_response_utils import (
     create_file_response, create_static_file_response
 )
 

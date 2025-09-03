@@ -27,3 +27,6 @@ fly.toml
 *.log
 bfg.jar
 ..bfg-report
+tests
+logs
+.kiro

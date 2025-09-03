@@ -1,84 +1,52 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EPUB.js</title>
+{% extends 'base-epub.html' %}
 
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
-    <link rel="stylesheet" href="/static/{{ theme }}/css/epub-viewer.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }
+{% block title %}EPUB 阅读器 - MarkEdit{% endblock %}
 
-        #viewer {
-            margin: 8px auto;
-            max-width: 1200px;
-            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-            background-color: white;
-        }
+{% block head_scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+{% endblock %}
 
-        #toc {
-            display: block;
-            margin: 20px auto;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            max-width: 800px;
-        }
+{% block additional_css %}
+<link rel="stylesheet" href="/static/{{ theme }}/css/epub-viewer.css">
+{% endblock %}
 
-        .arrow {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 36px;
-            color: #333;
-            text-decoration: none;
-            padding: 10px;
-            background-color: rgba(255, 255, 255, 0.8);
-            border-radius: 50%;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-        }
 
-        #prev {
-            left: 20px;
-        }
 
-        #next {
-            right: 20px;
-        }
+{% block main_content %}
+<div class="epub-reader-container">
+    <!-- 阅读器工具栏 -->
+    <div class="reader-toolbar">
+        <div class="toolbar-left">
+            <select id="toc" class="toc-selector" title="章节目录">
+                <option value="">选择章节...</option>
+            </select>
+        </div>
+        <div class="toolbar-center">
+            <div class="reading-progress">
+                <div class="progress-bar" title="点击或拖拽跳转到指定位置">
+                    <div class="progress-fill" id="reading-progress"></div>
+                    <div class="progress-slider" id="progress-slider"></div>
+                </div>
+                <span class="progress-text" id="progress-text">0%</span>
+            </div>
+        </div>
+        <div class="toolbar-right">
+            <button id="font-size-decrease" class="btn-icon-only" title="减小字体">A-</button>
+            <button id="font-size-increase" class="btn-icon-only" title="增大字体">A+</button>
+        </div>
+    </div>
+    
+    <!-- 阅读器主体 -->
+    <div class="reader-main">
+        <div id="viewer" class="epub-viewer"></div>
+        <button id="prev" class="nav-arrow nav-prev" title="上一页">‹</button>
+        <button id="next" class="nav-arrow nav-next" title="下一页">›</button>
+    </div>
+</div>
+{% endblock %}
 
-        .arrow:hover {
-            background-color: rgba(200, 200, 200, 0.8);
-        }
-
-        .spreads {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-        }
-
-        .single {
-            display: block;
-            margin: 0 auto;
-        }
-    </style>
-</head>
-<body>
-  <!-- <div id="title"></div> -->
-  <select id="toc"></select>
-  <div id="viewer" class="spreads"></div>
-  <a id="prev" href="#prev" class="arrow">‹</a>
-  <a id="next" href="#next" class="arrow">›</a>
-
-  <script src="/static/{{ theme }}/js/epub-viewer.js"></script>
-</body>
-</html>
+{% block page_scripts %}
+<script src="/static/{{ theme }}/js/epub-viewer.js"></script>
+{% endblock %}
