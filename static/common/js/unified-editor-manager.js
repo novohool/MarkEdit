@@ -260,6 +260,16 @@ class UnifiedEditorManager {
                 deleteBtn.disabled = (area !== 'src');
             }
             
+            // 根据区域决定是否显示编辑按钮区域
+            const editorButtons = document.querySelector('.editor-buttons');
+            if (editorButtons) {
+                if (area === 'build') {
+                    editorButtons.style.display = 'none';
+                } else {
+                    editorButtons.style.display = 'block';
+                }
+            }
+            
         } catch (error) {
             console.error('加载文件失败:', error);
             this.window.ComponentManager.getComponent('message').error('加载文件失败: ' + error.message);
@@ -317,11 +327,10 @@ class UnifiedEditorManager {
             }
         }
         
-        // 显示预览按钮并设置初始状态为"预览"
+        // 隐藏预览按钮（根据用户需求，始终不显示）
         const previewBtn = document.getElementById('preview-btn');
         if (previewBtn) {
-            previewBtn.style.display = 'inline-block';
-            previewBtn.textContent = '预览';
+            previewBtn.style.display = 'none';
         }
     }
     
@@ -384,6 +393,7 @@ class UnifiedEditorManager {
                 '.yml': 'yaml',
                 '.md': 'markdown',
                 '.markdown': 'markdown',
+                '.tex': 'stex',
                 '': 'text/plain'  // 无后缀文件
             };
             
@@ -394,17 +404,10 @@ class UnifiedEditorManager {
         this.currentFileType = 'text';
         this.currentFileEncoding = data.encoding || 'utf-8';
         
-        // 如果是Markdown文件，显示预览按钮并设置初始状态为"预览"
+        // 隐藏预览按钮（根据用户需求，始终不显示）
         const previewBtn = document.getElementById('preview-btn');
-        if (filePath.endsWith('.md') || filePath.endsWith('.markdown')) {
-            if (previewBtn) {
-                previewBtn.style.display = 'inline-block';
-                previewBtn.textContent = '预览';
-            }
-        } else {
-            if (previewBtn) {
-                previewBtn.style.display = 'none';
-            }
+        if (previewBtn) {
+            previewBtn.style.display = 'none';
         }
         
         // 对于所有文本文件，显示LLM按钮（仅src目录）
@@ -507,11 +510,12 @@ class UnifiedEditorManager {
                 (this.currentFilePath?.endsWith('.md') || this.currentFilePath?.endsWith('.markdown'))) {
                 await this.showMarkdownPreview();
             } else if (this.currentFileArea === 'build') {
-                // Build目录下的文件预览
+                // Build目录下的文件预览 - 根据用户需求，不显示预览按钮
                 await this.previewBuildFile(this.currentFilePath);
+                // 隐藏预览按钮
                 const previewBtn = document.getElementById('preview-btn');
                 if (previewBtn) {
-                    previewBtn.textContent = '编辑';
+                    previewBtn.style.display = 'none';
                 }
             }
         } else {

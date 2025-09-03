@@ -8,7 +8,7 @@ import base64
 from fastapi import HTTPException
 
 # 定义文件扩展名常量
-TEXT_FILE_EXTENSIONS = {'.md', '.yml', '.yaml', '.css', '.html', '.js', '.json', '.txt', '.xml', '.csv', ''}
+TEXT_FILE_EXTENSIONS = {'.md', '.yml', '.yaml', '.css', '.html', '.js', '.json', '.txt', '.xml', '.csv', '.tex', ''}
 IMAGE_FILE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.bmp', '.webp'}
 PREVIEWABLE_BINARY_EXTENSIONS = {'.pdf', '.epub'}
 

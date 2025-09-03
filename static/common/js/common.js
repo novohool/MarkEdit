@@ -887,13 +887,17 @@ function addFileClickHandler(fileItem, file, area) {
         // 激活当前文件项
         this.classList.add('active');
         
-        // 如果是build区域的文件，优先预览可预览的文件
+        // 如果是build区域的文件，优先预览可预览的文件；其余文本文件直接在编辑器中打开
         if (area === 'build' && file.type === 'file') {
             const extension = file.path.substring(file.path.lastIndexOf('.')).toLowerCase();
             const previewableExtensions = ['.epub', '.html', '.pdf', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.ico'];
+            const openableTextExtensions = ['.md', '.markdown', '.txt', '.json', '.yml', '.yaml', '.css', '.html', '.js', '.xml', '.csv', '.tex', ''];
             
             if (previewableExtensions.includes(extension)) {
                 // 对于可预览的文件，使用loadFile函数进行预览
+                loadFile(file.path, area);
+            } else if (openableTextExtensions.includes(extension)) {
+                // 对于文本类文件（包括Markdown），在编辑器中打开并启用语法高亮
                 loadFile(file.path, area);
             } else {
                 // 对于不可预览的文件，直接下载

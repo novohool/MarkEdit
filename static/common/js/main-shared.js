@@ -162,6 +162,7 @@ async function loadTextFile(data, filePath, area) {
                 '.yml': 'yaml',
                 '.md': 'markdown',
                 '.markdown': 'markdown',
+                '.tex': 'stex',
                 '': 'text/plain'  // 无后缀文件
             };
 
